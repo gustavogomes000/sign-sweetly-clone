@@ -1,7 +1,7 @@
 import { AppHeader } from '@/components/layout/AppHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { mockDocuments, mockFolders } from '@/data/mockData';
 import { StatusBadge } from '@/components/documents/StatusBadge';
 import { FileText, Plus, Search, MoreHorizontal, Download, Send, Copy, Trash2, ArrowUpDown, Grid3X3, List, Tag, FolderOpen } from 'lucide-react';
