@@ -289,11 +289,11 @@ export default function ApiDocs() {
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">Use nossas bibliotecas oficiais para integrar mais rapidamente.</p>
                 {[
-                  { lang: 'Node.js / TypeScript', pkg: 'npm install @signflow/sdk', status: 'stable' },
-                  { lang: 'Python', pkg: 'pip install signflow-sdk', status: 'stable' },
-                  { lang: 'PHP', pkg: 'composer require signflow/sdk', status: 'beta' },
-                  { lang: 'Java', pkg: 'Maven: com.signflow:sdk:1.0.0', status: 'beta' },
-                  { lang: 'C# / .NET', pkg: 'dotnet add package SignFlow.SDK', status: 'coming soon' },
+                  { lang: 'Node.js / TypeScript', pkg: 'npm install @valeris/sdk', status: 'stable' },
+                  { lang: 'Python', pkg: 'pip install valeris-sdk', status: 'stable' },
+                  { lang: 'PHP', pkg: 'composer require valeris/sdk', status: 'beta' },
+                  { lang: 'Java', pkg: 'Maven: com.valeris:sdk:1.0.0', status: 'beta' },
+                  { lang: 'C# / .NET', pkg: 'dotnet add package Valeris.SDK', status: 'coming soon' },
                 ].map(sdk => (
                   <div key={sdk.lang} className="flex items-center justify-between p-3 rounded-lg border border-border">
                     <div>
