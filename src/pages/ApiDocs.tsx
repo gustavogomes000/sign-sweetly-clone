@@ -93,7 +93,7 @@ export default function ApiDocs() {
 
   return (
     <>
-      <AppHeader title="API & Integrações" subtitle="Integre o SignFlow com seus sistemas" />
+      <AppHeader title="API & Integrações" subtitle="Integre o Valeris com seus sistemas" />
       <div className="flex-1 overflow-auto p-6">
         <Tabs defaultValue="docs" className="space-y-6">
           <TabsList>
