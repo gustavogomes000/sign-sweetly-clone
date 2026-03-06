@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { FileText, Eye, EyeOff, ArrowRight, Shield } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import valerisLogo from '@/assets/valeris-logo.png';
 
 export default function Login() {
   const [email, setEmail] = useState('');
