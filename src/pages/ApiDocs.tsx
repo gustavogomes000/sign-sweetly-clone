@@ -311,9 +311,9 @@ export default function ApiDocs() {
             <Card>
               <CardHeader><CardTitle className="text-base">Exemplo rápido (Node.js)</CardTitle></CardHeader>
               <CardContent>
-                <pre className="bg-sidebar text-sidebar-foreground p-4 rounded-xl text-xs font-mono overflow-x-auto whitespace-pre-wrap">{`import SignFlow from '@signflow/sdk';
+                <pre className="bg-sidebar text-sidebar-foreground p-4 rounded-xl text-xs font-mono overflow-x-auto whitespace-pre-wrap">{`import Valeris from '@valeris/sdk';
 
-const client = new SignFlow({ apiKey: 'sk-live-...' });
+const client = new Valeris({ apiKey: 'sk-live-...' });
 
 // Criar e enviar documento
 const doc = await client.documents.create({
