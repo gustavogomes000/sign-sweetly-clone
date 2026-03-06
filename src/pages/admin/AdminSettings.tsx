@@ -14,7 +14,7 @@ export default function AdminSettings() {
     <div className="flex-1 overflow-auto p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Configurações da Plataforma</h1>
-        <p className="text-sm text-muted-foreground">Configurações globais do SignFlow</p>
+        <p className="text-sm text-muted-foreground font-body">Configurações globais do Valeris</p>
       </div>
 
       <Tabs defaultValue="general">
