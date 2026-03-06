@@ -49,14 +49,13 @@ export default function Login() {
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="w-full max-w-md space-y-6">
         {/* Logo */}
-        <div className="text-center space-y-2">
-          <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mx-auto shadow-lg shadow-primary/20">
-            <FileText className="w-7 h-7 text-primary-foreground" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">SignFlow</h1>
-          <p className="text-sm text-muted-foreground">
+        <div className="text-center space-y-3">
+          <img src={valerisLogo} alt="Valeris" className="w-20 h-20 mx-auto object-contain" />
+          <h1 className="text-3xl font-game font-bold text-foreground tracking-wider">VALERIS</h1>
+          <p className="text-sm text-muted-foreground font-body">
             {isAdminMode ? 'Painel Administrativo' : 'Plataforma de assinatura eletrônica'}
           </p>
+          <p className="text-[10px] text-muted-foreground/60 uppercase tracking-widest font-game">by DNA do Software</p>
         </div>
 
         {/* Toggle admin/company */}
