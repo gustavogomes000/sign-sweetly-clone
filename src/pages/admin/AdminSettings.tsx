@@ -34,7 +34,7 @@ export default function AdminSettings() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">URL base da API</Label>
-                <Input defaultValue="https://api.signflow.com/v1" />
+                <Input defaultValue="https://api.valeris.com/v1" />
               </div>
               <Separator />
               <div className="flex items-center justify-between">

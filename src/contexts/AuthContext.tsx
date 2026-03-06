@@ -94,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [company, setCompany] = useState<Company | null>(null);
 
   const loginAdmin = (email: string, password: string): boolean => {
-    if (email === 'admin@signflow.com' && password === 'admin123') {
+    if (email === 'admin@valeris.com' && password === 'admin123') {
       setUser({ id: 'sa1', name: 'Super Admin', email, role: 'superadmin' });
       setCompany(null);
       return true;
