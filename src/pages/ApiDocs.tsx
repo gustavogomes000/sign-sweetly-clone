@@ -36,7 +36,7 @@ export default function ApiDocs() {
   -F "notify_via=email" \\
   -F "deadline=2026-03-20T23:59:59Z"`;
 
-  const sendDocExample = `curl -X POST https://api.signflow.com/v1/documents/doc_abc123/send \\
+  const sendDocExample = `curl -X POST https://api.valeris.com/v1/documents/doc_abc123/send \\
   -H "Authorization: Bearer sk-live-..." \\
   -H "Content-Type: application/json" \\
   -d '{
