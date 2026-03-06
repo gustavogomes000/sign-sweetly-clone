@@ -114,7 +114,7 @@ export default function ApiDocs() {
               <CardContent className="space-y-6">
                 <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                   <p className="text-sm font-medium text-foreground">Base URL</p>
-                  <code className="text-sm font-mono text-primary">https://api.signflow.com/v1</code>
+                  <code className="text-sm font-mono text-primary">https://api.valeris.com/v1</code>
                   <p className="text-xs text-muted-foreground mt-1">Autenticação via header: <code className="bg-secondary px-1 rounded">Authorization: Bearer {'<api_key>'}</code></p>
                 </div>
 
