@@ -135,7 +135,7 @@ export default function Login() {
             <p className="text-xs font-medium text-foreground mb-2">Credenciais de demonstração:</p>
             {isAdminMode ? (
               <div className="text-xs text-muted-foreground space-y-0.5">
-                <p><span className="font-mono bg-secondary px-1 rounded">admin@signflow.com</span> / <span className="font-mono bg-secondary px-1 rounded">admin123</span></p>
+                <p><span className="font-mono bg-secondary px-1 rounded">admin@valeris.com</span> / <span className="font-mono bg-secondary px-1 rounded">admin123</span></p>
               </div>
             ) : (
               <div className="text-xs text-muted-foreground space-y-0.5">
