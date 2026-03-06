@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { FileText, Eye, EyeOff, ArrowRight, Shield } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import valerisLogo from '@/assets/valeris-logo.png';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -48,14 +49,13 @@ export default function Login() {
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="w-full max-w-md space-y-6">
         {/* Logo */}
-        <div className="text-center space-y-2">
-          <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mx-auto shadow-lg shadow-primary/20">
-            <FileText className="w-7 h-7 text-primary-foreground" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">SignFlow</h1>
-          <p className="text-sm text-muted-foreground">
+        <div className="text-center space-y-3">
+          <img src={valerisLogo} alt="Valeris" className="w-20 h-20 mx-auto object-contain" />
+          <h1 className="text-3xl font-game font-bold text-foreground tracking-wider">VALERIS</h1>
+          <p className="text-sm text-muted-foreground font-body">
             {isAdminMode ? 'Painel Administrativo' : 'Plataforma de assinatura eletrônica'}
           </p>
+          <p className="text-[10px] text-muted-foreground/60 uppercase tracking-widest font-game">by DNA do Software</p>
         </div>
 
         {/* Toggle admin/company */}
@@ -95,7 +95,7 @@ export default function Login() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={isAdminMode ? 'admin@signflow.com' : 'usuario@empresa.com'}
+                  placeholder={isAdminMode ? 'admin@valeris.com' : 'usuario@empresa.com'}
                   required
                 />
               </div>
@@ -135,7 +135,7 @@ export default function Login() {
             <p className="text-xs font-medium text-foreground mb-2">Credenciais de demonstração:</p>
             {isAdminMode ? (
               <div className="text-xs text-muted-foreground space-y-0.5">
-                <p><span className="font-mono bg-secondary px-1 rounded">admin@signflow.com</span> / <span className="font-mono bg-secondary px-1 rounded">admin123</span></p>
+                <p><span className="font-mono bg-secondary px-1 rounded">admin@valeris.com</span> / <span className="font-mono bg-secondary px-1 rounded">admin123</span></p>
               </div>
             ) : (
               <div className="text-xs text-muted-foreground space-y-0.5">

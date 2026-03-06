@@ -3,7 +3,7 @@ import { AppSidebar } from './AppSidebar';
 
 export function AppLayout() {
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-background hex-pattern">
       <AppSidebar />
       <main className="flex-1 flex flex-col overflow-hidden">
         <Outlet />

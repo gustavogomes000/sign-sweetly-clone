@@ -26,7 +26,7 @@ export default function ApiDocs() {
     toast({ title: 'Copiado!', description: 'Chave copiada para a área de transferência.' });
   };
 
-  const createDocExample = `curl -X POST https://api.signflow.com/v1/documents \\
+  const createDocExample = `curl -X POST https://api.valeris.com/v1/documents \\
   -H "Authorization: Bearer sk-live-..." \\
   -H "Content-Type: multipart/form-data" \\
   -F "name=Contrato de Serviço" \\
@@ -36,7 +36,7 @@ export default function ApiDocs() {
   -F "notify_via=email" \\
   -F "deadline=2026-03-20T23:59:59Z"`;
 
-  const sendDocExample = `curl -X POST https://api.signflow.com/v1/documents/doc_abc123/send \\
+  const sendDocExample = `curl -X POST https://api.valeris.com/v1/documents/doc_abc123/send \\
   -H "Authorization: Bearer sk-live-..." \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -93,7 +93,7 @@ export default function ApiDocs() {
 
   return (
     <>
-      <AppHeader title="API & Integrações" subtitle="Integre o SignFlow com seus sistemas" />
+      <AppHeader title="API & Integrações" subtitle="Integre o Valeris com seus sistemas" />
       <div className="flex-1 overflow-auto p-6">
         <Tabs defaultValue="docs" className="space-y-6">
           <TabsList>
@@ -114,7 +114,7 @@ export default function ApiDocs() {
               <CardContent className="space-y-6">
                 <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                   <p className="text-sm font-medium text-foreground">Base URL</p>
-                  <code className="text-sm font-mono text-primary">https://api.signflow.com/v1</code>
+                  <code className="text-sm font-mono text-primary">https://api.valeris.com/v1</code>
                   <p className="text-xs text-muted-foreground mt-1">Autenticação via header: <code className="bg-secondary px-1 rounded">Authorization: Bearer {'<api_key>'}</code></p>
                 </div>
 
@@ -289,11 +289,11 @@ export default function ApiDocs() {
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">Use nossas bibliotecas oficiais para integrar mais rapidamente.</p>
                 {[
-                  { lang: 'Node.js / TypeScript', pkg: 'npm install @signflow/sdk', status: 'stable' },
-                  { lang: 'Python', pkg: 'pip install signflow-sdk', status: 'stable' },
-                  { lang: 'PHP', pkg: 'composer require signflow/sdk', status: 'beta' },
-                  { lang: 'Java', pkg: 'Maven: com.signflow:sdk:1.0.0', status: 'beta' },
-                  { lang: 'C# / .NET', pkg: 'dotnet add package SignFlow.SDK', status: 'coming soon' },
+                  { lang: 'Node.js / TypeScript', pkg: 'npm install @valeris/sdk', status: 'stable' },
+                  { lang: 'Python', pkg: 'pip install valeris-sdk', status: 'stable' },
+                  { lang: 'PHP', pkg: 'composer require valeris/sdk', status: 'beta' },
+                  { lang: 'Java', pkg: 'Maven: com.valeris:sdk:1.0.0', status: 'beta' },
+                  { lang: 'C# / .NET', pkg: 'dotnet add package Valeris.SDK', status: 'coming soon' },
                 ].map(sdk => (
                   <div key={sdk.lang} className="flex items-center justify-between p-3 rounded-lg border border-border">
                     <div>
@@ -311,9 +311,9 @@ export default function ApiDocs() {
             <Card>
               <CardHeader><CardTitle className="text-base">Exemplo rápido (Node.js)</CardTitle></CardHeader>
               <CardContent>
-                <pre className="bg-sidebar text-sidebar-foreground p-4 rounded-xl text-xs font-mono overflow-x-auto whitespace-pre-wrap">{`import SignFlow from '@signflow/sdk';
+                <pre className="bg-sidebar text-sidebar-foreground p-4 rounded-xl text-xs font-mono overflow-x-auto whitespace-pre-wrap">{`import Valeris from '@valeris/sdk';
 
-const client = new SignFlow({ apiKey: 'sk-live-...' });
+const client = new Valeris({ apiKey: 'sk-live-...' });
 
 // Criar e enviar documento
 const doc = await client.documents.create({

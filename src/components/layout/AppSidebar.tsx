@@ -3,24 +3,24 @@ import {
   FileText,
   LayoutDashboard,
   Users,
-  FolderOpen,
   Settings,
   Plus,
   ChevronLeft,
   ChevronRight,
-  HelpCircle,
   Layers,
   BarChart3,
   Code2,
   FolderTree,
   Zap,
   LogOut,
+  Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
+import valerisLogo from '@/assets/valeris-logo.png';
 
 const mainNav = [
   { to: '/dashboard', label: 'Início', icon: LayoutDashboard },
@@ -58,15 +58,13 @@ export function AppSidebar() {
       {/* Logo */}
       <div className="flex items-center h-16 px-4 border-b border-sidebar-border">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-sidebar-primary flex items-center justify-center shrink-0">
-            <FileText className="w-5 h-5 text-sidebar-primary-foreground" />
-          </div>
+          <img src={valerisLogo} alt="Valeris" className="w-9 h-9 rounded-xl shrink-0 object-contain" />
           {!collapsed && (
             <div>
-              <span className="text-lg font-bold text-sidebar-accent-foreground tracking-tight">
-                SignFlow
+              <span className="text-lg font-game font-bold text-sidebar-accent-foreground tracking-wider">
+                VALERIS
               </span>
-              <p className="text-[10px] text-sidebar-foreground/60 -mt-0.5">Assinatura Eletrônica</p>
+              <p className="text-[10px] text-sidebar-foreground/60 -mt-0.5 font-body">DNA do Software</p>
             </div>
           )}
         </div>
@@ -77,7 +75,7 @@ export function AppSidebar() {
         <NavLink to="/documents/new">
           <Button
             className={cn(
-              'w-full bg-sidebar-primary hover:bg-sidebar-primary/90 text-sidebar-primary-foreground font-medium shadow-lg shadow-sidebar-primary/20',
+              'w-full bg-sidebar-primary hover:bg-sidebar-primary/90 text-sidebar-primary-foreground font-semibold shadow-lg shadow-sidebar-primary/30 glow-blue font-body text-base',
               collapsed ? 'px-0 justify-center' : ''
             )}
             size={collapsed ? 'icon' : 'default'}
@@ -90,8 +88,8 @@ export function AppSidebar() {
 
       {/* Main Nav */}
       <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto scrollbar-thin">
-        <p className={cn("text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40 px-3 pt-2 pb-1", collapsed && "hidden")}>
-          Principal
+        <p className={cn("text-[10px] font-game font-semibold uppercase tracking-[0.2em] text-sidebar-foreground/40 px-3 pt-2 pb-1", collapsed && "hidden")}>
+          MENU
         </p>
         {mainNav.map((item) => {
           const isActive = location.pathname === item.to || 
@@ -101,9 +99,9 @@ export function AppSidebar() {
               key={item.to}
               to={item.to}
               className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150',
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold font-body transition-all duration-150',
                 isActive
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm glow-blue'
                   : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'
               )}
             >
@@ -124,7 +122,7 @@ export function AppSidebar() {
               key={item.to}
               to={item.to}
               className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150',
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold font-body transition-all duration-150',
                 isActive
                   ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                   : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'
@@ -136,18 +134,18 @@ export function AppSidebar() {
           );
         })}
 
-        <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground transition-all duration-150 w-full">
+        <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold font-body text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground transition-all duration-150 w-full">
           <LogOut className="w-[18px] h-[18px] shrink-0" />
           {!collapsed && <span>Sair</span>}
         </button>
 
         {!collapsed && user && (
-          <div className="flex items-center gap-3 px-3 py-2 mt-1 rounded-lg bg-sidebar-accent/30">
-            <div className="w-8 h-8 rounded-full bg-sidebar-primary flex items-center justify-center text-xs font-bold text-sidebar-primary-foreground">
+          <div className="flex items-center gap-3 px-3 py-2 mt-1 rounded-lg bg-sidebar-accent/30 border border-sidebar-border">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xs font-bold text-primary-foreground">
               {user.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-medium text-sidebar-accent-foreground truncate">{user.name}</p>
+              <p className="text-xs font-semibold text-sidebar-accent-foreground truncate">{user.name}</p>
               <p className="text-[10px] text-sidebar-foreground/60 truncate">{company?.name || user.email}</p>
             </div>
           </div>
