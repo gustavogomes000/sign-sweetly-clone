@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, ArrowRight, Upload, Plus, Trash2, FileText, CheckCircle2, Users, Send, Settings2, Pencil } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Upload, Plus, Trash2, FileText, CheckCircle2, Users, Send, Settings2, Pencil, Camera, FileImage, UserCheck, GripVertical } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
@@ -13,10 +13,11 @@ import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { AuthMethod, NotifyVia } from '@/types/document';
+import { PostSignatureValidation, ValidationStep } from '@/types/document';
 import { Badge } from '@/components/ui/badge';
 import { mockTemplates } from '@/data/mockData';
 import DocumentFieldEditor, { PlacedField, getSignerColor } from '@/components/documents/DocumentFieldEditor';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type Step = 'upload' | 'signers' | 'fields' | 'configure' | 'review';
 
@@ -26,7 +27,7 @@ interface NewSigner {
   email: string;
   phone: string;
   role: string;
-  authMethod: AuthMethod;
+  validationSteps: ValidationStep[];
 }
 
 const steps: { key: Step; label: string; icon: React.ElementType }[] = [
@@ -37,17 +38,16 @@ const steps: { key: Step; label: string; icon: React.ElementType }[] = [
   { key: 'review', label: 'Enviar', icon: Send },
 ];
 
-const authMethods: { value: AuthMethod; label: string }[] = [
-  { value: 'email', label: 'Email' },
-  { value: 'sms', label: 'SMS' },
-  { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'pix', label: 'Pix' },
-  { value: 'selfie', label: 'Selfie' },
-  { value: 'token', label: 'Token' },
+const validationOptions: { type: PostSignatureValidation; label: string; description: string; icon: React.ElementType }[] = [
+  { type: 'selfie', label: 'Selfie', description: 'Tirar foto do rosto', icon: Camera },
+  { type: 'document_photo', label: 'Foto do documento', description: 'Fotografar RG/CNH/CPF', icon: FileImage },
+  { type: 'selfie_with_document', label: 'Selfie com documento', description: 'Foto segurando o documento', icon: UserCheck },
 ];
 
 let signerIdCounter = 1;
 const genSignerId = () => `signer_${signerIdCounter++}`;
+let validationIdCounter = 1;
+const genValidationId = () => `val_${validationIdCounter++}`;
 
 export default function NewDocument() {
   const [currentStep, setCurrentStep] = useState<Step>('upload');
@@ -55,14 +55,13 @@ export default function NewDocument() {
   const [docName, setDocName] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [signers, setSigners] = useState<NewSigner[]>([
-    { id: genSignerId(), name: '', email: '', phone: '', role: 'Signatário', authMethod: 'email' },
+    { id: genSignerId(), name: '', email: '', phone: '', role: 'Signatário', validationSteps: [] },
   ]);
   const [placedFields, setPlacedFields] = useState<PlacedField[]>([]);
   const [signatureType, setSignatureType] = useState('electronic');
   const [hasDeadline, setHasDeadline] = useState(false);
   const [deadline, setDeadline] = useState('');
   const [message, setMessage] = useState('');
-  const [notifyVia, setNotifyVia] = useState<NotifyVia>('email');
   const [enableReminders, setEnableReminders] = useState(true);
   const [reminderDays, setReminderDays] = useState('3');
   const [orderMatters, setOrderMatters] = useState(false);
@@ -78,7 +77,7 @@ export default function NewDocument() {
   };
 
   const addSigner = () => {
-    setSigners([...signers, { id: genSignerId(), name: '', email: '', phone: '', role: 'Signatário', authMethod: 'email' }]);
+    setSigners([...signers, { id: genSignerId(), name: '', email: '', phone: '', role: 'Signatário', validationSteps: [] }]);
   };
 
   const removeSigner = (index: number) => {
@@ -90,6 +89,38 @@ export default function NewDocument() {
   const updateSigner = (index: number, field: keyof NewSigner, value: string) => {
     const updated = [...signers];
     updated[index] = { ...updated[index], [field]: value };
+    setSigners(updated);
+  };
+
+  const toggleValidation = (signerIndex: number, type: PostSignatureValidation) => {
+    const updated = [...signers];
+    const signer = updated[signerIndex];
+    const existing = signer.validationSteps.find(v => v.type === type);
+    if (existing) {
+      signer.validationSteps = signer.validationSteps.filter(v => v.type !== type);
+      // Reorder
+      signer.validationSteps = signer.validationSteps.map((v, i) => ({ ...v, order: i + 1 }));
+    } else {
+      const opt = validationOptions.find(o => o.type === type)!;
+      signer.validationSteps.push({
+        id: genValidationId(),
+        type,
+        label: opt.label,
+        order: signer.validationSteps.length + 1,
+        required: true,
+      });
+    }
+    setSigners(updated);
+  };
+
+  const moveValidation = (signerIndex: number, valIndex: number, direction: 'up' | 'down') => {
+    const updated = [...signers];
+    const steps = [...updated[signerIndex].validationSteps];
+    const swapIndex = direction === 'up' ? valIndex - 1 : valIndex + 1;
+    if (swapIndex < 0 || swapIndex >= steps.length) return;
+    [steps[valIndex], steps[swapIndex]] = [steps[swapIndex], steps[valIndex]];
+    steps.forEach((s, i) => s.order = i + 1);
+    updated[signerIndex].validationSteps = steps;
     setSigners(updated);
   };
 
@@ -105,7 +136,7 @@ export default function NewDocument() {
 
   const handleNext = () => {
     if (currentStep === 'review') {
-      toast({ title: 'Documento enviado com sucesso! ✅', description: `${signers.length} signatário(s) receberão o documento via ${notifyVia}.` });
+      toast({ title: 'Documento enviado com sucesso! ✅', description: `${signers.length} signatário(s) receberão o documento via email.` });
       navigate('/documents');
       return;
     }
@@ -133,8 +164,7 @@ export default function NewDocument() {
         <div className={cn("space-y-4 shrink-0", isEditorStep ? "px-6 pt-4 pb-2" : "px-6 pt-6")}>
           {!isEditorStep && (
             <Link to="/documents" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <ArrowLeft className="w-4 h-4" />
-              Voltar
+              <ArrowLeft className="w-4 h-4" />Voltar
             </Link>
           )}
 
@@ -153,22 +183,16 @@ export default function NewDocument() {
                       : 'bg-secondary text-muted-foreground'
                   )}
                 >
-                  {i < currentStepIndex ? (
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                  ) : (
-                    <step.icon className="w-3.5 h-3.5" />
-                  )}
+                  {i < currentStepIndex ? <CheckCircle2 className="w-3.5 h-3.5" /> : <step.icon className="w-3.5 h-3.5" />}
                   <span className="hidden sm:inline">{step.label}</span>
                 </button>
-                {i < steps.length - 1 && (
-                  <div className={cn('w-4 sm:w-8 h-px', i < currentStepIndex ? 'bg-success' : 'bg-border')} />
-                )}
+                {i < steps.length - 1 && <div className={cn('w-4 sm:w-8 h-px', i < currentStepIndex ? 'bg-success' : 'bg-border')} />}
               </div>
             ))}
           </div>
         </div>
 
-        {/* Editor step - full height */}
+        {/* Editor step */}
         {isEditorStep && (
           <div className="flex-1 flex flex-col min-h-0 px-6 pb-4">
             <div className="flex items-center justify-between py-3">
@@ -176,25 +200,14 @@ export default function NewDocument() {
                 <h2 className="text-sm font-semibold text-foreground">Posicionar campos no documento</h2>
                 <p className="text-xs text-muted-foreground">Arraste campos da barra lateral e posicione-os onde os signatários devem preencher</p>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs">{placedFields.length} campo(s)</Badge>
-              </div>
+              <Badge variant="secondary" className="text-xs">{placedFields.length} campo(s)</Badge>
             </div>
             <div className="flex-1 min-h-0">
-              <DocumentFieldEditor
-                signers={editorSigners}
-                fields={placedFields}
-                onFieldsChange={setPlacedFields}
-                totalPages={3}
-              />
+              <DocumentFieldEditor signers={editorSigners} fields={placedFields} onFieldsChange={setPlacedFields} totalPages={3} />
             </div>
             <div className="flex items-center justify-between pt-3">
-              <Button variant="outline" onClick={handleBack}>
-                <ArrowLeft className="w-4 h-4 mr-1" />Voltar
-              </Button>
-              <Button onClick={handleNext}>
-                Próximo <ArrowRight className="w-4 h-4 ml-1" />
-              </Button>
+              <Button variant="outline" onClick={handleBack}><ArrowLeft className="w-4 h-4 mr-1" />Voltar</Button>
+              <Button onClick={handleNext}>Próximo <ArrowRight className="w-4 h-4 ml-1" /></Button>
             </div>
           </div>
         )}
@@ -223,12 +236,10 @@ export default function NewDocument() {
                         </SelectContent>
                       </Select>
                     </div>
-
                     <div className="relative">
                       <div className="absolute inset-0 flex items-center"><Separator /></div>
                       <div className="relative flex justify-center"><span className="bg-card px-3 text-xs text-muted-foreground">ou faça upload</span></div>
                     </div>
-
                     <div
                       onClick={handleFileUpload}
                       className={cn(
@@ -254,7 +265,6 @@ export default function NewDocument() {
                         </div>
                       )}
                     </div>
-
                     <div className="space-y-2">
                       <Label>Nome do documento</Label>
                       <Input value={docName} onChange={(e) => setDocName(e.target.value)} placeholder="Ex: Contrato de Prestação de Serviços" />
@@ -319,24 +329,59 @@ export default function NewDocument() {
                             </Select>
                           </div>
                         </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Método de autenticação</Label>
-                          <div className="grid grid-cols-3 gap-2">
-                            {authMethods.map((method) => (
-                              <button
-                                key={method.value}
-                                onClick={() => updateSigner(i, 'authMethod', method.value)}
-                                className={cn(
-                                  'p-2 rounded-lg border text-center transition-all text-xs',
-                                  signer.authMethod === method.value
-                                    ? 'border-primary bg-primary/5 text-primary font-medium'
-                                    : 'border-border hover:border-primary/30 text-muted-foreground'
-                                )}
-                              >
-                                {method.label}
-                              </button>
-                            ))}
+
+                        {/* Post-signature validation flow */}
+                        <Separator />
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-semibold text-foreground">Validações pós-assinatura</p>
+                            <p className="text-[10px] text-muted-foreground">{signer.validationSteps.length} selecionada(s)</p>
                           </div>
+                          <p className="text-[10px] text-muted-foreground">Marque as etapas que o signatário deve completar após assinar. A ordem pode ser alterada.</p>
+                          <div className="space-y-2">
+                            {validationOptions.map((opt) => {
+                              const isSelected = signer.validationSteps.some(v => v.type === opt.type);
+                              return (
+                                <div
+                                  key={opt.type}
+                                  onClick={() => toggleValidation(i, opt.type)}
+                                  className={cn(
+                                    'flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-all',
+                                    isSelected ? 'border-primary bg-primary/5' : 'border-border/50 hover:border-primary/30'
+                                  )}
+                                >
+                                  <Checkbox checked={isSelected} className="pointer-events-none" />
+                                  <opt.icon className={cn('w-4 h-4 shrink-0', isSelected ? 'text-primary' : 'text-muted-foreground')} />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-medium text-foreground">{opt.label}</p>
+                                    <p className="text-[10px] text-muted-foreground">{opt.description}</p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Ordered list of selected validations */}
+                          {signer.validationSteps.length > 0 && (
+                            <div className="mt-2 space-y-1">
+                              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Ordem do fluxo</p>
+                              {signer.validationSteps.sort((a, b) => a.order - b.order).map((step, vi) => (
+                                <div key={step.id} className="flex items-center gap-2 p-2 rounded-lg bg-secondary/50">
+                                  <GripVertical className="w-3 h-3 text-muted-foreground" />
+                                  <span className="text-xs font-bold text-primary w-4">{step.order}</span>
+                                  <span className="text-xs text-foreground flex-1">{step.label}</span>
+                                  <div className="flex gap-0.5">
+                                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); moveValidation(i, vi, 'up'); }} disabled={vi === 0}>
+                                      <ArrowLeft className="w-2.5 h-2.5 rotate-90" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); moveValidation(i, vi, 'down'); }} disabled={vi === signer.validationSteps.length - 1}>
+                                      <ArrowRight className="w-2.5 h-2.5 rotate-90" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -373,22 +418,9 @@ export default function NewDocument() {
                       </RadioGroup>
                     </div>
                     <Separator />
-                    <div className="space-y-2">
-                      <Label>Canal de notificação</Label>
-                      <div className="grid grid-cols-3 gap-3">
-                        {(['email', 'whatsapp', 'sms'] as NotifyVia[]).map((ch) => (
-                          <button
-                            key={ch}
-                            onClick={() => setNotifyVia(ch)}
-                            className={cn(
-                              'p-3 rounded-xl border text-center transition-all',
-                              notifyVia === ch ? 'border-primary bg-primary/5 text-primary font-medium' : 'border-border text-muted-foreground hover:border-primary/30'
-                            )}
-                          >
-                            <span className="text-sm capitalize">{ch}</span>
-                          </button>
-                        ))}
-                      </div>
+                    <div className="rounded-lg bg-secondary/40 p-3">
+                      <p className="text-xs font-medium text-foreground">📧 Notificação via Email</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">Todos os signatários receberão o documento por email</p>
                     </div>
                     <Separator />
                     <div className="flex items-center justify-between">
@@ -455,7 +487,7 @@ export default function NewDocument() {
                       <Separator />
                       <div className="grid grid-cols-2 gap-3 text-xs">
                         <div><span className="text-muted-foreground">Tipo:</span> <span className="font-medium">{signatureType === 'electronic' ? 'Eletrônica' : 'Digital'}</span></div>
-                        <div><span className="text-muted-foreground">Notificação:</span> <span className="font-medium capitalize">{notifyVia}</span></div>
+                        <div><span className="text-muted-foreground">Notificação:</span> <span className="font-medium">Email</span></div>
                         <div><span className="text-muted-foreground">Campos:</span> <span className="font-medium">{placedFields.length}</span></div>
                         {hasDeadline && deadline && <div><span className="text-muted-foreground">Prazo:</span> <span className="font-medium">{deadline}</span></div>}
                         {enableReminders && <div><span className="text-muted-foreground">Lembretes:</span> <span className="font-medium">A cada {reminderDays} dias</span></div>}
@@ -468,18 +500,27 @@ export default function NewDocument() {
                         {signers.map((s, i) => {
                           const signerFields = placedFields.filter((f) => f.signerId === s.id);
                           return (
-                            <div key={s.id} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/40">
-                              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: `${getSignerColor(i)}20` }}>
-                                <span className="text-xs font-bold" style={{ color: getSignerColor(i) }}>{i + 1}</span>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">{s.name}</p>
-                                <p className="text-xs text-muted-foreground">{s.email} · {signerFields.length} campo(s)</p>
-                              </div>
-                              <div className="flex items-center gap-1.5">
+                            <div key={s.id} className="p-3 rounded-lg bg-secondary/40 space-y-2">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: `${getSignerColor(i)}20` }}>
+                                  <span className="text-xs font-bold" style={{ color: getSignerColor(i) }}>{i + 1}</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">{s.name}</p>
+                                  <p className="text-xs text-muted-foreground">{s.email} · {signerFields.length} campo(s)</p>
+                                </div>
                                 <Badge variant="outline" className="text-[10px] h-5">{s.role}</Badge>
-                                <Badge variant="secondary" className="text-[10px] h-5 capitalize">{s.authMethod}</Badge>
                               </div>
+                              {s.validationSteps.length > 0 && (
+                                <div className="pl-11 flex items-center gap-1.5">
+                                  <span className="text-[10px] text-muted-foreground">Pós-assinatura:</span>
+                                  {s.validationSteps.sort((a, b) => a.order - b.order).map((v, vi) => (
+                                    <Badge key={v.id} variant="secondary" className="text-[10px] h-4">
+                                      {vi + 1}. {v.label}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           );
                         })}

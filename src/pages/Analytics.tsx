@@ -1,7 +1,7 @@
 import { AppHeader } from '@/components/layout/AppHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { mockStats } from '@/data/mockData';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState } from 'react';
 
@@ -11,14 +11,6 @@ const pieData = [
   { name: 'Expirados', value: 5, color: 'hsl(220, 10%, 46%)' },
   { name: 'Cancelados', value: 8, color: 'hsl(0, 84%, 60%)' },
   { name: 'Rascunhos', value: 8, color: 'hsl(220, 14%, 80%)' },
-];
-
-const authData = [
-  { method: 'Email', count: 85 },
-  { method: 'WhatsApp', count: 42 },
-  { method: 'SMS', count: 18 },
-  { method: 'Pix', count: 8 },
-  { method: 'Selfie', count: 3 },
 ];
 
 const timeData = [
@@ -53,7 +45,6 @@ export default function Analytics() {
       />
       <div className="flex-1 overflow-auto p-6 space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Monthly bar chart */}
           <Card className="animate-fade-in">
             <CardHeader><CardTitle className="text-base">Documentos por mês</CardTitle></CardHeader>
             <CardContent>
@@ -73,7 +64,6 @@ export default function Analytics() {
             </CardContent>
           </Card>
 
-          {/* Pie chart */}
           <Card className="animate-fade-in" style={{ animationDelay: '50ms' }}>
             <CardHeader><CardTitle className="text-base">Status dos documentos</CardTitle></CardHeader>
             <CardContent>
@@ -93,26 +83,7 @@ export default function Analytics() {
             </CardContent>
           </Card>
 
-          {/* Auth methods */}
-          <Card className="animate-fade-in" style={{ animationDelay: '100ms' }}>
-            <CardHeader><CardTitle className="text-base">Métodos de autenticação</CardTitle></CardHeader>
-            <CardContent>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={authData} layout="vertical" barSize={20}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis type="number" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
-                    <YAxis type="category" dataKey="method" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} width={70} />
-                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} />
-                    <Bar dataKey="count" name="Assinaturas" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Avg sign time */}
-          <Card className="animate-fade-in" style={{ animationDelay: '150ms' }}>
+          <Card className="animate-fade-in lg:col-span-2" style={{ animationDelay: '100ms' }}>
             <CardHeader><CardTitle className="text-base">Tempo médio de assinatura (horas)</CardTitle></CardHeader>
             <CardContent>
               <div className="h-64">

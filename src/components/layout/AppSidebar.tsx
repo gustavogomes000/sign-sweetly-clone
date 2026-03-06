@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   FileText,
   LayoutDashboard,
@@ -14,11 +14,13 @@ import {
   Code2,
   FolderTree,
   Zap,
+  LogOut,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/contexts/AuthContext';
 
 const mainNav = [
   { to: '/dashboard', label: 'Início', icon: LayoutDashboard },
@@ -38,6 +40,13 @@ const bottomNav = [
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const { user, company, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <aside
@@ -127,20 +136,19 @@ export function AppSidebar() {
           );
         })}
 
-        <button className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground transition-all duration-150 w-full">
-          <HelpCircle className="w-[18px] h-[18px] shrink-0" />
-          {!collapsed && <span>Central de ajuda</span>}
+        <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground transition-all duration-150 w-full">
+          <LogOut className="w-[18px] h-[18px] shrink-0" />
+          {!collapsed && <span>Sair</span>}
         </button>
 
-        {/* User */}
-        {!collapsed && (
+        {!collapsed && user && (
           <div className="flex items-center gap-3 px-3 py-2 mt-1 rounded-lg bg-sidebar-accent/30">
             <div className="w-8 h-8 rounded-full bg-sidebar-primary flex items-center justify-center text-xs font-bold text-sidebar-primary-foreground">
-              US
+              {user.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-medium text-sidebar-accent-foreground truncate">Usuário Silva</p>
-              <p className="text-[10px] text-sidebar-foreground/60 truncate">usuario@empresa.com</p>
+              <p className="text-xs font-medium text-sidebar-accent-foreground truncate">{user.name}</p>
+              <p className="text-[10px] text-sidebar-foreground/60 truncate">{company?.name || user.email}</p>
             </div>
           </div>
         )}
