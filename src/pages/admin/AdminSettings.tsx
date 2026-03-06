@@ -30,7 +30,7 @@ export default function AdminSettings() {
             <CardContent className="space-y-4">
               <div className="space-y-1">
                 <Label className="text-xs">Nome da plataforma</Label>
-                <Input defaultValue="SignFlow" />
+                <Input defaultValue="Valeris" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">URL base da API</Label>
