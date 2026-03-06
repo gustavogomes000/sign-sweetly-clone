@@ -95,7 +95,7 @@ export default function Login() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={isAdminMode ? 'admin@signflow.com' : 'usuario@empresa.com'}
+                  placeholder={isAdminMode ? 'admin@valeris.com' : 'usuario@empresa.com'}
                   required
                 />
               </div>
