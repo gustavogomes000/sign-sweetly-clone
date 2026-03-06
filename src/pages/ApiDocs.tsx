@@ -26,7 +26,7 @@ export default function ApiDocs() {
     toast({ title: 'Copiado!', description: 'Chave copiada para a área de transferência.' });
   };
 
-  const createDocExample = `curl -X POST https://api.signflow.com/v1/documents \\
+  const createDocExample = `curl -X POST https://api.valeris.com/v1/documents \\
   -H "Authorization: Bearer sk-live-..." \\
   -H "Content-Type: multipart/form-data" \\
   -F "name=Contrato de Serviço" \\
