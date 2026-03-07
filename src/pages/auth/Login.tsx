@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import valerisLogo from '@/assets/valeris-logo.png';
+import signproofLogo from '@/assets/signproof-logo.png';
 
 // Floating hexagon particles
 function HexParticles() {
@@ -146,7 +146,7 @@ export default function Login() {
                 border: '1px solid hsl(var(--primary) / 0.3)',
               }}
             >
-              <img src={valerisLogo} alt="Valeris" className="w-16 h-16 object-contain" />
+              <img src={signproofLogo} alt="SignProof" className="w-16 h-16 object-contain" />
             </div>
             {/* Glow ring */}
             <div className="absolute -inset-1 rounded-2xl bg-primary/10 blur-md -z-10" />
