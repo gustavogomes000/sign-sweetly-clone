@@ -17,6 +17,7 @@ interface AuthContextType {
   company: Company | null;
   login: (email: string, password: string) => Promise<boolean>;
   loginAdmin: (email: string, password: string) => Promise<boolean>;
+  signup: (email: string, password: string, name: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
   isSuperAdmin: boolean;
@@ -170,6 +171,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
+  const signup = async (email: string, password: string, name: string): Promise<boolean> => {
+    setIsLocalAdminSession(false);
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: name } },
+    });
+    if (error || !data.user) return false;
+    setUser(mapSessionUser(data.user));
+    setCompany(null);
+    return true;
+  };
+
   const logout = () => {
     setIsLocalAdminSession(false);
     setUser(null);
@@ -183,6 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       company,
       login,
       loginAdmin,
+      signup,
       logout,
       isAuthenticated: !!user,
       isSuperAdmin: user?.role === 'superadmin',
