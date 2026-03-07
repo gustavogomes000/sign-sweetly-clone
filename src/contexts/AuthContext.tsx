@@ -171,6 +171,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
+  const signup = async (email: string, password: string, name: string): Promise<boolean> => {
+    setIsLocalAdminSession(false);
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: name } },
+    });
+    if (error || !data.user) return false;
+    setUser(mapSessionUser(data.user));
+    setCompany(null);
+    return true;
+  };
+
   const logout = () => {
     setIsLocalAdminSession(false);
     setUser(null);
