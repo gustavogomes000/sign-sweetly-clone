@@ -14,7 +14,330 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      audit_trail: {
+        Row: {
+          action: string
+          actor: string
+          created_at: string
+          details: string | null
+          document_id: string
+          id: string
+          ip_address: string | null
+          signer_id: string | null
+        }
+        Insert: {
+          action: string
+          actor: string
+          created_at?: string
+          details?: string | null
+          document_id: string
+          id?: string
+          ip_address?: string | null
+          signer_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor?: string
+          created_at?: string
+          details?: string | null
+          document_id?: string
+          id?: string
+          ip_address?: string | null
+          signer_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_trail_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_trail_signer_id_fkey"
+            columns: ["signer_id"]
+            isOneToOne: false
+            referencedRelation: "signers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_fields: {
+        Row: {
+          created_at: string
+          document_id: string
+          field_type: string
+          height: number
+          id: string
+          label: string | null
+          page: number
+          required: boolean
+          signer_id: string | null
+          value: string | null
+          width: number
+          x: number
+          y: number
+        }
+        Insert: {
+          created_at?: string
+          document_id: string
+          field_type?: string
+          height?: number
+          id?: string
+          label?: string | null
+          page?: number
+          required?: boolean
+          signer_id?: string | null
+          value?: string | null
+          width?: number
+          x?: number
+          y?: number
+        }
+        Update: {
+          created_at?: string
+          document_id?: string
+          field_type?: string
+          height?: number
+          id?: string
+          label?: string | null
+          page?: number
+          required?: boolean
+          signer_id?: string | null
+          value?: string | null
+          width?: number
+          x?: number
+          y?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_fields_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_fields_signer_id_fkey"
+            columns: ["signer_id"]
+            isOneToOne: false
+            referencedRelation: "signers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          created_at: string
+          deadline: string | null
+          file_path: string | null
+          id: string
+          name: string
+          signature_type: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deadline?: string | null
+          file_path?: string | null
+          id?: string
+          name: string
+          signature_type?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deadline?: string | null
+          file_path?: string | null
+          id?: string
+          name?: string
+          signature_type?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      signatures: {
+        Row: {
+          bluetech_response: Json | null
+          created_at: string
+          document_id: string
+          field_id: string | null
+          id: string
+          image_base64: string | null
+          ip_address: string | null
+          signature_type: string
+          signer_id: string
+          typed_text: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          bluetech_response?: Json | null
+          created_at?: string
+          document_id: string
+          field_id?: string | null
+          id?: string
+          image_base64?: string | null
+          ip_address?: string | null
+          signature_type: string
+          signer_id: string
+          typed_text?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          bluetech_response?: Json | null
+          created_at?: string
+          document_id?: string
+          field_id?: string | null
+          id?: string
+          image_base64?: string | null
+          ip_address?: string | null
+          signature_type?: string
+          signer_id?: string
+          typed_text?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signatures_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signatures_field_id_fkey"
+            columns: ["field_id"]
+            isOneToOne: false
+            referencedRelation: "document_fields"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signatures_signer_id_fkey"
+            columns: ["signer_id"]
+            isOneToOne: false
+            referencedRelation: "signers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signers: {
+        Row: {
+          bluetech_document_id: string | null
+          bluetech_signatory_id: string | null
+          created_at: string
+          document_id: string
+          email: string
+          id: string
+          name: string
+          phone: string | null
+          role: string
+          sign_order: number
+          sign_token: string | null
+          signed_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          bluetech_document_id?: string | null
+          bluetech_signatory_id?: string | null
+          created_at?: string
+          document_id: string
+          email: string
+          id?: string
+          name: string
+          phone?: string | null
+          role?: string
+          sign_order?: number
+          sign_token?: string | null
+          signed_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          bluetech_document_id?: string | null
+          bluetech_signatory_id?: string | null
+          created_at?: string
+          document_id?: string
+          email?: string
+          id?: string
+          name?: string
+          phone?: string | null
+          role?: string
+          sign_order?: number
+          sign_token?: string | null
+          signed_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signers_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      validation_steps: {
+        Row: {
+          bluetech_response: Json | null
+          completed_at: string | null
+          created_at: string
+          document_id: string
+          id: string
+          required: boolean
+          signer_id: string
+          status: string
+          step_order: number
+          step_type: string
+        }
+        Insert: {
+          bluetech_response?: Json | null
+          completed_at?: string | null
+          created_at?: string
+          document_id: string
+          id?: string
+          required?: boolean
+          signer_id: string
+          status?: string
+          step_order?: number
+          step_type: string
+        }
+        Update: {
+          bluetech_response?: Json | null
+          completed_at?: string | null
+          created_at?: string
+          document_id?: string
+          id?: string
+          required?: boolean
+          signer_id?: string
+          status?: string
+          step_order?: number
+          step_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "validation_steps_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "validation_steps_signer_id_fkey"
+            columns: ["signer_id"]
+            isOneToOne: false
+            referencedRelation: "signers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
