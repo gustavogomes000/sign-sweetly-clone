@@ -85,6 +85,7 @@ export default function NewDocument() {
     setFile(f);
     setFileName(f.name);
     setFilePreviewUrl(URL.createObjectURL(f));
+    setEditorTotalPages(3);
     if (!docName) setDocName(f.name.replace(/\.[^.]+$/, ''));
   };
 
