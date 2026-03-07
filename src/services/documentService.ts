@@ -182,7 +182,7 @@ export async function saveSignature(data: {
 }) {
   const { error: sigError } = await supabase
     .from('signatures')
-    .insert({
+    .insert([{
       signer_id: data.signerId,
       document_id: data.documentId,
       field_id: data.fieldId || null,
@@ -190,8 +190,8 @@ export async function saveSignature(data: {
       image_base64: data.imageBase64 || null,
       typed_text: data.typedText || null,
       user_agent: data.userAgent || null,
-      bluetech_response: data.bluetechResponse || null,
-    });
+      bluetech_response: (data.bluetechResponse as Record<string, unknown>) || null,
+    }]);
   
   if (sigError) throw sigError;
   
