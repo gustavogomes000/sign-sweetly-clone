@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,17 +20,17 @@ serve(async (req) => {
       );
     }
 
-    const gmailUser = Deno.env.get('GMAIL_USER');
-    const gmailAppPassword = Deno.env.get('GMAIL_APP_PASSWORD');
-
-    if (!gmailUser || !gmailAppPassword) {
-      throw new Error('Gmail credentials not configured (GMAIL_USER / GMAIL_APP_PASSWORD)');
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    if (!resendApiKey) {
+      throw new Error('RESEND_API_KEY not configured');
     }
 
     const siteUrl = Deno.env.get('SITE_URL') || 'https://sign-sweetly-clone.lovable.app';
     const signUrl = `${siteUrl}/sign/${signToken}`;
-
     const fromName = senderName || 'SignProof by Valeris';
+
+    // Use Gmail address as reply-to if configured
+    const gmailUser = Deno.env.get('GMAIL_USER');
 
     const htmlBody = buildEmailHtml({
       signerName,
@@ -41,33 +40,42 @@ serve(async (req) => {
       senderName: fromName,
     });
 
-    // Send via Gmail SMTP
-    const client = new SmtpClient();
-
-    await client.connectTLS({
-      hostname: "smtp.gmail.com",
-      port: 465,
-      username: gmailUser,
-      password: gmailAppPassword,
-    });
-
-    await client.send({
-      from: `${fromName} <${gmailUser}>`,
-      to: signerEmail,
+    const emailPayload: Record<string, unknown> = {
+      from: `${fromName} <onboarding@resend.dev>`,
+      to: [signerEmail],
       subject: `📝 Documento para assinatura: ${documentName || 'Documento'}`,
-      content: "Você recebeu um documento para assinatura. Abra este e-mail em um cliente que suporte HTML.",
       html: htmlBody,
+    };
+
+    // Add reply-to with the user's Gmail so replies go to them
+    if (gmailUser) {
+      emailPayload.reply_to = gmailUser;
+    }
+
+    const resendRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(emailPayload),
     });
 
-    await client.close();
+    const resendData = await resendRes.json();
 
-    console.log(`✅ Email sent via Gmail to ${signerEmail}`);
+    if (!resendRes.ok) {
+      console.error('Resend API error:', resendData);
+      throw new Error(resendData.message || `Resend error: ${resendRes.status}`);
+    }
+
+    console.log(`✅ Email sent to ${signerEmail} — Resend ID: ${resendData.id}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         signUrl,
-        message: `Email enviado para ${signerEmail} via Gmail`,
+        emailId: resendData.id,
+        message: `Email enviado para ${signerEmail}`,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
