@@ -1,5 +1,8 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { UserRole, Company, CompanyUser } from '@/types/document';
+import { supabase } from '@/integrations/supabase/client';
+import { lovable } from '@/integrations/lovable';
 
 interface AuthUser {
   id: string;
@@ -13,8 +16,9 @@ interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   company: Company | null;
-  login: (email: string, password: string) => boolean;
-  loginAdmin: (email: string, password: string) => boolean;
+  login: (email: string, password: string) => Promise<boolean>;
+  loginAdmin: (email: string, password: string) => Promise<boolean>;
+  loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   isAuthenticated: boolean;
   isSuperAdmin: boolean;
@@ -89,12 +93,67 @@ export const mockCompanyUsers: CompanyUser[] = [
   { id: 'cu5', name: 'Roberto Lima', email: 'roberto@startupxyz.com', role: 'company_user', companyId: 'comp2', status: 'inactive', createdAt: '2025-10-01T10:00:00Z' },
 ];
 
+function mapSessionUser(sessionUser: SupabaseUser): AuthUser {
+  const fallbackName = sessionUser.email?.split('@')[0] || 'Usuário';
+  const metadata = sessionUser.user_metadata as Record<string, unknown> | undefined;
+  const metadataName = typeof metadata?.full_name === 'string'
+    ? metadata.full_name
+    : typeof metadata?.name === 'string'
+    ? metadata.name
+    : fallbackName;
+
+  return {
+    id: sessionUser.id,
+    name: metadataName,
+    email: sessionUser.email || '',
+    role: 'company_admin',
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
+  const [isLocalAdminSession, setIsLocalAdminSession] = useState(false);
 
-  const loginAdmin = (email: string, password: string): boolean => {
+  useEffect(() => {
+    let mounted = true;
+
+    const syncInitialSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!mounted || isLocalAdminSession) return;
+
+      if (data.session?.user) {
+        setUser(mapSessionUser(data.session.user));
+      } else {
+        setUser(null);
+        setCompany(null);
+      }
+    };
+
+    syncInitialSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (isLocalAdminSession) return;
+
+      if (session?.user) {
+        setUser(mapSessionUser(session.user));
+        setCompany(null);
+      } else {
+        setUser(null);
+        setCompany(null);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [isLocalAdminSession]);
+
+  const loginAdmin = async (email: string, password: string): Promise<boolean> => {
     if (email === 'admin@valeris.com' && password === 'admin123') {
+      await supabase.auth.signOut();
+      setIsLocalAdminSession(true);
       setUser({ id: 'sa1', name: 'Super Admin', email, role: 'superadmin' });
       setCompany(null);
       return true;
@@ -102,29 +161,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return false;
   };
 
-  const login = (email: string, password: string): boolean => {
-    const companyUser = mockCompanyUsers.find(u => u.email === email && u.status === 'active');
-    if (companyUser && password === '123456') {
-      const comp = mockCompanies.find(c => c.id === companyUser.companyId);
-      if (comp && comp.status === 'active') {
-        setUser({
-          id: companyUser.id,
-          name: companyUser.name,
-          email: companyUser.email,
-          role: companyUser.role,
-          companyId: companyUser.companyId,
-          avatar: companyUser.avatar,
-        });
-        setCompany(comp);
-        return true;
-      }
+  const login = async (email: string, password: string): Promise<boolean> => {
+    setIsLocalAdminSession(false);
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error || !data.user) return false;
+
+    setUser(mapSessionUser(data.user));
+    setCompany(null);
+    return true;
+  };
+
+  const loginWithGoogle = async () => {
+    setIsLocalAdminSession(false);
+
+    const { error } = await lovable.auth.signInWithOAuth('google', {
+      redirect_uri: window.location.origin,
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
     }
-    return false;
+
+    return { success: true };
   };
 
   const logout = () => {
+    setIsLocalAdminSession(false);
     setUser(null);
     setCompany(null);
+    void supabase.auth.signOut();
   };
 
   return (
@@ -133,6 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       company,
       login,
       loginAdmin,
+      loginWithGoogle,
       logout,
       isAuthenticated: !!user,
       isSuperAdmin: user?.role === 'superadmin',
