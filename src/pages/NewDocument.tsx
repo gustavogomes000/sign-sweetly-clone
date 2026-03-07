@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, ArrowRight, Upload, Plus, Trash2, FileText, CheckCircle2, Users, Send, Settings2, Pencil, Camera, FileImage, UserCheck, GripVertical } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Upload, Plus, Trash2, FileText, CheckCircle2, Users, Send, Settings2, Pencil, Camera, FileImage, UserCheck, GripVertical, Loader2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
@@ -18,6 +18,9 @@ import { Badge } from '@/components/ui/badge';
 import { mockTemplates } from '@/data/mockData';
 import DocumentFieldEditor, { PlacedField, getSignerColor } from '@/components/documents/DocumentFieldEditor';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useAuth } from '@/contexts/AuthContext';
+import { uploadDocumentFile, createDocument, createSigners, createDocumentFields, createValidationSteps } from '@/services/documentService';
+import { supabase } from '@/integrations/supabase/client';
 
 type Step = 'upload' | 'signers' | 'fields' | 'configure' | 'review';
 
@@ -51,6 +54,7 @@ const genValidationId = () => `val_${validationIdCounter++}`;
 
 export default function NewDocument() {
   const [currentStep, setCurrentStep] = useState<Step>('upload');
+  const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState('');
   const [docName, setDocName] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('');
@@ -66,14 +70,24 @@ export default function NewDocument() {
   const [reminderDays, setReminderDays] = useState('3');
   const [orderMatters, setOrderMatters] = useState(false);
   const [locale, setLocale] = useState('pt-BR');
+  const [sending, setSending] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const currentStepIndex = steps.findIndex((s) => s.key === currentStep);
 
-  const handleFileUpload = () => {
-    setFileName('contrato-servicos.pdf');
-    if (!docName) setDocName('Contrato de Serviços');
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setFile(f);
+    setFileName(f.name);
+    if (!docName) setDocName(f.name.replace(/\.[^.]+$/, ''));
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
   };
 
   const addSigner = () => {
@@ -134,10 +148,103 @@ export default function NewDocument() {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep === 'review') {
-      toast({ title: 'Documento enviado com sucesso! ✅', description: `${signers.length} signatário(s) receberão o documento via email.` });
-      navigate('/documents');
+      if (!file || !user) return;
+      setSending(true);
+      try {
+        // 1. Upload file to storage
+        const { path } = await uploadDocumentFile(file, user.id);
+        
+        // 2. Create document record
+        const doc = await createDocument({
+          userId: user.id,
+          name: docName || fileName,
+          filePath: path,
+          signatureType,
+          deadline: hasDeadline ? deadline : undefined,
+        });
+        
+        // 3. Create signers
+        const dbSigners = await createSigners(
+          doc.id,
+          signers.map((s, i) => ({
+            name: s.name,
+            email: s.email,
+            phone: s.phone || undefined,
+            role: s.role,
+            order: i + 1,
+          }))
+        );
+        
+        // 4. Map local signer IDs to DB IDs and create fields
+        const signerIdMap = new Map<string, string>();
+        signers.forEach((s, i) => {
+          if (dbSigners[i]) signerIdMap.set(s.id, dbSigners[i].id);
+        });
+        
+        const dbFields = placedFields.map((f) => ({
+          signerId: signerIdMap.get(f.signerId) || f.signerId,
+          fieldType: f.type,
+          label: f.label,
+          x: f.x,
+          y: f.y,
+          width: f.width,
+          height: f.height,
+          page: f.page,
+          required: f.required,
+        }));
+        
+        await createDocumentFields(doc.id, dbFields);
+        
+        // 5. Create validation steps for each signer
+        for (const [localId, dbId] of signerIdMap.entries()) {
+          const localSigner = signers.find((s) => s.id === localId);
+          if (localSigner && localSigner.validationSteps.length > 0) {
+            await createValidationSteps(
+              doc.id,
+              dbId,
+              localSigner.validationSteps.map((v) => ({
+                type: v.type,
+                order: v.order,
+                required: v.required,
+              }))
+            );
+          }
+        }
+        
+        // 6. Send email notifications via edge function
+        for (const dbSigner of dbSigners) {
+          try {
+            await supabase.functions.invoke('send-signing-email', {
+              body: {
+                signerName: dbSigner.name,
+                signerEmail: dbSigner.email,
+                documentName: docName || fileName,
+                signToken: dbSigner.sign_token,
+                message,
+              },
+            });
+          } catch (emailErr) {
+            console.warn('Email send failed for', dbSigner.email, emailErr);
+          }
+        }
+        
+        toast({
+          title: 'Documento enviado com sucesso! ✅',
+          description: `${signers.length} signatário(s) receberão o link de assinatura.`,
+        });
+        navigate('/documents');
+      } catch (err) {
+        console.error('Error sending document:', err);
+        toast({
+          title: 'Erro ao enviar documento',
+          description: err instanceof Error ? err.message : 'Tente novamente',
+          variant: 'destructive',
+        });
+      } finally {
+        setSending(false);
+      }
       return;
     }
     const nextIndex = currentStepIndex + 1;
@@ -240,8 +347,9 @@ export default function NewDocument() {
                       <div className="absolute inset-0 flex items-center"><Separator /></div>
                       <div className="relative flex justify-center"><span className="bg-card px-3 text-xs text-muted-foreground">ou faça upload</span></div>
                     </div>
+                    <input ref={fileInputRef} type="file" accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png" className="hidden" onChange={handleFileChange} />
                     <div
-                      onClick={handleFileUpload}
+                      onClick={triggerFileInput}
                       className={cn(
                         'border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all',
                         fileName ? 'border-success bg-success/5' : 'border-border hover:border-primary/50 hover:bg-primary/5'
@@ -542,9 +650,9 @@ export default function NewDocument() {
                 <Button variant="outline" onClick={handleBack} disabled={currentStepIndex === 0}>
                   <ArrowLeft className="w-4 h-4 mr-1" />Voltar
                 </Button>
-                <Button onClick={handleNext} disabled={!canAdvance()} className={currentStep === 'review' ? 'shadow-lg shadow-primary/20' : ''}>
+                <Button onClick={handleNext} disabled={!canAdvance() || sending} className={currentStep === 'review' ? 'shadow-lg shadow-primary/20' : ''}>
                   {currentStep === 'review' ? (
-                    <><Send className="w-4 h-4 mr-1" />Enviar documento</>
+                    sending ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Enviando...</> : <><Send className="w-4 h-4 mr-1" />Enviar documento</>
                   ) : (
                     <>Próximo<ArrowRight className="w-4 h-4 ml-1" /></>
                   )}
