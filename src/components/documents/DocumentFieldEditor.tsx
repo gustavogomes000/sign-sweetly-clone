@@ -19,6 +19,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import PdfPagePreview from '@/components/documents/PdfPagePreview';
 
 export type FieldType = 'signature' | 'initials' | 'date' | 'text' | 'checkbox' | 'dropdown' | 'image' | 'stamp' | 'email' | 'number';
 
@@ -209,8 +210,9 @@ export default function DocumentFieldEditor({
   };
 
   const selectedField = fields.find((f) => f.id === selectedFieldId);
-  const isImageDocument = Boolean(documentMimeType?.startsWith('image/'));
-  const isPdfDocument = Boolean(documentMimeType === 'application/pdf' || (!documentMimeType && documentUrl));
+  const normalizedMimeType = documentMimeType?.toLowerCase() || '';
+  const isImageDocument = normalizedMimeType.startsWith('image/');
+  const isPdfDocument = normalizedMimeType.includes('pdf') || (!normalizedMimeType && Boolean(documentUrl));
   const canPreviewDocument = Boolean(documentUrl && (isPdfDocument || isImageDocument));
 
   return (
@@ -339,11 +341,10 @@ export default function DocumentFieldEditor({
               {canPreviewDocument ? (
                 <>
                   {isPdfDocument ? (
-                    <object
-                      data={`${documentUrl}#page=${currentPage}&toolbar=0&navpanes=0&scrollbar=0`}
-                      type="application/pdf"
-                      className="w-full h-full pointer-events-none"
-                      aria-label={`Documento - Página ${currentPage}`}
+                    <PdfPagePreview
+                      documentUrl={documentUrl!}
+                      page={currentPage}
+                      className="pointer-events-none"
                     />
                   ) : (
                     <img

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,6 +52,21 @@ const genSignerId = () => `signer_${signerIdCounter++}`;
 let validationIdCounter = 1;
 const genValidationId = () => `val_${validationIdCounter++}`;
 
+const getPreviewMimeType = (inputFile: File | null) => {
+  if (!inputFile) return undefined;
+
+  const normalizedType = (inputFile.type || '').toLowerCase();
+  if (normalizedType.includes('pdf')) return 'application/pdf';
+  if (normalizedType.startsWith('image/')) return normalizedType;
+
+  const extension = inputFile.name.split('.').pop()?.toLowerCase();
+  if (extension === 'pdf') return 'application/pdf';
+  if (extension === 'png') return 'image/png';
+  if (extension === 'jpg' || extension === 'jpeg') return 'image/jpeg';
+
+  return normalizedType || undefined;
+};
+
 export default function NewDocument() {
   const [currentStep, setCurrentStep] = useState<Step>('upload');
   const [file, setFile] = useState<File | null>(null);
@@ -72,19 +87,35 @@ export default function NewDocument() {
   const [locale, setLocale] = useState('pt-BR');
   const [sending, setSending] = useState(false);
   const [editorTotalPages, setEditorTotalPages] = useState(3);
+  const [filePreviewUrl, setFilePreviewUrl] = useState<string | undefined>();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
 
+  const previewMimeType = getPreviewMimeType(file);
   const currentStepIndex = steps.findIndex((s) => s.key === currentStep);
+
+  useEffect(() => {
+    return () => {
+      if (filePreviewUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(filePreviewUrl);
+      }
+    };
+  }, [filePreviewUrl]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
+
+    if (filePreviewUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(filePreviewUrl);
+    }
+
+    const nextPreviewUrl = URL.createObjectURL(f);
     setFile(f);
     setFileName(f.name);
-    setFilePreviewUrl(URL.createObjectURL(f));
+    setFilePreviewUrl(nextPreviewUrl);
     setEditorTotalPages(3);
     if (!docName) setDocName(f.name.replace(/\.[^.]+$/, ''));
   };
@@ -92,7 +123,6 @@ export default function NewDocument() {
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
-  const [filePreviewUrl, setFilePreviewUrl] = useState<string | undefined>();
 
   const addSigner = () => {
     setSigners([...signers, { id: genSignerId(), name: '', email: '', phone: '', role: 'Signatário', validationSteps: [] }]);
@@ -258,7 +288,7 @@ export default function NewDocument() {
       return;
     }
     if (currentStep === 'upload' && file) {
-      const isVisualPreviewSupported = file.type === 'application/pdf' || file.type.startsWith('image/');
+      const isVisualPreviewSupported = previewMimeType === 'application/pdf' || Boolean(previewMimeType?.startsWith('image/'));
       if (!isVisualPreviewSupported) {
         toast({
           title: 'Formato sem pré-visualização no editor',
@@ -352,7 +382,7 @@ export default function NewDocument() {
                 onFieldsChange={setPlacedFields}
                 totalPages={editorTotalPages}
                 documentUrl={filePreviewUrl}
-                documentMimeType={file?.type}
+                documentMimeType={previewMimeType}
               />
             </div>
             <div className="flex items-center justify-between pt-3">
