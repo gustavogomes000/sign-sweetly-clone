@@ -310,7 +310,7 @@ export default function NewDocument() {
               <Badge variant="secondary" className="text-xs">{placedFields.length} campo(s)</Badge>
             </div>
             <div className="flex-1 min-h-0">
-              <DocumentFieldEditor signers={editorSigners} fields={placedFields} onFieldsChange={setPlacedFields} totalPages={3} />
+              <DocumentFieldEditor signers={editorSigners} fields={placedFields} onFieldsChange={setPlacedFields} totalPages={3} documentUrl={file ? URL.createObjectURL(file) : undefined} />
             </div>
             <div className="flex items-center justify-between pt-3">
               <Button variant="outline" onClick={handleBack}><ArrowLeft className="w-4 h-4 mr-1" />Voltar</Button>
