@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { DocumentStatus } from '@/types/document';
 import { cn } from '@/lib/utils';
 
@@ -9,10 +10,15 @@ const statusConfig: Record<DocumentStatus, { label: string; className: string; d
   expired: { label: 'Expirado', className: 'bg-muted text-muted-foreground border-muted-foreground/20', dot: 'bg-muted-foreground' },
 };
 
-export function StatusBadge({ status, showDot = true }: { status: DocumentStatus; showDot?: boolean }) {
+export const StatusBadge = React.forwardRef<
+  HTMLSpanElement,
+  { status: DocumentStatus; showDot?: boolean }
+>(({ status, showDot = true }, ref) => {
   const config = statusConfig[status];
+
   return (
     <span
+      ref={ref}
       className={cn(
         'game-badge',
         config.className
@@ -22,4 +28,6 @@ export function StatusBadge({ status, showDot = true }: { status: DocumentStatus
       {config.label}
     </span>
   );
-}
+});
+
+StatusBadge.displayName = 'StatusBadge';
