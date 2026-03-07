@@ -20,6 +20,7 @@ import DocumentFieldEditor, { PlacedField, getSignerColor } from '@/components/d
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/contexts/AuthContext';
 import { uploadDocumentFile, createDocument, createSigners, createDocumentFields, createValidationSteps } from '@/services/documentService';
+import { supabase } from '@/integrations/supabase/client';
 
 type Step = 'upload' | 'signers' | 'fields' | 'configure' | 'review';
 
