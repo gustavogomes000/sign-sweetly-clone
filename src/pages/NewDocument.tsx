@@ -18,6 +18,8 @@ import { Badge } from '@/components/ui/badge';
 import { mockTemplates } from '@/data/mockData';
 import DocumentFieldEditor, { PlacedField, getSignerColor } from '@/components/documents/DocumentFieldEditor';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useAuth } from '@/contexts/AuthContext';
+import { uploadDocumentFile, createDocument, createSigners, createDocumentFields, createValidationSteps } from '@/services/documentService';
 
 type Step = 'upload' | 'signers' | 'fields' | 'configure' | 'review';
 
