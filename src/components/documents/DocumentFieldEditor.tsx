@@ -79,6 +79,7 @@ export default function DocumentFieldEditor({
   fields,
   onFieldsChange,
   totalPages = 3,
+  documentUrl,
 }: DocumentFieldEditorProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [zoom, setZoom] = useState(100);
