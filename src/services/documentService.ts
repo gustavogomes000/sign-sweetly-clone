@@ -190,7 +190,7 @@ export async function saveSignature(data: {
       image_base64: data.imageBase64 || null,
       typed_text: data.typedText || null,
       user_agent: data.userAgent || null,
-      bluetech_response: (data.bluetechResponse as Record<string, unknown>) || null,
+      bluetech_response: (data.bluetechResponse as unknown as import('@/integrations/supabase/types').Json) || null,
     }]);
   
   if (sigError) throw sigError;
