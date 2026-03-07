@@ -1,26 +1,99 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { Eye, EyeOff, ArrowRight, Shield } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Shield, Hexagon, Zap, Lock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 import valerisLogo from '@/assets/valeris-logo.png';
+
+// Floating hexagon particles
+function HexParticles() {
+  const particles = useMemo(() =>
+    Array.from({ length: 18 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: 20 + Math.random() * 40,
+      duration: 8 + Math.random() * 12,
+      delay: Math.random() * 5,
+      opacity: 0.03 + Math.random() * 0.06,
+    })), []);
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {particles.map((p) => (
+        <motion.div
+          key={p.id}
+          className="absolute"
+          style={{ left: `${p.x}%`, top: `${p.y}%` }}
+          animate={{
+            y: [0, -30, 0],
+            x: [0, 10, -10, 0],
+            rotate: [0, 60, 0],
+            opacity: [p.opacity, p.opacity * 2, p.opacity],
+          }}
+          transition={{
+            duration: p.duration,
+            repeat: Infinity,
+            delay: p.delay,
+            ease: 'easeInOut',
+          }}
+        >
+          <Hexagon
+            className="text-primary"
+            style={{ width: p.size, height: p.size, opacity: p.opacity }}
+            strokeWidth={1}
+          />
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
+// Animated grid lines
+function GridOverlay() {
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      {/* Horizontal scan line */}
+      <motion.div
+        className="absolute left-0 right-0 h-px"
+        style={{
+          background: 'linear-gradient(90deg, transparent, hsl(var(--primary) / 0.15), transparent)',
+        }}
+        animate={{ top: ['0%', '100%'] }}
+        transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
+      />
+      {/* Corner decorators */}
+      <div className="absolute top-6 left-6 w-12 h-12 border-l-2 border-t-2 border-primary/20 rounded-tl-lg" />
+      <div className="absolute top-6 right-6 w-12 h-12 border-r-2 border-t-2 border-primary/20 rounded-tr-lg" />
+      <div className="absolute bottom-6 left-6 w-12 h-12 border-l-2 border-b-2 border-primary/20 rounded-bl-lg" />
+      <div className="absolute bottom-6 right-6 w-12 h-12 border-r-2 border-b-2 border-primary/20 rounded-br-lg" />
+    </div>
+  );
+}
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [isAdminMode, setIsAdminMode] = useState(false);
-  const { login, loginAdmin, loginWithGoogle } = useAuth();
+  const [glowPulse, setGlowPulse] = useState(false);
+  const { login, loginAdmin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setGlowPulse((prev) => !prev);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,140 +112,223 @@ export default function Login() {
     setLoading(false);
   };
 
-  const handleGoogleLogin = async () => {
-    setGoogleLoading(true);
-    const result = await loginWithGoogle();
-
-    if (!result.success) {
-      toast({
-        title: 'Falha ao conectar com Google',
-        description: result.error || 'Tente novamente.',
-        variant: 'destructive',
-      });
-      setGoogleLoading(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <div className="w-full max-w-md space-y-6">
-        {/* Logo */}
-        <div className="text-center space-y-3">
-          <img src={valerisLogo} alt="Valeris" className="w-20 h-20 mx-auto object-contain" />
-          <h1 className="text-3xl font-game font-bold text-foreground tracking-wider">VALERIS</h1>
-          <p className="text-sm text-muted-foreground font-body">
-            {isAdminMode ? 'Painel Administrativo' : 'Plataforma de assinatura eletrônica'}
-          </p>
-          <p className="text-[10px] text-muted-foreground/60 uppercase tracking-widest font-game">by DNA do Software</p>
-        </div>
+    <div className="min-h-screen bg-background relative flex items-center justify-center p-6 hex-pattern overflow-hidden">
+      <HexParticles />
+      <GridOverlay />
 
-        {/* Toggle admin/company */}
-        <div className="flex bg-secondary rounded-xl p-1">
+      <motion.div
+        initial={{ opacity: 0, y: 30, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        className="w-full max-w-md space-y-6 relative z-10"
+      >
+        {/* Logo with 3D glow effect */}
+        <motion.div
+          className="text-center space-y-3"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
+        >
+          <motion.div
+            className="relative mx-auto w-24 h-24"
+            animate={{ rotateY: [0, 10, -10, 0] }}
+            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ perspective: 600 }}
+          >
+            <div
+              className={cn(
+                'w-24 h-24 rounded-2xl flex items-center justify-center transition-shadow duration-1000',
+                glowPulse ? 'glow-primary' : 'shadow-xl'
+              )}
+              style={{
+                background: 'linear-gradient(145deg, hsl(var(--primary) / 0.15), hsl(var(--card)))',
+                border: '1px solid hsl(var(--primary) / 0.3)',
+              }}
+            >
+              <img src={valerisLogo} alt="Valeris" className="w-16 h-16 object-contain" />
+            </div>
+            {/* Glow ring */}
+            <div className="absolute -inset-1 rounded-2xl bg-primary/10 blur-md -z-10" />
+          </motion.div>
+
+          <h1 className="text-3xl font-game font-bold tracking-wider">
+            <span className="stat-number">VALERIS</span>
+          </h1>
+          <p className="text-sm text-muted-foreground font-body">
+            {isAdminMode ? '⚡ Painel Administrativo' : '🔐 Plataforma de assinatura eletrônica'}
+          </p>
+          <p className="text-[10px] text-muted-foreground/50 uppercase tracking-[0.3em] font-game">by DNA do Software</p>
+        </motion.div>
+
+        {/* Mode toggle - game tabs */}
+        <motion.div
+          className="flex rounded-xl overflow-hidden border border-border"
+          style={{
+            background: 'linear-gradient(145deg, hsl(var(--secondary)), hsl(var(--card)))',
+          }}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.3, duration: 0.4 }}
+        >
           <button
             onClick={() => setIsAdminMode(false)}
             className={cn(
-              'flex-1 py-2 rounded-lg text-sm font-medium transition-all',
-              !isAdminMode ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'
+              'flex-1 py-2.5 text-sm font-game font-medium transition-all duration-300 flex items-center justify-center gap-2',
+              !isAdminMode
+                ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                : 'text-muted-foreground hover:text-foreground'
             )}
           >
+            <Lock className="w-3.5 h-3.5" />
             Empresa
           </button>
           <button
             onClick={() => setIsAdminMode(true)}
             className={cn(
-              'flex-1 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5',
-              isAdminMode ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'
+              'flex-1 py-2.5 text-sm font-game font-medium transition-all duration-300 flex items-center justify-center gap-2',
+              isAdminMode
+                ? 'bg-accent text-accent-foreground shadow-lg glow-accent'
+                : 'text-muted-foreground hover:text-foreground'
             )}
           >
             <Shield className="w-3.5 h-3.5" />
             Admin
           </button>
-        </div>
+        </motion.div>
 
-        <Card className="border-border/50 shadow-xl">
-          <CardHeader className="pb-4">
-            <h2 className="text-base font-semibold text-foreground">
-              {isAdminMode ? 'Acesso administrativo' : 'Entre na sua conta'}
-            </h2>
-          </CardHeader>
-          <CardContent>
-            {!isAdminMode && (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleGoogleLogin}
-                  disabled={googleLoading || loading}
+        {/* Login Card - 3D game card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20, rotateX: -5 }}
+          animate={{ opacity: 1, y: 0, rotateX: 0 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
+          style={{ perspective: 1000 }}
+        >
+          <Card
+            className="game-card overflow-hidden"
+            style={{
+              boxShadow: `
+                0 0 0 1px hsl(var(--border)),
+                0 10px 40px -10px hsl(var(--primary) / 0.15),
+                0 20px 60px -15px hsl(0 0% 0% / 0.15)
+              `,
+            }}
+          >
+            <CardContent className="p-6">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={isAdminMode ? 'admin' : 'company'}
+                  initial={{ opacity: 0, x: isAdminMode ? 20 : -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: isAdminMode ? -20 : 20 }}
+                  transition={{ duration: 0.25 }}
                 >
-                  {googleLoading ? 'Conectando Google...' : 'Entrar com Google'}
-                </Button>
-                <div className="relative my-4">
-                  <Separator />
-                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
-                    ou
-                  </span>
-                </div>
-              </>
-            )}
+                  <div className="flex items-center gap-2 mb-5">
+                    <div className={cn(
+                      'w-8 h-8 rounded-lg flex items-center justify-center',
+                      isAdminMode ? 'bg-accent/15' : 'bg-primary/15'
+                    )}>
+                      {isAdminMode
+                        ? <Shield className="w-4 h-4 text-accent" />
+                        : <Zap className="w-4 h-4 text-primary" />
+                      }
+                    </div>
+                    <h2 className="text-sm font-game font-semibold text-foreground tracking-wide">
+                      {isAdminMode ? 'ACESSO ADMIN' : 'LOGIN'}
+                    </h2>
+                  </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-xs">Email</Label>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder={isAdminMode ? 'admin@valeris.com' : 'usuario@empresa.com'}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs">Senha</Label>
-                  <button type="button" className="text-xs text-primary hover:underline">Esqueceu a senha?</button>
-                </div>
-                <div className="relative">
-                  <Input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-              <Button type="submit" className="w-full shadow-lg shadow-primary/20" disabled={loading || googleLoading}>
-                {loading ? 'Entrando...' : 'Entrar'}
-                <ArrowRight className="w-4 h-4 ml-1" />
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-game text-muted-foreground tracking-wider">EMAIL</Label>
+                      <Input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder={isAdminMode ? 'admin@valeris.com' : 'usuario@empresa.com'}
+                        required
+                        className="bg-secondary/50 border-border/50 focus:border-primary focus:glow-primary transition-all"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-game text-muted-foreground tracking-wider">SENHA</Label>
+                        <button type="button" className="text-[10px] font-game text-primary hover:underline tracking-wider">RECUPERAR</button>
+                      </div>
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? 'text' : 'password'}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••"
+                          required
+                          className="bg-secondary/50 border-border/50 focus:border-primary focus:glow-primary transition-all pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                      <Button
+                        type="submit"
+                        className={cn(
+                          'w-full font-game font-bold tracking-wider text-sm h-11',
+                          isAdminMode
+                            ? 'gradient-gold text-accent-foreground glow-accent'
+                            : 'gradient-teal-gold text-primary-foreground glow-primary'
+                        )}
+                        disabled={loading}
+                      >
+                        {loading ? (
+                          <motion.span
+                            animate={{ opacity: [1, 0.5, 1] }}
+                            transition={{ duration: 1, repeat: Infinity }}
+                          >
+                            CONECTANDO...
+                          </motion.span>
+                        ) : (
+                          <>ENTRAR <ArrowRight className="w-4 h-4 ml-2" /></>
+                        )}
+                      </Button>
+                    </motion.div>
+                  </form>
+                </motion.div>
+              </AnimatePresence>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-        {/* Demo credentials */}
-        <Card className="bg-secondary/50 border-border/30">
-          <CardContent className="p-4">
-            <p className="text-xs font-medium text-foreground mb-2">Credenciais de demonstração:</p>
+        {/* Demo credentials - game tooltip style */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6, duration: 0.4 }}
+        >
+          <div
+            className="rounded-xl p-4 border border-primary/10"
+            style={{
+              background: 'linear-gradient(145deg, hsl(var(--primary) / 0.05), hsl(var(--card) / 0.8))',
+            }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Zap className="w-3.5 h-3.5 text-accent" />
+              <p className="text-[10px] font-game font-bold text-accent tracking-wider">CREDENCIAIS DEMO</p>
+            </div>
             {isAdminMode ? (
-              <div className="text-xs text-muted-foreground space-y-0.5">
-                <p><span className="font-mono bg-secondary px-1 rounded">admin@valeris.com</span> / <span className="font-mono bg-secondary px-1 rounded">admin123</span></p>
+              <div className="text-xs text-muted-foreground font-body space-y-0.5">
+                <p><span className="font-mono bg-secondary/80 px-1.5 py-0.5 rounded text-foreground">admin@valeris.com</span> / <span className="font-mono bg-secondary/80 px-1.5 py-0.5 rounded text-foreground">admin123</span></p>
               </div>
             ) : (
-              <div className="text-xs text-muted-foreground space-y-0.5">
-                <p>Use sua conta real (email/senha) ou entre com Google para enviar documentos.</p>
-              </div>
+              <p className="text-xs text-muted-foreground font-body">Use email/senha cadastrados para acessar a plataforma.</p>
             )}
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }
