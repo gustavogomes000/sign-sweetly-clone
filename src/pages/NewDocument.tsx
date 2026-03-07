@@ -257,6 +257,18 @@ export default function NewDocument() {
       }
       return;
     }
+    if (currentStep === 'upload' && file) {
+      const isVisualPreviewSupported = file.type === 'application/pdf' || file.type.startsWith('image/');
+      if (!isVisualPreviewSupported) {
+        toast({
+          title: 'Formato sem pré-visualização no editor',
+          description: 'Para posicionar campos com precisão, use PDF ou imagem (JPG/PNG).',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     const nextIndex = currentStepIndex + 1;
     if (nextIndex < steps.length) setCurrentStep(steps[nextIndex].key);
   };
