@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
-import valerisLogo from '@/assets/valeris-logo.png';
+import signproofLogo from '@/assets/signproof-icon.png';
 
 const mainNav = [
   { to: '/dashboard', label: 'Início', icon: LayoutDashboard },
