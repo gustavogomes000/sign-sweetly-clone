@@ -47,6 +47,7 @@ interface DocumentFieldEditorProps {
   onFieldsChange: (fields: PlacedField[]) => void;
   totalPages?: number;
   documentUrl?: string;
+  documentMimeType?: string;
 }
 
 const fieldTypes: { type: FieldType; label: string; icon: React.ElementType; defaultW: number; defaultH: number }[] = [
@@ -80,6 +81,7 @@ export default function DocumentFieldEditor({
   onFieldsChange,
   totalPages = 3,
   documentUrl,
+  documentMimeType,
 }: DocumentFieldEditorProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [zoom, setZoom] = useState(100);
@@ -207,6 +209,9 @@ export default function DocumentFieldEditor({
   };
 
   const selectedField = fields.find((f) => f.id === selectedFieldId);
+  const isImageDocument = Boolean(documentMimeType?.startsWith('image/'));
+  const isPdfDocument = Boolean(documentMimeType === 'application/pdf' || (!documentMimeType && documentUrl));
+  const canPreviewDocument = Boolean(documentUrl && (isPdfDocument || isImageDocument));
 
   return (
     <div className="flex h-full gap-0 bg-secondary/30 rounded-xl overflow-hidden border border-border">
@@ -331,12 +336,48 @@ export default function DocumentFieldEditor({
           >
             {/* Document content - real PDF or simulated */}
             <div className="absolute inset-0" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left', width: 595, height: 842 }}>
-              {documentUrl ? (
-                <iframe
-                  src={`${documentUrl}#toolbar=0&page=${currentPage}`}
-                  className="w-full h-full border-0"
-                  title={`Documento - Página ${currentPage}`}
-                />
+              {canPreviewDocument ? (
+                <>
+                  {isPdfDocument ? (
+                    <object
+                      data={`${documentUrl}#page=${currentPage}&toolbar=0&navpanes=0&scrollbar=0`}
+                      type="application/pdf"
+                      className="w-full h-full pointer-events-none"
+                      aria-label={`Documento - Página ${currentPage}`}
+                    />
+                  ) : (
+                    <img
+                      src={documentUrl}
+                      alt="Prévia do documento"
+                      className="w-full h-full object-contain pointer-events-none"
+                      loading="lazy"
+                    />
+                  )}
+
+                  <a
+                    href={documentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute bottom-3 right-3 text-[10px] px-2 py-1 rounded bg-card/90 border border-border text-foreground"
+                  >
+                    Abrir arquivo
+                  </a>
+                </>
+              ) : documentUrl ? (
+                <div className="w-full h-full flex items-center justify-center p-8 text-center bg-muted/20">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Não foi possível renderizar este arquivo no editor.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Use PDF ou imagem para posicionar campos com precisão.</p>
+                    <a
+                      href={documentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex mt-3 text-xs px-2.5 py-1.5 rounded border border-border text-foreground bg-card"
+                    >
+                      Abrir arquivo em nova aba
+                    </a>
+                  </div>
+                </div>
               ) : (
                 <div className="p-12 space-y-6">
                   <div className="h-5 bg-gray-200 rounded w-3/4" />

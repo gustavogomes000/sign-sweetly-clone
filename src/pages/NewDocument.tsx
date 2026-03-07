@@ -257,6 +257,18 @@ export default function NewDocument() {
       }
       return;
     }
+    if (currentStep === 'upload' && file) {
+      const isVisualPreviewSupported = file.type === 'application/pdf' || file.type.startsWith('image/');
+      if (!isVisualPreviewSupported) {
+        toast({
+          title: 'Formato sem pré-visualização no editor',
+          description: 'Para posicionar campos com precisão, use PDF ou imagem (JPG/PNG).',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     const nextIndex = currentStepIndex + 1;
     if (nextIndex < steps.length) setCurrentStep(steps[nextIndex].key);
   };
@@ -334,7 +346,14 @@ export default function NewDocument() {
               </div>
             </div>
             <div className="flex-1 min-h-0">
-              <DocumentFieldEditor signers={editorSigners} fields={placedFields} onFieldsChange={setPlacedFields} totalPages={editorTotalPages} documentUrl={filePreviewUrl} />
+              <DocumentFieldEditor
+                signers={editorSigners}
+                fields={placedFields}
+                onFieldsChange={setPlacedFields}
+                totalPages={editorTotalPages}
+                documentUrl={filePreviewUrl}
+                documentMimeType={file?.type}
+              />
             </div>
             <div className="flex items-center justify-between pt-3">
               <Button variant="outline" onClick={handleBack}><ArrowLeft className="w-4 h-4 mr-1" />Voltar</Button>
