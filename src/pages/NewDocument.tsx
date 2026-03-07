@@ -151,6 +151,12 @@ export default function NewDocument() {
     }
   };
 
+  const handleEditorTotalPagesChange = (value: string) => {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isNaN(parsed)) return;
+    setEditorTotalPages(Math.max(1, Math.min(200, parsed)));
+  };
+
   const handleNext = async () => {
     if (currentStep === 'review') {
       if (!file || !user) return;
