@@ -62,7 +62,7 @@ function GridOverlay() {
   );
 }
 
-type AuthMode = 'login' | 'register' | 'admin';
+type AuthMode = 'login' | 'admin';
 
 export default function Login() {
   const [email, setEmail] = useState('');
