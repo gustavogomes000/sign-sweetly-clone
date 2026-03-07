@@ -209,6 +209,9 @@ export default function DocumentFieldEditor({
   };
 
   const selectedField = fields.find((f) => f.id === selectedFieldId);
+  const isImageDocument = Boolean(documentMimeType?.startsWith('image/'));
+  const isPdfDocument = Boolean(documentMimeType === 'application/pdf' || (!documentMimeType && documentUrl));
+  const canPreviewDocument = Boolean(documentUrl && (isPdfDocument || isImageDocument));
 
   return (
     <div className="flex h-full gap-0 bg-secondary/30 rounded-xl overflow-hidden border border-border">
