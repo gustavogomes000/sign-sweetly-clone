@@ -44,6 +44,7 @@ export default function PdfPagePreview({ documentUrl, page, className }: PdfPage
         canvas.height = Math.floor(viewport.height);
 
         await pdfPage.render({
+          canvas,
           canvasContext: context,
           viewport,
         }).promise;
