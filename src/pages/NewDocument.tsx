@@ -71,6 +71,7 @@ export default function NewDocument() {
   const [orderMatters, setOrderMatters] = useState(false);
   const [locale, setLocale] = useState('pt-BR');
   const [sending, setSending] = useState(false);
+  const [editorTotalPages, setEditorTotalPages] = useState(3);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
