@@ -72,6 +72,13 @@ export default {
           DEFAULT: "hsl(var(--rank))",
           foreground: "hsl(var(--rank-foreground))",
         },
+        coins: {
+          DEFAULT: "hsl(var(--coins))",
+          foreground: "hsl(var(--coins-foreground))",
+        },
+        "medal-gold": "hsl(var(--medal-gold))",
+        "medal-silver": "hsl(var(--medal-silver))",
+        "medal-bronze": "hsl(var(--medal-bronze))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -109,6 +116,14 @@ export default {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
         },
+        "coin-spin": {
+          "0%": { transform: "rotateY(0deg)" },
+          "100%": { transform: "rotateY(360deg)" },
+        },
+        "float": {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-6px)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -116,6 +131,8 @@ export default {
         "fade-in": "fade-in 0.3s ease-out",
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",
         "shimmer": "shimmer 2s linear infinite",
+        "coin-spin": "coin-spin 1.5s ease-in-out",
+        "float": "float 3s ease-in-out infinite",
       },
     },
   },
