@@ -265,6 +265,8 @@ export default function SignPage() {
   const signerName = signerData ? String((signerData.signer as { name: string }).name) : '';
   const docUrl = signerData ? String((signerData.document as { file_path: string }).file_path) : '';
   const fields = signerData?.fields || [];
+  const totalPages = Math.max(1, ...fields.map((field) => Math.max(1, field.page || 1)));
+  const currentPageFields = fields.filter((field) => (field.page || 1) === currentPage);
 
   // Document view with signature fields
   if (step === 'view_document') {
