@@ -147,10 +147,103 @@ export default function NewDocument() {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep === 'review') {
-      toast({ title: 'Documento enviado com sucesso! ✅', description: `${signers.length} signatário(s) receberão o documento via email.` });
-      navigate('/documents');
+      if (!file || !user) return;
+      setSending(true);
+      try {
+        // 1. Upload file to storage
+        const { path } = await uploadDocumentFile(file, user.id);
+        
+        // 2. Create document record
+        const doc = await createDocument({
+          userId: user.id,
+          name: docName || fileName,
+          filePath: path,
+          signatureType,
+          deadline: hasDeadline ? deadline : undefined,
+        });
+        
+        // 3. Create signers
+        const dbSigners = await createSigners(
+          doc.id,
+          signers.map((s, i) => ({
+            name: s.name,
+            email: s.email,
+            phone: s.phone || undefined,
+            role: s.role,
+            order: i + 1,
+          }))
+        );
+        
+        // 4. Map local signer IDs to DB IDs and create fields
+        const signerIdMap = new Map<string, string>();
+        signers.forEach((s, i) => {
+          if (dbSigners[i]) signerIdMap.set(s.id, dbSigners[i].id);
+        });
+        
+        const dbFields = placedFields.map((f) => ({
+          signerId: signerIdMap.get(f.signerId) || f.signerId,
+          fieldType: f.type,
+          label: f.label,
+          x: f.x,
+          y: f.y,
+          width: f.width,
+          height: f.height,
+          page: f.page,
+          required: f.required,
+        }));
+        
+        await createDocumentFields(doc.id, dbFields);
+        
+        // 5. Create validation steps for each signer
+        for (const [localId, dbId] of signerIdMap.entries()) {
+          const localSigner = signers.find((s) => s.id === localId);
+          if (localSigner && localSigner.validationSteps.length > 0) {
+            await createValidationSteps(
+              doc.id,
+              dbId,
+              localSigner.validationSteps.map((v) => ({
+                type: v.type,
+                order: v.order,
+                required: v.required,
+              }))
+            );
+          }
+        }
+        
+        // 6. Send email notifications via edge function
+        for (const dbSigner of dbSigners) {
+          try {
+            await supabase.functions.invoke('send-signing-email', {
+              body: {
+                signerName: dbSigner.name,
+                signerEmail: dbSigner.email,
+                documentName: docName || fileName,
+                signToken: dbSigner.sign_token,
+                message,
+              },
+            });
+          } catch (emailErr) {
+            console.warn('Email send failed for', dbSigner.email, emailErr);
+          }
+        }
+        
+        toast({
+          title: 'Documento enviado com sucesso! ✅',
+          description: `${signers.length} signatário(s) receberão o link de assinatura.`,
+        });
+        navigate('/documents');
+      } catch (err) {
+        console.error('Error sending document:', err);
+        toast({
+          title: 'Erro ao enviar documento',
+          description: err instanceof Error ? err.message : 'Tente novamente',
+          variant: 'destructive',
+        });
+      } finally {
+        setSending(false);
+      }
       return;
     }
     const nextIndex = currentStepIndex + 1;
