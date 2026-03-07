@@ -210,8 +210,9 @@ export default function DocumentFieldEditor({
   };
 
   const selectedField = fields.find((f) => f.id === selectedFieldId);
-  const isImageDocument = Boolean(documentMimeType?.startsWith('image/'));
-  const isPdfDocument = Boolean(documentMimeType === 'application/pdf' || (!documentMimeType && documentUrl));
+  const normalizedMimeType = documentMimeType?.toLowerCase() || '';
+  const isImageDocument = normalizedMimeType.startsWith('image/');
+  const isPdfDocument = normalizedMimeType.includes('pdf') || (!normalizedMimeType && Boolean(documentUrl));
   const canPreviewDocument = Boolean(documentUrl && (isPdfDocument || isImageDocument));
 
   return (
