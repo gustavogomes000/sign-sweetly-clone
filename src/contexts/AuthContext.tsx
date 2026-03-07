@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { UserRole, Company, CompanyUser } from '@/types/document';
 import { supabase } from '@/integrations/supabase/client';
-import { lovable } from '@/integrations/lovable';
 
 interface AuthUser {
   id: string;
@@ -18,7 +17,6 @@ interface AuthContextType {
   company: Company | null;
   login: (email: string, password: string) => Promise<boolean>;
   loginAdmin: (email: string, password: string) => Promise<boolean>;
-  loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   isAuthenticated: boolean;
   isSuperAdmin: boolean;
@@ -172,20 +170,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
-  const loginWithGoogle = async () => {
-    setIsLocalAdminSession(false);
-
-    const { error } = await lovable.auth.signInWithOAuth('google', {
-      redirect_uri: window.location.origin,
-    });
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true };
-  };
-
   const logout = () => {
     setIsLocalAdminSession(false);
     setUser(null);
@@ -199,7 +183,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       company,
       login,
       loginAdmin,
-      loginWithGoogle,
       logout,
       isAuthenticated: !!user,
       isSuperAdmin: user?.role === 'superadmin',
