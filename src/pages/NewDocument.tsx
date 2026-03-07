@@ -346,7 +346,14 @@ export default function NewDocument() {
               </div>
             </div>
             <div className="flex-1 min-h-0">
-              <DocumentFieldEditor signers={editorSigners} fields={placedFields} onFieldsChange={setPlacedFields} totalPages={editorTotalPages} documentUrl={filePreviewUrl} />
+              <DocumentFieldEditor
+                signers={editorSigners}
+                fields={placedFields}
+                onFieldsChange={setPlacedFields}
+                totalPages={editorTotalPages}
+                documentUrl={filePreviewUrl}
+                documentMimeType={file?.type}
+              />
             </div>
             <div className="flex items-center justify-between pt-3">
               <Button variant="outline" onClick={handleBack}><ArrowLeft className="w-4 h-4 mr-1" />Voltar</Button>
