@@ -37,6 +37,7 @@ export default function SignPage() {
   const [hasDrawn, setHasDrawn] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
 
