@@ -197,6 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       company,
       login,
       loginAdmin,
+      signup,
       logout,
       isAuthenticated: !!user,
       isSuperAdmin: user?.role === 'superadmin',
