@@ -288,7 +288,7 @@ export default function NewDocument() {
       return;
     }
     if (currentStep === 'upload' && file) {
-      const isVisualPreviewSupported = file.type === 'application/pdf' || file.type.startsWith('image/');
+      const isVisualPreviewSupported = previewMimeType === 'application/pdf' || Boolean(previewMimeType?.startsWith('image/'));
       if (!isVisualPreviewSupported) {
         toast({
           title: 'Formato sem pré-visualização no editor',
