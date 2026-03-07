@@ -382,7 +382,7 @@ export default function NewDocument() {
                 onFieldsChange={setPlacedFields}
                 totalPages={editorTotalPages}
                 documentUrl={filePreviewUrl}
-                documentMimeType={file?.type}
+                documentMimeType={previewMimeType}
               />
             </div>
             <div className="flex items-center justify-between pt-3">
