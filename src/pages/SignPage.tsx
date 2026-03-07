@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CheckCircle2, FileText, Pen, Type, Download, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { Progress } from '@/components/ui/progress';
+
 import { loadSigningData, saveSignature } from '@/services/documentService';
 import { createBlueTechClient, getBlueTechConfig } from '@/services/bluetechApi';
 
@@ -24,6 +24,9 @@ interface SignField {
   value: string | null;
 }
 
+const PDF_PAGE_WIDTH = 595;
+const PDF_PAGE_HEIGHT = 842;
+
 export default function SignPage() {
   const { token } = useParams<{ token: string }>();
   const [step, setStep] = useState<SigningStep>('loading');
@@ -34,6 +37,7 @@ export default function SignPage() {
   const [hasDrawn, setHasDrawn] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
 
@@ -55,6 +59,13 @@ export default function SignPage() {
     loadSigningData(token)
       .then((data) => {
         setSignerData(data as typeof signerData);
+
+        const signerFields = (data.fields || []) as SignField[];
+        const firstPage = signerFields.length > 0
+          ? Math.min(...signerFields.map((field) => Math.max(1, field.page || 1)))
+          : 1;
+        setCurrentPage(firstPage);
+
         if ((data.signer as { status: string }).status === 'signed') {
           setStep('complete');
         } else {
@@ -203,6 +214,19 @@ export default function SignPage() {
 
   const canSign = signMethod === 'draw' ? hasDrawn : typedName.trim().length >= 3;
 
+  const docName = signerData ? String((signerData.document as { name: string }).name) : '';
+  const signerName = signerData ? String((signerData.signer as { name: string }).name) : '';
+  const docUrl = signerData ? String((signerData.document as { file_path: string }).file_path) : '';
+  const fields = signerData?.fields || [];
+  const totalPages = Math.max(1, ...fields.map((field) => Math.max(1, field.page || 1)));
+  const currentPageFields = fields.filter((field) => (field.page || 1) === currentPage);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   // Loading state
   if (step === 'loading') {
     return (
@@ -250,17 +274,15 @@ export default function SignPage() {
     );
   }
 
-  const docName = signerData ? String((signerData.document as { name: string }).name) : '';
-  const signerName = signerData ? String((signerData.signer as { name: string }).name) : '';
-  const docUrl = signerData ? String((signerData.document as { file_path: string }).file_path) : '';
-  const fields = signerData?.fields || [];
 
-  // Document view with signature fields
   if (step === 'view_document') {
     // Build public URL for document
     const publicUrl = docUrl
       ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/documents/${docUrl}`
       : '';
+
+    const canGoPrev = currentPage > 1;
+    const canGoNext = currentPage < totalPages;
 
     return (
       <div className="min-h-screen bg-background">
@@ -274,70 +296,93 @@ export default function SignPage() {
           <span className="text-xs text-muted-foreground">Assinatura segura</span>
         </header>
 
-        <div className="max-w-4xl mx-auto p-6 space-y-6">
-          <div>
-            <h1 className="text-xl font-bold text-foreground">{docName}</h1>
-            <p className="text-sm text-muted-foreground mt-1">Olá {signerName}, clique no campo de assinatura abaixo para assinar o documento.</p>
+        <div className="max-w-5xl mx-auto p-6 space-y-6">
+          <div className="space-y-4">
+            <div>
+              <h1 className="text-xl font-bold text-foreground">{docName}</h1>
+              <p className="text-sm text-muted-foreground mt-1">Olá {signerName}, navegue no documento e clique exatamente no campo onde você deve assinar.</p>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <Button variant="outline" size="sm" onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))} disabled={!canGoPrev}>
+                Página anterior
+              </Button>
+              <span className="text-sm font-medium text-foreground">Página {currentPage} de {totalPages}</span>
+              <Button variant="outline" size="sm" onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))} disabled={!canGoNext}>
+                Próxima página
+              </Button>
+            </div>
           </div>
 
           {/* Document preview with positioned signature fields */}
           <Card>
-            <CardContent className="p-0">
-              <div className="relative bg-white rounded-lg" style={{ minHeight: 842 }}>
-                {/* PDF embed */}
-                {publicUrl && (
-                  <iframe
-                    src={`${publicUrl}#toolbar=0`}
-                    className="w-full rounded-lg"
-                    style={{ height: 842 }}
-                    title="Documento"
-                  />
-                )}
+            <CardContent className="p-4 sm:p-6">
+              <div className="w-full overflow-x-auto">
+                <div
+                  className="relative bg-white rounded-lg border border-border/30 shadow-sm mx-auto"
+                  style={{ width: PDF_PAGE_WIDTH, minWidth: PDF_PAGE_WIDTH, height: PDF_PAGE_HEIGHT }}
+                >
+                  {/* PDF embed */}
+                  {publicUrl && (
+                    <iframe
+                      src={`${publicUrl}#toolbar=0&page=${currentPage}&view=FitH`}
+                      className="w-full h-full rounded-lg"
+                      title={`Documento - página ${currentPage}`}
+                    />
+                  )}
 
-                {/* Signature fields overlay */}
-                {fields.map((field) => {
-                  const isSigned = !!field.value;
-                  return (
-                    <div
-                      key={field.id}
-                      onClick={() => !isSigned && handleFieldClick(field.id)}
-                      className={cn(
-                        'absolute border-2 rounded-lg flex items-center justify-center gap-2 transition-all',
-                        isSigned
-                          ? 'border-success/50 bg-success/10 cursor-default'
-                          : 'border-primary border-dashed bg-primary/5 cursor-pointer hover:bg-primary/10 hover:shadow-lg hover:shadow-primary/20 animate-pulse'
-                      )}
-                      style={{
-                        left: field.x,
-                        top: field.y,
-                        width: field.width,
-                        height: field.height,
-                      }}
-                    >
-                      {isSigned ? (
-                        <span className="text-xs text-success font-medium">✓ Assinado</span>
-                      ) : (
-                        <>
-                          <Pen className="w-4 h-4 text-primary" />
-                          <span className="text-xs text-primary font-medium">Assinar aqui</span>
-                        </>
-                      )}
-                    </div>
-                  );
-                })}
+                  {/* Signature fields overlay (current page only) */}
+                  {currentPageFields.map((field) => {
+                    const isSigned = !!field.value;
+                    return (
+                      <div
+                        key={field.id}
+                        onClick={() => !isSigned && handleFieldClick(field.id)}
+                        className={cn(
+                          'absolute border-2 rounded-lg flex items-center justify-center gap-2 transition-all',
+                          isSigned
+                            ? 'border-success/50 bg-success/10 cursor-default'
+                            : 'border-primary border-dashed bg-primary/5 cursor-pointer hover:bg-primary/10 hover:shadow-lg hover:shadow-primary/20 animate-pulse'
+                        )}
+                        style={{
+                          left: field.x,
+                          top: field.y,
+                          width: field.width,
+                          height: field.height,
+                        }}
+                      >
+                        {isSigned ? (
+                          <span className="text-xs text-success font-medium">✓ Assinado</span>
+                        ) : (
+                          <>
+                            <Pen className="w-4 h-4 text-primary" />
+                            <span className="text-xs text-primary font-medium">Assinar aqui</span>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
 
-                {/* If no fields, show a message */}
-                {fields.length === 0 && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center p-6 bg-card/90 rounded-xl border shadow-lg">
-                      <Pen className="w-8 h-8 text-primary mx-auto mb-2" />
-                      <p className="text-sm font-medium">Nenhum campo de assinatura posicionado</p>
-                      <Button className="mt-3" onClick={() => handleFieldClick('default')}>
-                        Assinar documento
-                      </Button>
+                  {/* If no fields at all, allow fallback signature */}
+                  {fields.length === 0 && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center p-6 bg-card/90 rounded-xl border shadow-lg">
+                        <Pen className="w-8 h-8 text-primary mx-auto mb-2" />
+                        <p className="text-sm font-medium">Nenhum campo de assinatura posicionado</p>
+                        <Button className="mt-3" onClick={() => handleFieldClick('default')}>
+                          Assinar documento
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+
+                  {/* If document has fields but none on selected page */}
+                  {fields.length > 0 && currentPageFields.length === 0 && (
+                    <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-card/90 border border-border rounded-md px-3 py-1.5">
+                      <p className="text-xs text-muted-foreground">Nenhum campo nesta página. Vá para a próxima página.</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>

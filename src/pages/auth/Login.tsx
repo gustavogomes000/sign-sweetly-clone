@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { Eye, EyeOff, ArrowRight, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -15,34 +16,41 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [isAdminMode, setIsAdminMode] = useState(false);
-  const { login, loginAdmin } = useAuth();
+  const { login, loginAdmin, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    setTimeout(() => {
-      let success: boolean;
-      if (isAdminMode) {
-        success = loginAdmin(email, password);
-        if (success) {
-          navigate('/admin');
-        }
-      } else {
-        success = login(email, password);
-        if (success) {
-          navigate('/dashboard');
-        }
-      }
+    const success = isAdminMode
+      ? await loginAdmin(email, password)
+      : await login(email, password);
 
-      if (!success) {
-        toast({ title: 'Erro ao entrar', description: 'Email ou senha incorretos.', variant: 'destructive' });
-      }
-      setLoading(false);
-    }, 500);
+    if (success) {
+      navigate(isAdminMode ? '/admin' : '/dashboard');
+    } else {
+      toast({ title: 'Erro ao entrar', description: 'Email ou senha incorretos.', variant: 'destructive' });
+    }
+
+    setLoading(false);
+  };
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    const result = await loginWithGoogle();
+
+    if (!result.success) {
+      toast({
+        title: 'Falha ao conectar com Google',
+        description: result.error || 'Tente novamente.',
+        variant: 'destructive',
+      });
+      setGoogleLoading(false);
+    }
   };
 
   return (
@@ -88,6 +96,26 @@ export default function Login() {
             </h2>
           </CardHeader>
           <CardContent>
+            {!isAdminMode && (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleGoogleLogin}
+                  disabled={googleLoading || loading}
+                >
+                  {googleLoading ? 'Conectando Google...' : 'Entrar com Google'}
+                </Button>
+                <div className="relative my-4">
+                  <Separator />
+                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
+                    ou
+                  </span>
+                </div>
+              </>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-xs">Email</Label>
@@ -121,7 +149,7 @@ export default function Login() {
                   </button>
                 </div>
               </div>
-              <Button type="submit" className="w-full shadow-lg shadow-primary/20" disabled={loading}>
+              <Button type="submit" className="w-full shadow-lg shadow-primary/20" disabled={loading || googleLoading}>
                 {loading ? 'Entrando...' : 'Entrar'}
                 <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
@@ -139,8 +167,7 @@ export default function Login() {
               </div>
             ) : (
               <div className="text-xs text-muted-foreground space-y-0.5">
-                <p><span className="font-mono bg-secondary px-1 rounded">usuario@techcorp.com</span> / <span className="font-mono bg-secondary px-1 rounded">123456</span> (Admin)</p>
-                <p><span className="font-mono bg-secondary px-1 rounded">maria@techcorp.com</span> / <span className="font-mono bg-secondary px-1 rounded">123456</span> (Usuário)</p>
+                <p>Use sua conta real (email/senha) ou entre com Google para enviar documentos.</p>
               </div>
             )}
           </CardContent>
