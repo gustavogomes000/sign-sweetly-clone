@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CheckCircle2, FileText, Pen, Type, Download, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { Progress } from '@/components/ui/progress';
+
 import { loadSigningData, saveSignature } from '@/services/documentService';
 import { createBlueTechClient, getBlueTechConfig } from '@/services/bluetechApi';
 
