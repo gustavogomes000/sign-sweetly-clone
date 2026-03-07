@@ -312,15 +312,29 @@ export default function NewDocument() {
         {/* Editor step */}
         {isEditorStep && (
           <div className="flex-1 flex flex-col min-h-0 px-6 pb-4">
-            <div className="flex items-center justify-between py-3">
+            <div className="flex items-center justify-between py-3 gap-3">
               <div>
                 <h2 className="text-sm font-semibold text-foreground">Posicionar campos no documento</h2>
-                <p className="text-xs text-muted-foreground">Arraste campos da barra lateral e posicione-os onde os signatários devem preencher</p>
+                <p className="text-xs text-muted-foreground">Navegue por todas as páginas e marque exatamente onde cada signatário deve assinar</p>
               </div>
-              <Badge variant="secondary" className="text-xs">{placedFields.length} campo(s)</Badge>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="total-pages" className="text-xs text-muted-foreground whitespace-nowrap">Total de páginas</Label>
+                  <Input
+                    id="total-pages"
+                    type="number"
+                    min={1}
+                    max={200}
+                    value={editorTotalPages}
+                    onChange={(e) => handleEditorTotalPagesChange(e.target.value)}
+                    className="h-8 w-24"
+                  />
+                </div>
+                <Badge variant="secondary" className="text-xs">{placedFields.length} campo(s)</Badge>
+              </div>
             </div>
             <div className="flex-1 min-h-0">
-              <DocumentFieldEditor signers={editorSigners} fields={placedFields} onFieldsChange={setPlacedFields} totalPages={3} documentUrl={filePreviewUrl} />
+              <DocumentFieldEditor signers={editorSigners} fields={placedFields} onFieldsChange={setPlacedFields} totalPages={editorTotalPages} documentUrl={filePreviewUrl} />
             </div>
             <div className="flex items-center justify-between pt-3">
               <Button variant="outline" onClick={handleBack}><ArrowLeft className="w-4 h-4 mr-1" />Voltar</Button>
