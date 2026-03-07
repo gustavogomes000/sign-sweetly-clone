@@ -14,13 +14,14 @@ import {
   Zap,
   LogOut,
   Shield,
+  Trophy,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
-import valerisLogo from '@/assets/valeris-logo.png';
+import signproofLogo from '@/assets/signproof-icon.png';
 
 const mainNav = [
   { to: '/dashboard', label: 'Início', icon: LayoutDashboard },
@@ -30,6 +31,7 @@ const mainNav = [
   { to: '/contacts', label: 'Contatos', icon: Users },
   { to: '/bulk-send', label: 'Envio em massa', icon: Zap },
   { to: '/analytics', label: 'Relatórios', icon: BarChart3 },
+  { to: '/achievements', label: 'Conquistas', icon: Trophy },
 ];
 
 const bottomNav = [
@@ -58,13 +60,13 @@ export function AppSidebar() {
       {/* Logo */}
       <div className="flex items-center h-16 px-4 border-b border-sidebar-border">
         <div className="flex items-center gap-2.5">
-          <img src={valerisLogo} alt="Valeris" className="w-9 h-9 rounded-xl shrink-0 object-contain" />
+          <img src={signproofLogo} alt="SignProof" className="w-9 h-9 rounded-xl shrink-0 object-contain" />
           {!collapsed && (
             <div>
-              <span className="text-lg font-game font-bold text-sidebar-accent-foreground tracking-wider">
-                VALERIS
+              <span className="text-base font-game font-bold text-sidebar-accent-foreground tracking-wider">
+                SignProof
               </span>
-              <p className="text-[10px] text-sidebar-foreground/60 -mt-0.5 font-body">DNA do Software</p>
+              <p className="text-[10px] text-sidebar-foreground/60 -mt-0.5 font-body">by Valeris</p>
             </div>
           )}
         </div>

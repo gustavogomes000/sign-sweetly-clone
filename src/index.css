@@ -6,89 +6,95 @@
 
 @layer base {
   :root {
-    --background: 215 30% 96%;
-    --foreground: 215 30% 12%;
+    --background: 160 18% 95%;
+    --foreground: 180 20% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 215 30% 12%;
+    --card-foreground: 180 20% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 30% 12%;
+    --popover-foreground: 180 20% 12%;
 
-    --primary: 210 100% 50%;
+    --primary: 175 55% 30%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 215 25% 93%;
-    --secondary-foreground: 215 30% 12%;
+    --secondary: 160 18% 91%;
+    --secondary-foreground: 180 20% 12%;
 
-    --muted: 215 20% 94%;
-    --muted-foreground: 215 15% 46%;
+    --muted: 160 14% 93%;
+    --muted-foreground: 180 10% 46%;
 
-    --accent: 200 100% 50%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 42 85% 55%;
+    --accent-foreground: 30 60% 12%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 215 20% 88%;
-    --input: 215 20% 88%;
-    --ring: 210 100% 50%;
+    --border: 160 14% 86%;
+    --input: 160 14% 86%;
+    --ring: 175 55% 30%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 215 35% 10%;
-    --sidebar-foreground: 215 15% 75%;
-    --sidebar-primary: 210 100% 55%;
+    --sidebar-background: 180 30% 10%;
+    --sidebar-foreground: 160 12% 72%;
+    --sidebar-primary: 175 55% 40%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 215 30% 16%;
-    --sidebar-accent-foreground: 215 15% 92%;
-    --sidebar-border: 215 30% 15%;
-    --sidebar-ring: 210 100% 55%;
+    --sidebar-accent: 180 25% 16%;
+    --sidebar-accent-foreground: 160 12% 92%;
+    --sidebar-border: 180 25% 15%;
+    --sidebar-ring: 175 55% 40%;
 
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
     --success: 152 62% 42%;
     --success-foreground: 0 0% 100%;
-    --info: 200 100% 50%;
+    --info: 200 80% 50%;
     --info-foreground: 0 0% 100%;
 
     /* Gamified tokens */
-    --xp: 45 100% 51%;
-    --xp-foreground: 0 0% 10%;
-    --rank: 280 80% 55%;
+    --xp: 42 90% 55%;
+    --xp-foreground: 30 50% 10%;
+    --rank: 175 55% 35%;
     --rank-foreground: 0 0% 100%;
-    --glow-primary: 210 100% 50%;
-    --glow-accent: 200 100% 60%;
+    --coins: 42 85% 50%;
+    --coins-foreground: 30 60% 12%;
+    --medal-gold: 42 90% 55%;
+    --medal-silver: 210 8% 72%;
+    --medal-bronze: 25 55% 50%;
+    --glow-primary: 175 55% 35%;
+    --glow-accent: 42 85% 55%;
+    --glow-teal: 175 60% 40%;
   }
 
   .dark {
-    --background: 215 35% 8%;
-    --foreground: 215 15% 92%;
-    --card: 215 35% 12%;
-    --card-foreground: 215 15% 92%;
-    --popover: 215 35% 12%;
-    --popover-foreground: 215 15% 92%;
-    --primary: 210 100% 55%;
+    --background: 180 25% 7%;
+    --foreground: 160 12% 92%;
+    --card: 180 25% 11%;
+    --card-foreground: 160 12% 92%;
+    --popover: 180 25% 11%;
+    --popover-foreground: 160 12% 92%;
+    --primary: 175 55% 40%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 215 30% 16%;
-    --secondary-foreground: 215 15% 92%;
-    --muted: 215 30% 16%;
-    --muted-foreground: 215 15% 56%;
-    --accent: 200 100% 55%;
-    --accent-foreground: 0 0% 100%;
+    --secondary: 180 22% 15%;
+    --secondary-foreground: 160 12% 92%;
+    --muted: 180 22% 15%;
+    --muted-foreground: 160 10% 55%;
+    --accent: 42 85% 55%;
+    --accent-foreground: 30 60% 12%;
     --destructive: 0 62% 30%;
     --destructive-foreground: 0 0% 100%;
-    --border: 215 30% 18%;
-    --input: 215 30% 18%;
-    --ring: 210 100% 55%;
-    --sidebar-background: 215 40% 6%;
-    --sidebar-foreground: 215 15% 75%;
-    --sidebar-primary: 210 100% 55%;
+    --border: 180 22% 17%;
+    --input: 180 22% 17%;
+    --ring: 175 55% 40%;
+    --sidebar-background: 180 30% 5%;
+    --sidebar-foreground: 160 12% 72%;
+    --sidebar-primary: 175 55% 45%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 215 30% 12%;
-    --sidebar-accent-foreground: 215 15% 92%;
-    --sidebar-border: 215 30% 12%;
-    --sidebar-ring: 210 100% 55%;
+    --sidebar-accent: 180 25% 12%;
+    --sidebar-accent-foreground: 160 12% 92%;
+    --sidebar-border: 180 25% 12%;
+    --sidebar-ring: 175 55% 45%;
   }
 }
 
@@ -124,21 +130,29 @@
   }
 
   /* Gamified utilities */
-  .glow-blue {
+  .glow-primary {
     box-shadow: 0 0 15px -3px hsl(var(--glow-primary) / 0.4), 0 0 30px -5px hsl(var(--glow-primary) / 0.15);
   }
 
   .glow-accent {
-    box-shadow: 0 0 15px -3px hsl(var(--glow-accent) / 0.4), 0 0 30px -5px hsl(var(--glow-accent) / 0.15);
+    box-shadow: 0 0 15px -3px hsl(var(--glow-accent) / 0.5), 0 0 30px -5px hsl(var(--glow-accent) / 0.2);
+  }
+
+  .glow-blue {
+    box-shadow: 0 0 15px -3px hsl(var(--glow-teal) / 0.4), 0 0 30px -5px hsl(var(--glow-teal) / 0.15);
   }
 
   .glow-xp {
     box-shadow: 0 0 15px -3px hsl(var(--xp) / 0.5), 0 0 30px -5px hsl(var(--xp) / 0.2);
   }
 
+  .glow-gold {
+    box-shadow: 0 0 20px -3px hsl(var(--medal-gold) / 0.5), 0 0 40px -5px hsl(var(--medal-gold) / 0.2);
+  }
+
   .game-card {
     @apply relative overflow-hidden rounded-xl border border-border bg-card;
-    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--card)) 85%, hsl(var(--primary) / 0.03) 100%);
+    background: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--card)) 80%, hsl(var(--primary) / 0.05) 100%);
   }
 
   .game-card::before {
@@ -149,7 +163,7 @@
     right: 0;
     height: 3px;
     background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent)), hsl(var(--primary)));
-    opacity: 0.7;
+    opacity: 0.8;
   }
 
   .game-card:hover::before {
@@ -158,6 +172,23 @@
 
   .game-card:hover {
     box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.2), 0 4px 20px -5px hsl(0 0% 0% / 0.1);
+  }
+
+  .game-card-gold {
+    @apply relative overflow-hidden rounded-xl border;
+    border-color: hsl(var(--accent) / 0.3);
+    background: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--accent) / 0.06) 100%);
+  }
+
+  .game-card-gold::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, hsl(var(--accent)), hsl(var(--medal-gold)), hsl(var(--accent)));
+    opacity: 0.9;
   }
 
   .game-badge {
@@ -178,7 +209,7 @@
   }
 
   .hex-pattern {
-    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 5L55 20V45L30 60L5 45V20L30 5Z' fill='none' stroke='%230088ff' stroke-opacity='0.03' stroke-width='1'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 5L55 20V45L30 60L5 45V20L30 5Z' fill='none' stroke='%23267373' stroke-opacity='0.04' stroke-width='1'/%3E%3C/svg%3E");
     background-size: 60px 60px;
   }
 
@@ -194,6 +225,21 @@
     font-family: 'Orbitron', sans-serif;
     font-weight: 700;
     background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .gradient-teal-gold {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(175 45% 25%) 50%, hsl(var(--accent) / 0.8) 100%);
+  }
+
+  .gradient-gold {
+    background: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(38 85% 60%) 100%);
+  }
+
+  .text-gradient-gold {
+    background: linear-gradient(135deg, hsl(var(--accent)), hsl(38 90% 65%));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
