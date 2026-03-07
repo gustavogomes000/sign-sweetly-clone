@@ -60,13 +60,13 @@ export function AppSidebar() {
       {/* Logo */}
       <div className="flex items-center h-16 px-4 border-b border-sidebar-border">
         <div className="flex items-center gap-2.5">
-          <img src={valerisLogo} alt="Valeris" className="w-9 h-9 rounded-xl shrink-0 object-contain" />
+          <img src={signproofLogo} alt="SignProof" className="w-9 h-9 rounded-xl shrink-0 object-contain" />
           {!collapsed && (
             <div>
-              <span className="text-lg font-game font-bold text-sidebar-accent-foreground tracking-wider">
-                VALERIS
+              <span className="text-base font-game font-bold text-sidebar-accent-foreground tracking-wider">
+                SignProof
               </span>
-              <p className="text-[10px] text-sidebar-foreground/60 -mt-0.5 font-body">DNA do Software</p>
+              <p className="text-[10px] text-sidebar-foreground/60 -mt-0.5 font-body">by Valeris</p>
             </div>
           )}
         </div>
