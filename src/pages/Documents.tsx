@@ -261,10 +261,8 @@ export default function Documents() {
                     {format(new Date(doc.createdAt), 'dd/MM/yyyy', { locale: ptBR })}
                   </span>
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
+                    <DropdownMenuTrigger className="h-8 w-8 shrink-0 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      <MoreHorizontal className="w-4 h-4" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem><FileText className="w-4 h-4 mr-2" />Visualizar</DropdownMenuItem>
