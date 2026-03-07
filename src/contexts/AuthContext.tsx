@@ -17,6 +17,7 @@ interface AuthContextType {
   company: Company | null;
   login: (email: string, password: string) => Promise<boolean>;
   loginAdmin: (email: string, password: string) => Promise<boolean>;
+  signup: (email: string, password: string, name: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
   isSuperAdmin: boolean;
