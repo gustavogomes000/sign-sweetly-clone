@@ -650,9 +650,9 @@ export default function NewDocument() {
                 <Button variant="outline" onClick={handleBack} disabled={currentStepIndex === 0}>
                   <ArrowLeft className="w-4 h-4 mr-1" />Voltar
                 </Button>
-                <Button onClick={handleNext} disabled={!canAdvance()} className={currentStep === 'review' ? 'shadow-lg shadow-primary/20' : ''}>
+                <Button onClick={handleNext} disabled={!canAdvance() || sending} className={currentStep === 'review' ? 'shadow-lg shadow-primary/20' : ''}>
                   {currentStep === 'review' ? (
-                    <><Send className="w-4 h-4 mr-1" />Enviar documento</>
+                    sending ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Enviando...</> : <><Send className="w-4 h-4 mr-1" />Enviar documento</>
                   ) : (
                     <>Próximo<ArrowRight className="w-4 h-4 ml-1" /></>
                   )}
