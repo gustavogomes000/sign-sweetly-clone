@@ -341,11 +341,10 @@ export default function DocumentFieldEditor({
               {canPreviewDocument ? (
                 <>
                   {isPdfDocument ? (
-                    <object
-                      data={`${documentUrl}#page=${currentPage}&toolbar=0&navpanes=0&scrollbar=0`}
-                      type="application/pdf"
-                      className="w-full h-full pointer-events-none"
-                      aria-label={`Documento - Página ${currentPage}`}
+                    <PdfPagePreview
+                      documentUrl={documentUrl!}
+                      page={currentPage}
+                      className="pointer-events-none"
                     />
                   ) : (
                     <img
