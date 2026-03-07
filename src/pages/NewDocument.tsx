@@ -52,6 +52,21 @@ const genSignerId = () => `signer_${signerIdCounter++}`;
 let validationIdCounter = 1;
 const genValidationId = () => `val_${validationIdCounter++}`;
 
+const getPreviewMimeType = (inputFile: File | null) => {
+  if (!inputFile) return undefined;
+
+  const normalizedType = (inputFile.type || '').toLowerCase();
+  if (normalizedType.includes('pdf')) return 'application/pdf';
+  if (normalizedType.startsWith('image/')) return normalizedType;
+
+  const extension = inputFile.name.split('.').pop()?.toLowerCase();
+  if (extension === 'pdf') return 'application/pdf';
+  if (extension === 'png') return 'image/png';
+  if (extension === 'jpg' || extension === 'jpeg') return 'image/jpeg';
+
+  return normalizedType || undefined;
+};
+
 export default function NewDocument() {
   const [currentStep, setCurrentStep] = useState<Step>('upload');
   const [file, setFile] = useState<File | null>(null);
