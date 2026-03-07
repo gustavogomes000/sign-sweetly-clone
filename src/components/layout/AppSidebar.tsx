@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
-import signproofLogo from '@/assets/signproof-icon.png';
+import signproofLogo from '@/assets/signproof-logo.png';
 
 const mainNav = [
   { to: '/dashboard', label: 'Início', icon: LayoutDashboard },

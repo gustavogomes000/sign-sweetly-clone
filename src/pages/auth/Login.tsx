@@ -146,7 +146,7 @@ export default function Login() {
                 border: '1px solid hsl(var(--primary) / 0.3)',
               }}
             >
-              <img src={valerisLogo} alt="Valeris" className="w-16 h-16 object-contain" />
+              <img src={signproofLogo} alt="SignProof" className="w-16 h-16 object-contain" />
             </div>
             {/* Glow ring */}
             <div className="absolute -inset-1 rounded-2xl bg-primary/10 blur-md -z-10" />
