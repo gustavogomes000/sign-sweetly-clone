@@ -4,14 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CheckCircle2, FileText, Pen, Type, Download, Loader2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, FileText, Pen, Type, Download, Loader2, AlertCircle, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-
 import { loadSigningData, saveSignature } from '@/services/documentService';
 import { createBlueTechClient, getBlueTechConfig } from '@/services/bluetechApi';
+import PdfPagePreview from '@/components/documents/PdfPagePreview';
 
-type SigningStep = 'loading' | 'view_document' | 'signing' | 'processing' | 'complete' | 'error';
+type PageStep = 'loading' | 'document' | 'complete' | 'error';
 
 interface SignField {
   id: string;
@@ -29,17 +29,22 @@ const PDF_PAGE_HEIGHT = 842;
 
 export default function SignPage() {
   const { token } = useParams<{ token: string }>();
-  const [step, setStep] = useState<SigningStep>('loading');
+  const [pageStep, setPageStep] = useState<PageStep>('loading');
   const [errorMsg, setErrorMsg] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const { toast } = useToast();
+
+  // Signature modal state
+  const [signingFieldId, setSigningFieldId] = useState<string | null>(null);
   const [signMethod, setSignMethod] = useState<'draw' | 'type'>('draw');
   const [typedName, setTypedName] = useState('');
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { toast } = useToast();
+
+  // Signed fields tracking (local)
+  const [signedFieldIds, setSignedFieldIds] = useState<Set<string>>(new Set());
 
   // Data from DB
   const [signerData, setSignerData] = useState<{
@@ -52,33 +57,37 @@ export default function SignPage() {
   // Load signing data
   useEffect(() => {
     if (!token) {
-      setStep('error');
+      setPageStep('error');
       setErrorMsg('Token de assinatura não fornecido');
       return;
     }
     loadSigningData(token)
       .then((data) => {
         setSignerData(data as typeof signerData);
-
         const signerFields = (data.fields || []) as SignField[];
         const firstPage = signerFields.length > 0
-          ? Math.min(...signerFields.map((field) => Math.max(1, field.page || 1)))
+          ? Math.min(...signerFields.map((f) => Math.max(1, f.page || 1)))
           : 1;
         setCurrentPage(firstPage);
 
+        // Check already-signed fields
+        const alreadySigned = new Set<string>();
+        signerFields.forEach((f) => { if (f.value) alreadySigned.add(f.id); });
+        setSignedFieldIds(alreadySigned);
+
         if ((data.signer as { status: string }).status === 'signed') {
-          setStep('complete');
+          setPageStep('complete');
         } else {
-          setStep('view_document');
+          setPageStep('document');
         }
       })
       .catch((err) => {
-        setStep('error');
+        setPageStep('error');
         setErrorMsg(err instanceof Error ? err.message : 'Erro ao carregar documento');
       });
   }, [token]);
 
-  // Init canvas
+  // Init canvas when modal opens
   const initCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -94,11 +103,12 @@ export default function SignPage() {
   }, []);
 
   useEffect(() => {
-    if (step === 'signing') {
-      setTimeout(initCanvas, 100);
+    if (signingFieldId) {
+      setTimeout(initCanvas, 150);
     }
-  }, [step, initCanvas]);
+  }, [signingFieldId, initCanvas]);
 
+  // Drawing handlers
   const startDraw = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -139,13 +149,22 @@ export default function SignPage() {
     return canvas.toDataURL('image/png');
   };
 
-  const handleFieldClick = (fieldId: string) => {
-    setActiveFieldId(fieldId);
-    setStep('signing');
+  const openSigningModal = (fieldId: string) => {
+    setSigningFieldId(fieldId);
+    setSignMethod('draw');
+    setTypedName('');
+    setHasDrawn(false);
+  };
+
+  const closeSigningModal = () => {
+    setSigningFieldId(null);
+    setSignMethod('draw');
+    setTypedName('');
+    setHasDrawn(false);
   };
 
   const handleSign = async () => {
-    if (!signerData || !activeFieldId) return;
+    if (!signerData || !signingFieldId) return;
     setProcessing(true);
 
     const signer = signerData.signer as { id: string; bluetech_signatory_id: string; bluetech_document_id: string };
@@ -161,7 +180,6 @@ export default function SignPage() {
 
       if (signMethod === 'draw') {
         imageBase64 = getCanvasBase64();
-        // Call BlueTech microservice
         try {
           bluetechResponse = await client.saveSignatureDrawn({
             signatoryId: signer.bluetech_signatory_id || signer.id,
@@ -186,11 +204,10 @@ export default function SignPage() {
         }
       }
 
-      // Save to database
       await saveSignature({
         signerId: signer.id,
         documentId: doc.id,
-        fieldId: activeFieldId,
+        fieldId: signingFieldId,
         signatureType: signMethod === 'draw' ? 'drawn' : 'typed',
         imageBase64,
         typedText,
@@ -198,8 +215,27 @@ export default function SignPage() {
         bluetechResponse,
       });
 
-      toast({ title: 'Assinatura registrada com sucesso! ✅' });
-      setStep('complete');
+      // Mark field as signed locally
+      const newSigned = new Set(signedFieldIds);
+      newSigned.add(signingFieldId);
+      setSignedFieldIds(newSigned);
+
+      toast({ title: 'Assinatura registrada! ✅' });
+      closeSigningModal();
+
+      // Check if ALL fields are now signed
+      const allFields = signerData.fields || [];
+      const pendingFields = allFields.filter((f) => !newSigned.has(f.id));
+      if (pendingFields.length === 0) {
+        // All signed → complete
+        setTimeout(() => setPageStep('complete'), 600);
+      } else {
+        // Navigate to next pending field's page
+        const nextField = pendingFields[0];
+        if (nextField && nextField.page !== currentPage) {
+          setCurrentPage(nextField.page || 1);
+        }
+      }
     } catch (err) {
       console.error('Signing error:', err);
       toast({
@@ -216,19 +252,17 @@ export default function SignPage() {
 
   const docName = signerData ? String((signerData.document as { name: string }).name) : '';
   const signerName = signerData ? String((signerData.signer as { name: string }).name) : '';
-  const docUrl = signerData ? String((signerData.document as { file_path: string }).file_path) : '';
+  const docFilePath = signerData ? String((signerData.document as { file_path: string }).file_path) : '';
+  const publicUrl = docFilePath
+    ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/documents/${docFilePath}`
+    : '';
   const fields = signerData?.fields || [];
-  const totalPages = Math.max(1, ...fields.map((field) => Math.max(1, field.page || 1)));
-  const currentPageFields = fields.filter((field) => (field.page || 1) === currentPage);
+  const totalPages = Math.max(1, ...fields.map((f) => Math.max(1, f.page || 1)));
+  const currentPageFields = fields.filter((f) => (f.page || 1) === currentPage);
+  const pendingCount = fields.filter((f) => !signedFieldIds.has(f.id)).length;
 
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
-
-  // Loading state
-  if (step === 'loading') {
+  // Loading
+  if (pageStep === 'loading') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -239,8 +273,8 @@ export default function SignPage() {
     );
   }
 
-  // Error state
-  if (step === 'error') {
+  // Error
+  if (pageStep === 'error') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <Card className="max-w-md w-full text-center">
@@ -256,8 +290,8 @@ export default function SignPage() {
     );
   }
 
-  // Complete state
-  if (step === 'complete') {
+  // Complete
+  if (pageStep === 'complete') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <Card className="max-w-md w-full text-center animate-fade-in">
@@ -267,161 +301,163 @@ export default function SignPage() {
             </div>
             <h1 className="text-2xl font-bold text-foreground">Documento assinado!</h1>
             <p className="text-muted-foreground">Sua assinatura foi registrada com sucesso. Todos os envolvidos serão notificados.</p>
-            <Button variant="outline"><Download className="w-4 h-4 mr-1" />Baixar documento</Button>
+            {publicUrl && (
+              <a href={publicUrl} target="_blank" rel="noopener noreferrer">
+                <Button variant="outline"><Download className="w-4 h-4 mr-1" />Baixar documento</Button>
+              </a>
+            )}
           </CardContent>
         </Card>
       </div>
     );
   }
 
-
-  if (step === 'view_document') {
-    // Build public URL for document
-    const publicUrl = docUrl
-      ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/documents/${docUrl}`
-      : '';
-
-    const canGoPrev = currentPage > 1;
-    const canGoNext = currentPage < totalPages;
-
-    return (
-      <div className="min-h-screen bg-background">
-        <header className="h-14 border-b border-border bg-card flex items-center justify-between px-6">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <FileText className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-foreground">Valeris Sign</span>
+  // Document view with inline signing
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="h-14 border-b border-border bg-card flex items-center justify-between px-6">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+            <FileText className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="text-xs text-muted-foreground">Assinatura segura</span>
-        </header>
-
-        <div className="max-w-5xl mx-auto p-6 space-y-6">
-          <div className="space-y-4">
-            <div>
-              <h1 className="text-xl font-bold text-foreground">{docName}</h1>
-              <p className="text-sm text-muted-foreground mt-1">Olá {signerName}, navegue no documento e clique exatamente no campo onde você deve assinar.</p>
-            </div>
-
-            <div className="flex items-center justify-between gap-3">
-              <Button variant="outline" size="sm" onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))} disabled={!canGoPrev}>
-                Página anterior
-              </Button>
-              <span className="text-sm font-medium text-foreground">Página {currentPage} de {totalPages}</span>
-              <Button variant="outline" size="sm" onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))} disabled={!canGoNext}>
-                Próxima página
-              </Button>
-            </div>
-          </div>
-
-          {/* Document preview with positioned signature fields */}
-          <Card>
-            <CardContent className="p-4 sm:p-6">
-              <div className="w-full overflow-x-auto">
-                <div
-                  className="relative bg-white rounded-lg border border-border/30 shadow-sm mx-auto"
-                  style={{ width: PDF_PAGE_WIDTH, minWidth: PDF_PAGE_WIDTH, height: PDF_PAGE_HEIGHT }}
-                >
-                  {/* PDF embed */}
-                  {publicUrl && (
-                    <iframe
-                      src={`${publicUrl}#toolbar=0&page=${currentPage}&view=FitH`}
-                      className="w-full h-full rounded-lg"
-                      title={`Documento - página ${currentPage}`}
-                    />
-                  )}
-
-                  {/* Signature fields overlay (current page only) */}
-                  {currentPageFields.map((field) => {
-                    const isSigned = !!field.value;
-                    return (
-                      <div
-                        key={field.id}
-                        onClick={() => !isSigned && handleFieldClick(field.id)}
-                        className={cn(
-                          'absolute border-2 rounded-lg flex items-center justify-center gap-2 transition-all',
-                          isSigned
-                            ? 'border-success/50 bg-success/10 cursor-default'
-                            : 'border-primary border-dashed bg-primary/5 cursor-pointer hover:bg-primary/10 hover:shadow-lg hover:shadow-primary/20 animate-pulse'
-                        )}
-                        style={{
-                          left: field.x,
-                          top: field.y,
-                          width: field.width,
-                          height: field.height,
-                        }}
-                      >
-                        {isSigned ? (
-                          <span className="text-xs text-success font-medium">✓ Assinado</span>
-                        ) : (
-                          <>
-                            <Pen className="w-4 h-4 text-primary" />
-                            <span className="text-xs text-primary font-medium">Assinar aqui</span>
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
-
-                  {/* If no fields at all, allow fallback signature */}
-                  {fields.length === 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="text-center p-6 bg-card/90 rounded-xl border shadow-lg">
-                        <Pen className="w-8 h-8 text-primary mx-auto mb-2" />
-                        <p className="text-sm font-medium">Nenhum campo de assinatura posicionado</p>
-                        <Button className="mt-3" onClick={() => handleFieldClick('default')}>
-                          Assinar documento
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* If document has fields but none on selected page */}
-                  {fields.length > 0 && currentPageFields.length === 0 && (
-                    <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-card/90 border border-border rounded-md px-3 py-1.5">
-                      <p className="text-xs text-muted-foreground">Nenhum campo nesta página. Vá para a próxima página.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <span className="font-bold text-foreground">SignProof</span>
         </div>
-      </div>
-    );
-  }
+        <div className="flex items-center gap-3">
+          {pendingCount > 0 && (
+            <span className="text-xs bg-warning/15 text-warning px-2 py-1 rounded-full font-medium">
+              {pendingCount} campo(s) pendente(s)
+            </span>
+          )}
+          <span className="text-xs text-muted-foreground">Assinatura segura</span>
+        </div>
+      </header>
 
-  // Signing modal/step
-  if (step === 'signing') {
-    return (
-      <div className="min-h-screen bg-background">
-        <header className="h-14 border-b border-border bg-card flex items-center justify-between px-6">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <FileText className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-foreground">Valeris Sign</span>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => setStep('view_document')}>
-            Voltar ao documento
+      <div className="max-w-5xl mx-auto p-6 space-y-4">
+        {/* Info */}
+        <div>
+          <h1 className="text-xl font-bold text-foreground">{docName}</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Olá <strong>{signerName}</strong>, clique no campo de assinatura destacado para assinar.
+          </p>
+        </div>
+
+        {/* Page navigation */}
+        <div className="flex items-center justify-center gap-3">
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1}>
+            <ChevronLeft className="w-4 h-4" />
           </Button>
-        </header>
+          <span className="text-sm font-medium text-foreground min-w-[100px] text-center">
+            Página {currentPage} de {totalPages}
+          </span>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}>
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
 
-        <div className="max-w-xl mx-auto p-6 space-y-6">
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Assinar: {docName}</h1>
-            <p className="text-sm text-muted-foreground mt-1">Desenhe ou digite sua assinatura abaixo</p>
-          </div>
+        {/* Document canvas with signature fields */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="w-full overflow-x-auto flex justify-center">
+              <div
+                className="relative bg-white rounded-lg border border-border/30 shadow-sm"
+                style={{ width: PDF_PAGE_WIDTH, minWidth: PDF_PAGE_WIDTH, height: PDF_PAGE_HEIGHT }}
+              >
+                {/* PDF rendering */}
+                {publicUrl && (
+                  <PdfPagePreview
+                    documentUrl={publicUrl}
+                    page={currentPage}
+                    className="absolute inset-0 rounded-lg"
+                  />
+                )}
 
-          <Card>
-            <CardContent className="p-6 space-y-4">
+                {/* Signature field overlays */}
+                {currentPageFields.map((field) => {
+                  const isSigned = signedFieldIds.has(field.id);
+                  return (
+                    <div
+                      key={field.id}
+                      onClick={() => !isSigned && openSigningModal(field.id)}
+                      className={cn(
+                        'absolute border-2 rounded-lg flex items-center justify-center gap-1.5 transition-all z-10',
+                        isSigned
+                          ? 'border-success/50 bg-success/10 cursor-default'
+                          : 'border-primary border-dashed bg-primary/5 cursor-pointer hover:bg-primary/15 hover:shadow-lg hover:shadow-primary/20 animate-pulse'
+                      )}
+                      style={{
+                        left: field.x,
+                        top: field.y,
+                        width: field.width,
+                        height: field.height,
+                      }}
+                    >
+                      {isSigned ? (
+                        <span className="text-xs text-success font-medium flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Assinado
+                        </span>
+                      ) : (
+                        <>
+                          <Pen className="w-4 h-4 text-primary" />
+                          <span className="text-xs text-primary font-medium">Assinar aqui</span>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* No fields at all */}
+                {fields.length === 0 && (
+                  <div className="absolute inset-0 flex items-center justify-center z-10">
+                    <div className="text-center p-6 bg-card/90 rounded-xl border shadow-lg">
+                      <Pen className="w-8 h-8 text-primary mx-auto mb-2" />
+                      <p className="text-sm font-medium">Nenhum campo de assinatura posicionado</p>
+                      <Button className="mt-3" onClick={() => openSigningModal('default')}>
+                        Assinar documento
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* No fields on this page */}
+                {fields.length > 0 && currentPageFields.length === 0 && (
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-card/90 border border-border rounded-md px-3 py-1.5 z-10">
+                    <p className="text-xs text-muted-foreground">Nenhum campo nesta página.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Signing modal overlay */}
+      {signingFieldId && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center" onClick={closeSigningModal}>
+          <div
+            className="bg-card w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl animate-fade-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <div>
+                <h2 className="text-base font-bold text-foreground">Assinar documento</h2>
+                <p className="text-xs text-muted-foreground">Desenhe ou digite sua assinatura</p>
+              </div>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={closeSigningModal}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {/* Modal body */}
+            <div className="p-4 space-y-4">
               <Tabs value={signMethod} onValueChange={(v) => setSignMethod(v as 'draw' | 'type')}>
                 <TabsList className="grid grid-cols-2 w-full">
                   <TabsTrigger value="draw" className="gap-1.5"><Pen className="w-4 h-4" />Desenhar</TabsTrigger>
                   <TabsTrigger value="type" className="gap-1.5"><Type className="w-4 h-4" />Digitar</TabsTrigger>
                 </TabsList>
                 <TabsContent value="draw" className="mt-4">
-                  <div className="relative border-2 border-dashed border-border rounded-xl bg-card">
+                  <div className="relative border-2 border-dashed border-border rounded-xl bg-background">
                     <canvas
                       ref={canvasRef}
                       className="w-full h-40 cursor-crosshair rounded-xl"
@@ -446,7 +482,7 @@ export default function SignPage() {
                     className="text-center text-lg"
                   />
                   {typedName && (
-                    <div className="border-2 border-dashed border-border rounded-xl p-6 text-center bg-card">
+                    <div className="border-2 border-dashed border-border rounded-xl p-6 text-center bg-background">
                       <p className="text-3xl font-serif italic text-foreground" style={{ fontFamily: 'Georgia, serif' }}>
                         {typedName}
                       </p>
@@ -456,22 +492,20 @@ export default function SignPage() {
                 </TabsContent>
               </Tabs>
 
-              <div className="flex items-center justify-between pt-2">
-                <p className="text-xs text-muted-foreground">Ao assinar, você concorda com os termos.</p>
+              <div className="flex items-center justify-between pt-2 border-t border-border">
+                <p className="text-[10px] text-muted-foreground max-w-[200px]">Ao assinar, você concorda com os termos de uso.</p>
                 <Button onClick={handleSign} disabled={!canSign || processing} className="shadow-lg shadow-primary/20">
                   {processing ? (
                     <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Processando...</>
                   ) : (
-                    <><CheckCircle2 className="w-4 h-4 mr-1" />Assinar</>
+                    <><CheckCircle2 className="w-4 h-4 mr-1" />Confirmar assinatura</>
                   )}
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
-      </div>
-    );
-  }
-
-  return null;
+      )}
+    </div>
+  );
 }
