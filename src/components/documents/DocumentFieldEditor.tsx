@@ -46,6 +46,7 @@ interface DocumentFieldEditorProps {
   fields: PlacedField[];
   onFieldsChange: (fields: PlacedField[]) => void;
   totalPages?: number;
+  documentUrl?: string;
 }
 
 const fieldTypes: { type: FieldType; label: string; icon: React.ElementType; defaultW: number; defaultH: number }[] = [
