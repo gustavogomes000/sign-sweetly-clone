@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState } from 'react';
 import { Separator } from '@/components/ui/separator';
-import valerisLogo from '@/assets/valeris-logo.png';
+import signproofLogo from '@/assets/signproof-logo.png';
 
 const adminNav = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
