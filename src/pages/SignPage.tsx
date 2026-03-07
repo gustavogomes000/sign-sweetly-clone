@@ -59,6 +59,13 @@ export default function SignPage() {
     loadSigningData(token)
       .then((data) => {
         setSignerData(data as typeof signerData);
+
+        const signerFields = (data.fields || []) as SignField[];
+        const firstPage = signerFields.length > 0
+          ? Math.min(...signerFields.map((field) => Math.max(1, field.page || 1)))
+          : 1;
+        setCurrentPage(firstPage);
+
         if ((data.signer as { status: string }).status === 'signed') {
           setStep('complete');
         } else {
