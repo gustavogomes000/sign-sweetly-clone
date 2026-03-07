@@ -32,7 +32,7 @@ export function AdminLayout() {
         {/* Logo */}
         <div className="flex items-center h-16 px-4 border-b border-sidebar-border">
           <div className="flex items-center gap-2.5">
-            <img src={valerisLogo} alt="Valeris" className="w-9 h-9 rounded-xl shrink-0 object-contain" />
+            <img src={signproofLogo} alt="SignProof" className="w-9 h-9 rounded-xl shrink-0 object-contain" />
             {!collapsed && (
               <div>
                 <span className="text-lg font-game font-bold text-sidebar-accent-foreground tracking-wider">VALERIS</span>
