@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import valerisLogo from '@/assets/valeris-logo.png';
+import signproofLogo from '@/assets/signproof-logo.png';
 
 // Floating hexagon particles
 function HexParticles() {
