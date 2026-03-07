@@ -24,6 +24,9 @@ interface SignField {
   value: string | null;
 }
 
+const PDF_PAGE_WIDTH = 595;
+const PDF_PAGE_HEIGHT = 842;
+
 export default function SignPage() {
   const { token } = useParams<{ token: string }>();
   const [step, setStep] = useState<SigningStep>('loading');
