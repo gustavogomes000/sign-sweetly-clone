@@ -253,8 +253,9 @@ export default function NewDocument() {
                       <div className="absolute inset-0 flex items-center"><Separator /></div>
                       <div className="relative flex justify-center"><span className="bg-card px-3 text-xs text-muted-foreground">ou faça upload</span></div>
                     </div>
+                    <input ref={fileInputRef} type="file" accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png" className="hidden" onChange={handleFileChange} />
                     <div
-                      onClick={handleFileUpload}
+                      onClick={triggerFileInput}
                       className={cn(
                         'border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all',
                         fileName ? 'border-success bg-success/5' : 'border-border hover:border-primary/50 hover:bg-primary/5'
