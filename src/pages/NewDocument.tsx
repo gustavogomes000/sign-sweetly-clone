@@ -51,6 +51,7 @@ const genValidationId = () => `val_${validationIdCounter++}`;
 
 export default function NewDocument() {
   const [currentStep, setCurrentStep] = useState<Step>('upload');
+  const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState('');
   const [docName, setDocName] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('');
@@ -66,14 +67,24 @@ export default function NewDocument() {
   const [reminderDays, setReminderDays] = useState('3');
   const [orderMatters, setOrderMatters] = useState(false);
   const [locale, setLocale] = useState('pt-BR');
+  const [sending, setSending] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const currentStepIndex = steps.findIndex((s) => s.key === currentStep);
 
-  const handleFileUpload = () => {
-    setFileName('contrato-servicos.pdf');
-    if (!docName) setDocName('Contrato de Serviços');
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setFile(f);
+    setFileName(f.name);
+    if (!docName) setDocName(f.name.replace(/\.[^.]+$/, ''));
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
   };
 
   const addSigner = () => {
