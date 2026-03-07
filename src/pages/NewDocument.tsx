@@ -83,12 +83,14 @@ export default function NewDocument() {
     if (!f) return;
     setFile(f);
     setFileName(f.name);
+    setFilePreviewUrl(URL.createObjectURL(f));
     if (!docName) setDocName(f.name.replace(/\.[^.]+$/, ''));
   };
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
+  const [filePreviewUrl, setFilePreviewUrl] = useState<string | undefined>();
 
   const addSigner = () => {
     setSigners([...signers, { id: genSignerId(), name: '', email: '', phone: '', role: 'Signatário', validationSteps: [] }]);
