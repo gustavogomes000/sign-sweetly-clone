@@ -329,64 +329,46 @@ export default function DocumentFieldEditor({
               transformOrigin: 'top center',
             }}
           >
-            {/* Simulated document content */}
-            <div className="absolute inset-0 p-12" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left', width: 595, height: 842 }}>
-              {/* Simulated page header lines */}
-              <div className="space-y-6">
-                <div className="h-5 bg-gray-200 rounded w-3/4" />
-                <div className="space-y-2">
-                  <div className="h-3 bg-gray-100 rounded w-full" />
-                  <div className="h-3 bg-gray-100 rounded w-full" />
-                  <div className="h-3 bg-gray-100 rounded w-5/6" />
-                </div>
-                <div className="space-y-2">
-                  <div className="h-3 bg-gray-100 rounded w-full" />
-                  <div className="h-3 bg-gray-100 rounded w-full" />
-                  <div className="h-3 bg-gray-100 rounded w-4/5" />
-                  <div className="h-3 bg-gray-100 rounded w-full" />
-                  <div className="h-3 bg-gray-100 rounded w-3/4" />
-                </div>
-                {currentPage === 1 && (
-                  <>
-                    <div className="h-4 bg-gray-200 rounded w-1/2 mt-8" />
-                    <div className="space-y-2">
-                      <div className="h-3 bg-gray-100 rounded w-full" />
-                      <div className="h-3 bg-gray-100 rounded w-full" />
-                      <div className="h-3 bg-gray-100 rounded w-2/3" />
-                    </div>
-                  </>
-                )}
-                {currentPage === 2 && (
-                  <>
-                    <div className="space-y-2">
-                      <div className="h-3 bg-gray-100 rounded w-full" />
-                      <div className="h-3 bg-gray-100 rounded w-full" />
-                      <div className="h-3 bg-gray-100 rounded w-full" />
-                      <div className="h-3 bg-gray-100 rounded w-5/6" />
-                    </div>
-                    <div className="h-4 bg-gray-200 rounded w-2/5 mt-4" />
-                    <div className="space-y-2">
-                      <div className="h-3 bg-gray-100 rounded w-full" />
-                      <div className="h-3 bg-gray-100 rounded w-4/5" />
-                    </div>
-                  </>
-                )}
-                {currentPage === totalPages && (
-                  <div className="mt-8 space-y-8">
-                    <div className="h-4 bg-gray-200 rounded w-1/3" />
-                    <div className="flex justify-between">
-                      <div className="space-y-1 w-40">
-                        <div className="h-px bg-gray-300" />
-                        <div className="h-2.5 bg-gray-100 rounded w-3/4" />
-                      </div>
-                      <div className="space-y-1 w-40">
-                        <div className="h-px bg-gray-300" />
-                        <div className="h-2.5 bg-gray-100 rounded w-3/4" />
-                      </div>
-                    </div>
+            {/* Document content - real PDF or simulated */}
+            <div className="absolute inset-0" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left', width: 595, height: 842 }}>
+              {documentUrl ? (
+                <iframe
+                  src={`${documentUrl}#toolbar=0&page=${currentPage}`}
+                  className="w-full h-full border-0"
+                  title={`Documento - Página ${currentPage}`}
+                />
+              ) : (
+                <div className="p-12 space-y-6">
+                  <div className="h-5 bg-gray-200 rounded w-3/4" />
+                  <div className="space-y-2">
+                    <div className="h-3 bg-gray-100 rounded w-full" />
+                    <div className="h-3 bg-gray-100 rounded w-full" />
+                    <div className="h-3 bg-gray-100 rounded w-5/6" />
                   </div>
-                )}
-              </div>
+                  <div className="space-y-2">
+                    <div className="h-3 bg-gray-100 rounded w-full" />
+                    <div className="h-3 bg-gray-100 rounded w-full" />
+                    <div className="h-3 bg-gray-100 rounded w-4/5" />
+                    <div className="h-3 bg-gray-100 rounded w-full" />
+                    <div className="h-3 bg-gray-100 rounded w-3/4" />
+                  </div>
+                  {currentPage === totalPages && (
+                    <div className="mt-8 space-y-8">
+                      <div className="h-4 bg-gray-200 rounded w-1/3" />
+                      <div className="flex justify-between">
+                        <div className="space-y-1 w-40">
+                          <div className="h-px bg-gray-300" />
+                          <div className="h-2.5 bg-gray-100 rounded w-3/4" />
+                        </div>
+                        <div className="space-y-1 w-40">
+                          <div className="h-px bg-gray-300" />
+                          <div className="h-2.5 bg-gray-100 rounded w-3/4" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Placed fields */}
