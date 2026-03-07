@@ -87,19 +87,35 @@ export default function NewDocument() {
   const [locale, setLocale] = useState('pt-BR');
   const [sending, setSending] = useState(false);
   const [editorTotalPages, setEditorTotalPages] = useState(3);
+  const [filePreviewUrl, setFilePreviewUrl] = useState<string | undefined>();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
 
+  const previewMimeType = getPreviewMimeType(file);
   const currentStepIndex = steps.findIndex((s) => s.key === currentStep);
+
+  useEffect(() => {
+    return () => {
+      if (filePreviewUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(filePreviewUrl);
+      }
+    };
+  }, [filePreviewUrl]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
+
+    if (filePreviewUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(filePreviewUrl);
+    }
+
+    const nextPreviewUrl = URL.createObjectURL(f);
     setFile(f);
     setFileName(f.name);
-    setFilePreviewUrl(URL.createObjectURL(f));
+    setFilePreviewUrl(nextPreviewUrl);
     setEditorTotalPages(3);
     if (!docName) setDocName(f.name.replace(/\.[^.]+$/, ''));
   };
@@ -107,7 +123,6 @@ export default function NewDocument() {
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
-  const [filePreviewUrl, setFilePreviewUrl] = useState<string | undefined>();
 
   const addSigner = () => {
     setSigners([...signers, { id: genSignerId(), name: '', email: '', phone: '', role: 'Signatário', validationSteps: [] }]);
