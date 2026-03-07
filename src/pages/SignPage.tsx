@@ -268,6 +268,12 @@ export default function SignPage() {
   const totalPages = Math.max(1, ...fields.map((field) => Math.max(1, field.page || 1)));
   const currentPageFields = fields.filter((field) => (field.page || 1) === currentPage);
 
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   if (step === 'view_document') {
     // Build public URL for document
     const publicUrl = docUrl
