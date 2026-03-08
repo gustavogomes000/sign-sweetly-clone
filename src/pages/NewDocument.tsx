@@ -121,6 +121,16 @@ export default function NewDocument() {
     const f = e.target.files?.[0];
     if (!f) return;
 
+    if (!isFileAllowed(f)) {
+      toast({
+        title: 'Formato não suportado',
+        description: 'Apenas arquivos PDF, PNG e DOC/DOCX são aceitos.',
+        variant: 'destructive',
+      });
+      e.target.value = '';
+      return;
+    }
+
     if (filePreviewUrl?.startsWith('blob:')) {
       URL.revokeObjectURL(filePreviewUrl);
     }
