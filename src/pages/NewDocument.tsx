@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, ArrowRight, Upload, Plus, Trash2, FileText, CheckCircle2, Users, Send, Settings2, Pencil, Camera, FileImage, UserCheck, GripVertical, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Upload, Plus, Trash2, FileText, CheckCircle2, Users, Send, Settings2, Pencil, Camera, FileImage, UserCheck, GripVertical, Loader2, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
@@ -15,12 +15,19 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { PostSignatureValidation, ValidationStep } from '@/types/document';
 import { Badge } from '@/components/ui/badge';
-import { mockTemplates } from '@/data/mockData';
 import DocumentFieldEditor, { PlacedField, getSignerColor } from '@/components/documents/DocumentFieldEditor';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/contexts/AuthContext';
 import { uploadDocumentFile, createDocument, createSigners, createDocumentFields, createValidationSteps } from '@/services/documentService';
 import { supabase } from '@/integrations/supabase/client';
+
+interface TemplateOption {
+  id: string;
+  name: string;
+  category: string | null;
+  content: string;
+  file_path: string | null;
+}
 
 type Step = 'upload' | 'signers' | 'fields' | 'configure' | 'review';
 
@@ -86,6 +93,9 @@ export default function NewDocument() {
   const [fileName, setFileName] = useState('');
   const [docName, setDocName] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [templates, setTemplates] = useState<TemplateOption[]>([]);
+  const [templateContent, setTemplateContent] = useState('');
+  const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   const [signers, setSigners] = useState<NewSigner[]>([
     { id: genSignerId(), name: '', email: '', phone: '', role: 'Signatário', validationSteps: [] },
   ]);
@@ -106,8 +116,56 @@ export default function NewDocument() {
   const { toast } = useToast();
   const { user } = useAuth();
 
+  // Fetch templates from database
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      const { data } = await supabase
+        .from('templates')
+        .select('id, name, category, content, file_path')
+        .order('name');
+      if (data) setTemplates(data as TemplateOption[]);
+    };
+    fetchTemplates();
+  }, []);
+
+  const handleTemplateSelect = (templateId: string) => {
+    setSelectedTemplate(templateId);
+    const tpl = templates.find(t => t.id === templateId);
+    if (tpl) {
+      setTemplateContent(tpl.content || '');
+      setShowTemplateEditor(true);
+      if (!docName) setDocName(tpl.name);
+      // If template has a file, load it as the document
+      if (tpl.file_path) {
+        const { data } = supabase.storage.from('documents').getPublicUrl(tpl.file_path);
+        setFilePreviewUrl(data.publicUrl);
+        setFileName(tpl.name + '.pdf');
+      }
+    }
+  };
+
+  const handleClearTemplate = () => {
+    setSelectedTemplate('');
+    setTemplateContent('');
+    setShowTemplateEditor(false);
+  };
+
+  const insertTemplateText = (before: string, after = '') => {
+    const textarea = document.getElementById('template-content-editor') as HTMLTextAreaElement;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = templateContent.substring(start, end);
+    const newContent = templateContent.substring(0, start) + before + selected + after + templateContent.substring(end);
+    setTemplateContent(newContent);
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + before.length, start + before.length + selected.length);
+    }, 0);
+  };
   const previewMimeType = getPreviewMimeType(file);
   const currentStepIndex = steps.findIndex((s) => s.key === currentStep);
+
 
   useEffect(() => {
     return () => {
@@ -197,7 +255,7 @@ export default function NewDocument() {
 
   const canAdvance = () => {
     switch (currentStep) {
-      case 'upload': return !!fileName;
+      case 'upload': return !!fileName || showTemplateEditor;
       case 'signers': return signers.length > 0 && signers.every((s) => s.name && s.email);
       case 'fields': return true;
       case 'configure': return true;
@@ -425,10 +483,10 @@ export default function NewDocument() {
                   <CardContent className="space-y-5">
                     <div className="space-y-2">
                       <Label>Usar modelo (opcional)</Label>
-                      <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                      <Select value={selectedTemplate} onValueChange={handleTemplateSelect}>
                         <SelectTrigger><SelectValue placeholder="Selecionar modelo..." /></SelectTrigger>
                         <SelectContent>
-                          {mockTemplates.map((t) => (
+                          {templates.map((t) => (
                             <SelectItem key={t.id} value={t.id}>
                               <div className="flex items-center gap-2">
                                 <span>{t.name}</span>
@@ -439,36 +497,76 @@ export default function NewDocument() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="relative">
-                      <div className="absolute inset-0 flex items-center"><Separator /></div>
-                      <div className="relative flex justify-center"><span className="bg-card px-3 text-xs text-muted-foreground">ou faça upload</span></div>
-                    </div>
-                    <input ref={fileInputRef} type="file" accept=".pdf,.png,.doc,.docx" className="hidden" onChange={handleFileChange} />
-                    <div
-                      onClick={triggerFileInput}
-                      className={cn(
-                        'border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all',
-                        fileName ? 'border-success bg-success/5' : 'border-border hover:border-primary/50 hover:bg-primary/5'
-                      )}
-                    >
-                      {fileName ? (
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="w-14 h-14 rounded-xl bg-success/10 flex items-center justify-center">
-                            <CheckCircle2 className="w-7 h-7 text-success" />
+
+                    {/* Template content editor */}
+                    {showTemplateEditor && (
+                      <div className="space-y-2 rounded-lg border border-border p-4 bg-muted/20">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-primary" />
+                            <Label className="text-sm font-medium">Editar conteúdo do modelo</Label>
                           </div>
-                          <p className="text-sm font-medium text-foreground">{fileName}</p>
-                          <p className="text-xs text-muted-foreground">Clique para trocar o arquivo</p>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleClearTemplate}>
+                            <X className="w-4 h-4" />
+                          </Button>
                         </div>
-                      ) : (
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="w-14 h-14 rounded-xl bg-secondary flex items-center justify-center">
-                            <Upload className="w-7 h-7 text-muted-foreground" />
-                          </div>
-                          <p className="text-sm font-medium text-foreground">Clique ou arraste seu documento</p>
-                          <p className="text-xs text-muted-foreground">PDF, DOCX, XLSX, JPEG, PNG (máx. 20MB)</p>
+                        {/* Simple toolbar */}
+                        <div className="flex flex-wrap gap-1 border rounded-md p-1 bg-background">
+                          <Button variant="ghost" size="sm" className="h-6 text-xs font-bold" onClick={() => insertTemplateText('**', '**')}>N</Button>
+                          <Button variant="ghost" size="sm" className="h-6 text-xs italic" onClick={() => insertTemplateText('_', '_')}>I</Button>
+                          <div className="w-px bg-border mx-0.5" />
+                          <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => insertTemplateText('\n# ')}>Título</Button>
+                          <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => insertTemplateText('\n## ')}>Subtítulo</Button>
+                          <div className="w-px bg-border mx-0.5" />
+                          <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => insertTemplateText('\n- ')}>• Lista</Button>
+                          <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => insertTemplateText('{{', '}}')}>{'{{Campo}}'}</Button>
                         </div>
-                      )}
-                    </div>
+                        <textarea
+                          id="template-content-editor"
+                          className="w-full h-[250px] rounded-md border border-input bg-background px-3 py-2 text-sm font-mono leading-relaxed ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
+                          value={templateContent}
+                          onChange={(e) => setTemplateContent(e.target.value)}
+                          placeholder="Edite o conteúdo do modelo antes de enviar..."
+                        />
+                        <p className="text-xs text-muted-foreground">Use {'{{campo}}'} para campos variáveis. O conteúdo editado será usado neste documento.</p>
+                      </div>
+                    )}
+
+                    {!showTemplateEditor && (
+                      <>
+                        <div className="relative">
+                          <div className="absolute inset-0 flex items-center"><Separator /></div>
+                          <div className="relative flex justify-center"><span className="bg-card px-3 text-xs text-muted-foreground">ou faça upload</span></div>
+                        </div>
+                        <input ref={fileInputRef} type="file" accept=".pdf,.png,.doc,.docx" className="hidden" onChange={handleFileChange} />
+                        <div
+                          onClick={triggerFileInput}
+                          className={cn(
+                            'border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all',
+                            fileName ? 'border-success bg-success/5' : 'border-border hover:border-primary/50 hover:bg-primary/5'
+                          )}
+                        >
+                          {fileName ? (
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="w-14 h-14 rounded-xl bg-success/10 flex items-center justify-center">
+                                <CheckCircle2 className="w-7 h-7 text-success" />
+                              </div>
+                              <p className="text-sm font-medium text-foreground">{fileName}</p>
+                              <p className="text-xs text-muted-foreground">Clique para trocar o arquivo</p>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="w-14 h-14 rounded-xl bg-secondary flex items-center justify-center">
+                                <Upload className="w-7 h-7 text-muted-foreground" />
+                              </div>
+                              <p className="text-sm font-medium text-foreground">Clique ou arraste seu documento</p>
+                              <p className="text-xs text-muted-foreground">PDF, DOCX, XLSX, JPEG, PNG (máx. 20MB)</p>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+
                     <div className="space-y-2">
                       <Label>Nome do documento</Label>
                       <Input value={docName} onChange={(e) => setDocName(e.target.value)} placeholder="Ex: Contrato de Prestação de Serviços" />
