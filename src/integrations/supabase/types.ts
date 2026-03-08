@@ -168,10 +168,13 @@ export type Database = {
         Row: {
           created_at: string
           deadline: string | null
+          external_ref: string | null
           file_path: string | null
           id: string
           name: string
+          origin: string
           signature_type: string
+          source_system: string | null
           status: string
           updated_at: string
           user_id: string
@@ -179,10 +182,13 @@ export type Database = {
         Insert: {
           created_at?: string
           deadline?: string | null
+          external_ref?: string | null
           file_path?: string | null
           id?: string
           name: string
+          origin?: string
           signature_type?: string
+          source_system?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -190,10 +196,13 @@ export type Database = {
         Update: {
           created_at?: string
           deadline?: string | null
+          external_ref?: string | null
           file_path?: string | null
           id?: string
           name?: string
+          origin?: string
           signature_type?: string
+          source_system?: string | null
           status?: string
           updated_at?: string
           user_id?: string
