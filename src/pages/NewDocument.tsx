@@ -93,6 +93,9 @@ export default function NewDocument() {
   const [fileName, setFileName] = useState('');
   const [docName, setDocName] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [templates, setTemplates] = useState<TemplateOption[]>([]);
+  const [templateContent, setTemplateContent] = useState('');
+  const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   const [signers, setSigners] = useState<NewSigner[]>([
     { id: genSignerId(), name: '', email: '', phone: '', role: 'Signatário', validationSteps: [] },
   ]);
@@ -112,6 +115,40 @@ export default function NewDocument() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+
+  // Fetch templates from database
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      const { data } = await supabase
+        .from('templates')
+        .select('id, name, category, content, file_path')
+        .order('name');
+      if (data) setTemplates(data as TemplateOption[]);
+    };
+    fetchTemplates();
+  }, []);
+
+  const handleTemplateSelect = (templateId: string) => {
+    setSelectedTemplate(templateId);
+    const tpl = templates.find(t => t.id === templateId);
+    if (tpl) {
+      setTemplateContent(tpl.content || '');
+      setShowTemplateEditor(true);
+      if (!docName) setDocName(tpl.name);
+      // If template has a file, load it as the document
+      if (tpl.file_path) {
+        const { data } = supabase.storage.from('documents').getPublicUrl(tpl.file_path);
+        setFilePreviewUrl(data.publicUrl);
+        setFileName(tpl.name + '.pdf');
+      }
+    }
+  };
+
+  const handleClearTemplate = () => {
+    setSelectedTemplate('');
+    setTemplateContent('');
+    setShowTemplateEditor(false);
+  };
 
   const previewMimeType = getPreviewMimeType(file);
   const currentStepIndex = steps.findIndex((s) => s.key === currentStep);
