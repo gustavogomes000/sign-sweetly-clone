@@ -16,7 +16,7 @@ import Templates from "@/pages/Templates";
 import Folders from "@/pages/Folders";
 import BulkSend from "@/pages/BulkSend";
 import Analytics from "@/pages/Analytics";
-import Achievements from "@/pages/Achievements";
+
 import ApiDocs from "@/pages/ApiDocs";
 import SettingsPage from "@/pages/Settings";
 import SignPage from "@/pages/SignPage";
