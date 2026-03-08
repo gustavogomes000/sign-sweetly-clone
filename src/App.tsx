@@ -14,6 +14,8 @@ import NewDocument from "@/pages/NewDocument";
 import Contacts from "@/pages/Contacts";
 import Templates from "@/pages/Templates";
 import Folders from "@/pages/Folders";
+import TeamUsers from "@/pages/TeamUsers";
+import Departments from "@/pages/Departments";
 import BulkSend from "@/pages/BulkSend";
 import Analytics from "@/pages/Analytics";
 
@@ -65,6 +67,8 @@ function AppRoutes() {
         <Route path="/folders" element={<Folders />} />
         <Route path="/bulk-send" element={<BulkSend />} />
         <Route path="/analytics" element={<Analytics />} />
+        <Route path="/team" element={<TeamUsers />} />
+        <Route path="/departments" element={<Departments />} />
         <Route path="/integrations" element={<Integrations />} />
         <Route path="/api-docs" element={<ApiDocs />} />
         <Route path="/settings" element={<SettingsPage />} />
