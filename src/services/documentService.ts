@@ -1,7 +1,12 @@
 import { supabase } from '@/integrations/supabase/client';
 
+const ALLOWED_UPLOAD_EXTENSIONS = ['pdf', 'png', 'doc', 'docx'];
+
 export async function uploadDocumentFile(file: File, userId: string) {
-  const ext = file.name.split('.').pop();
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (!ALLOWED_UPLOAD_EXTENSIONS.includes(ext)) {
+    throw new Error('Formato não suportado. Apenas PDF, PNG e DOC/DOCX são aceitos.');
+  }
   const path = `${userId}/${crypto.randomUUID()}.${ext}`;
   
   const { error } = await supabase.storage

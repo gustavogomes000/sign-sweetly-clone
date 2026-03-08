@@ -52,17 +52,30 @@ const genSignerId = () => `signer_${signerIdCounter++}`;
 let validationIdCounter = 1;
 const genValidationId = () => `val_${validationIdCounter++}`;
 
+const ALLOWED_EXTENSIONS = ['pdf', 'png', 'doc', 'docx'];
+const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'image/png',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+];
+
+const isFileAllowed = (f: File): boolean => {
+  const ext = f.name.split('.').pop()?.toLowerCase() || '';
+  const mime = (f.type || '').toLowerCase();
+  return ALLOWED_EXTENSIONS.includes(ext) || ALLOWED_MIME_TYPES.some((m) => mime.includes(m));
+};
+
 const getPreviewMimeType = (inputFile: File | null) => {
   if (!inputFile) return undefined;
 
   const normalizedType = (inputFile.type || '').toLowerCase();
   if (normalizedType.includes('pdf')) return 'application/pdf';
-  if (normalizedType.startsWith('image/')) return normalizedType;
+  if (normalizedType === 'image/png') return 'image/png';
 
   const extension = inputFile.name.split('.').pop()?.toLowerCase();
   if (extension === 'pdf') return 'application/pdf';
   if (extension === 'png') return 'image/png';
-  if (extension === 'jpg' || extension === 'jpeg') return 'image/jpeg';
 
   return normalizedType || undefined;
 };
@@ -107,6 +120,16 @@ export default function NewDocument() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
+
+    if (!isFileAllowed(f)) {
+      toast({
+        title: 'Formato não suportado',
+        description: 'Apenas arquivos PDF, PNG e DOC/DOCX são aceitos.',
+        variant: 'destructive',
+      });
+      e.target.value = '';
+      return;
+    }
 
     if (filePreviewUrl?.startsWith('blob:')) {
       URL.revokeObjectURL(filePreviewUrl);
@@ -420,7 +443,7 @@ export default function NewDocument() {
                       <div className="absolute inset-0 flex items-center"><Separator /></div>
                       <div className="relative flex justify-center"><span className="bg-card px-3 text-xs text-muted-foreground">ou faça upload</span></div>
                     </div>
-                    <input ref={fileInputRef} type="file" accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png" className="hidden" onChange={handleFileChange} />
+                    <input ref={fileInputRef} type="file" accept=".pdf,.png,.doc,.docx" className="hidden" onChange={handleFileChange} />
                     <div
                       onClick={triggerFileInput}
                       className={cn(
