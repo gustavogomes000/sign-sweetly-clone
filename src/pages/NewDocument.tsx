@@ -163,8 +163,9 @@ export default function NewDocument() {
       textarea.setSelectionRange(start + before.length, start + before.length + selected.length);
     }, 0);
   };
-
+  const previewMimeType = getPreviewMimeType(file);
   const currentStepIndex = steps.findIndex((s) => s.key === currentStep);
+
 
   useEffect(() => {
     return () => {
