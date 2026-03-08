@@ -26,12 +26,12 @@ import signproofLogo from '@/assets/signproof-logo.png';
 const mainNav = [
   { to: '/dashboard', label: 'Início', icon: LayoutDashboard },
   { to: '/documents', label: 'Documentos', icon: FileText },
+  { to: '/integrations', label: 'Integrações', icon: Zap },
   { to: '/folders', label: 'Pastas', icon: FolderTree },
   { to: '/templates', label: 'Modelos', icon: Layers },
   { to: '/contacts', label: 'Contatos', icon: Users },
-  { to: '/bulk-send', label: 'Envio em massa', icon: Zap },
+  { to: '/bulk-send', label: 'Envio em massa', icon: Shield },
   { to: '/analytics', label: 'Relatórios', icon: BarChart3 },
-  
 ];
 
 const bottomNav = [

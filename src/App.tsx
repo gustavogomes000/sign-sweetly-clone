@@ -18,6 +18,7 @@ import BulkSend from "@/pages/BulkSend";
 import Analytics from "@/pages/Analytics";
 
 import ApiDocs from "@/pages/ApiDocs";
+import Integrations from "@/pages/Integrations";
 import SettingsPage from "@/pages/Settings";
 import SignPage from "@/pages/SignPage";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
@@ -64,7 +65,7 @@ function AppRoutes() {
         <Route path="/folders" element={<Folders />} />
         <Route path="/bulk-send" element={<BulkSend />} />
         <Route path="/analytics" element={<Analytics />} />
-        
+        <Route path="/integrations" element={<Integrations />} />
         <Route path="/api-docs" element={<ApiDocs />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

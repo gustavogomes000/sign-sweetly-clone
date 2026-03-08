@@ -92,8 +92,11 @@ Deno.serve(async (req) => {
         name,
         file_path: file_url || null,
         signature_type: signature_type || 'electronic',
-        status: 'pending',
+        status: body.auto_send === false ? 'draft' : 'pending',
         deadline: deadline || null,
+        origin: 'api',
+        external_ref: body.external_ref || null,
+        source_system: body.source_system || null,
       }).select().single();
 
       if (docErr) return error(`Erro ao criar documento: ${docErr.message}`, 500);
