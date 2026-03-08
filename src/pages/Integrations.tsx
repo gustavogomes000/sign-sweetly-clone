@@ -70,11 +70,11 @@ function useIntegrationDocs() {
     queryFn: async (): Promise<IntegrationDoc[]> => {
       if (!user) return [];
 
-      const { data: docs, error } = await supabase
+      const { data: docs, error } = await (supabase
         .from('documents')
         .select('*')
-        .eq('user_id', user.id)
-        .eq('origin' as any, 'api')
+        .eq('user_id', user.id) as any)
+        .eq('origin', 'api')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
