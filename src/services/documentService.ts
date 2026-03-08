@@ -231,4 +231,31 @@ export async function saveSignature(data: {
     actor: data.signerId,
     details: `Assinatura ${data.signatureType === 'drawn' ? 'desenhada' : 'tipográfica'} realizada`,
   });
+
+  // Trigger webhooks for signer.signed event
+  try {
+    await supabase.functions.invoke('dispatch-webhook', {
+      body: {
+        event: 'signer.signed',
+        document_id: data.documentId,
+        signer_id: data.signerId,
+        payload: {
+          signature_type: data.signatureType,
+        },
+      },
+    });
+
+    // If all signed, also trigger document.completed
+    if (allSigned) {
+      await supabase.functions.invoke('dispatch-webhook', {
+        body: {
+          event: 'document.completed',
+          document_id: data.documentId,
+          payload: { total_signers: allSigners?.length },
+        },
+      });
+    }
+  } catch (whErr) {
+    console.warn('Webhook dispatch failed:', whErr);
+  }
 }
