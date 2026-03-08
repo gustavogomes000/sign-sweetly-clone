@@ -16,7 +16,7 @@ import Templates from "@/pages/Templates";
 import Folders from "@/pages/Folders";
 import BulkSend from "@/pages/BulkSend";
 import Analytics from "@/pages/Analytics";
-import Achievements from "@/pages/Achievements";
+
 import ApiDocs from "@/pages/ApiDocs";
 import SettingsPage from "@/pages/Settings";
 import SignPage from "@/pages/SignPage";
@@ -64,7 +64,7 @@ function AppRoutes() {
         <Route path="/folders" element={<Folders />} />
         <Route path="/bulk-send" element={<BulkSend />} />
         <Route path="/analytics" element={<Analytics />} />
-        <Route path="/achievements" element={<Achievements />} />
+        
         <Route path="/api-docs" element={<ApiDocs />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

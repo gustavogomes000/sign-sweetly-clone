@@ -14,7 +14,7 @@ import {
   Zap,
   LogOut,
   Shield,
-  Trophy,
+  
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -31,7 +31,7 @@ const mainNav = [
   { to: '/contacts', label: 'Contatos', icon: Users },
   { to: '/bulk-send', label: 'Envio em massa', icon: Zap },
   { to: '/analytics', label: 'Relatórios', icon: BarChart3 },
-  { to: '/achievements', label: 'Conquistas', icon: Trophy },
+  
 ];
 
 const bottomNav = [
