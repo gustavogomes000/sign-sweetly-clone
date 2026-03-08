@@ -443,7 +443,7 @@ export default function NewDocument() {
                       <div className="absolute inset-0 flex items-center"><Separator /></div>
                       <div className="relative flex justify-center"><span className="bg-card px-3 text-xs text-muted-foreground">ou faça upload</span></div>
                     </div>
-                    <input ref={fileInputRef} type="file" accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png" className="hidden" onChange={handleFileChange} />
+                    <input ref={fileInputRef} type="file" accept=".pdf,.png,.doc,.docx" className="hidden" onChange={handleFileChange} />
                     <div
                       onClick={triggerFileInput}
                       className={cn(
