@@ -2,3 +2,9 @@ project_id = "euijfoczbexcikdylvpm"
 
 [functions.send-signing-email]
 verify_jwt = false
+
+[functions.api-gateway]
+verify_jwt = false
+
+[functions.dispatch-webhook]
+verify_jwt = false
