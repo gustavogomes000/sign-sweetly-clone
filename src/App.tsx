@@ -14,6 +14,8 @@ import NewDocument from "@/pages/NewDocument";
 import Contacts from "@/pages/Contacts";
 import Templates from "@/pages/Templates";
 import Folders from "@/pages/Folders";
+import TeamUsers from "@/pages/TeamUsers";
+import Departments from "@/pages/Departments";
 import BulkSend from "@/pages/BulkSend";
 import Analytics from "@/pages/Analytics";
 
