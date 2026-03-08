@@ -255,7 +255,7 @@ export default function NewDocument() {
 
   const canAdvance = () => {
     switch (currentStep) {
-      case 'upload': return !!fileName;
+      case 'upload': return !!fileName || showTemplateEditor;
       case 'signers': return signers.length > 0 && signers.every((s) => s.name && s.email);
       case 'fields': return true;
       case 'configure': return true;
