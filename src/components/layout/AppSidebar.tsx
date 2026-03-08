@@ -31,7 +31,7 @@ const mainNav = [
   { to: '/contacts', label: 'Contatos', icon: Users },
   { to: '/bulk-send', label: 'Envio em massa', icon: Zap },
   { to: '/analytics', label: 'Relatórios', icon: BarChart3 },
-  { to: '/achievements', label: 'Conquistas', icon: Trophy },
+  
 ];
 
 const bottomNav = [

@@ -64,7 +64,7 @@ function AppRoutes() {
         <Route path="/folders" element={<Folders />} />
         <Route path="/bulk-send" element={<BulkSend />} />
         <Route path="/analytics" element={<Analytics />} />
-        <Route path="/achievements" element={<Achievements />} />
+        
         <Route path="/api-docs" element={<ApiDocs />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
