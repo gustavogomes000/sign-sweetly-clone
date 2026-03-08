@@ -412,6 +412,7 @@ export type Database = {
           content: string
           created_at: string
           description: string | null
+          file_path: string | null
           id: string
           name: string
           updated_at: string
@@ -422,6 +423,7 @@ export type Database = {
           content?: string
           created_at?: string
           description?: string | null
+          file_path?: string | null
           id?: string
           name: string
           updated_at?: string
@@ -432,6 +434,7 @@ export type Database = {
           content?: string
           created_at?: string
           description?: string | null
+          file_path?: string | null
           id?: string
           name?: string
           updated_at?: string
