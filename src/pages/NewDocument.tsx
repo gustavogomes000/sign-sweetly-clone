@@ -150,7 +150,20 @@ export default function NewDocument() {
     setShowTemplateEditor(false);
   };
 
-  const previewMimeType = getPreviewMimeType(file);
+  const insertTemplateText = (before: string, after = '') => {
+    const textarea = document.getElementById('template-content-editor') as HTMLTextAreaElement;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = templateContent.substring(start, end);
+    const newContent = templateContent.substring(0, start) + before + selected + after + templateContent.substring(end);
+    setTemplateContent(newContent);
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + before.length, start + before.length + selected.length);
+    }, 0);
+  };
+
   const currentStepIndex = steps.findIndex((s) => s.key === currentStep);
 
   useEffect(() => {
