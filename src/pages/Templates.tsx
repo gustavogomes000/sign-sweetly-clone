@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,12 +11,13 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { FolderOpen, Plus, Copy, MoreHorizontal, FileText, Trash2, Pencil, Loader2 } from 'lucide-react';
+import { FolderOpen, Plus, Copy, MoreHorizontal, FileText, Trash2, Pencil, Loader2, Upload, File, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import PdfPagePreview from '@/components/documents/PdfPagePreview';
 
 interface TemplateRow {
   id: string;
@@ -27,6 +28,7 @@ interface TemplateRow {
   created_at: string;
   updated_at: string;
   user_id: string;
+  file_path: string | null;
 }
 
 export default function Templates() {
@@ -42,9 +44,14 @@ export default function Templates() {
   const [formName, setFormName] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formCategory, setFormCategory] = useState('');
+  const [formFile, setFormFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Editor state
   const [editorContent, setEditorContent] = useState('');
+  const [editorPage, setEditorPage] = useState(1);
+  const [documentUrl, setDocumentUrl] = useState<string | null>(null);
 
   const fetchTemplates = async () => {
     setLoading(true);
@@ -58,25 +65,55 @@ export default function Templates() {
 
   useEffect(() => { fetchTemplates(); }, []);
 
+  const uploadFile = async (file: File): Promise<string | null> => {
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'pdf';
+    const filePath = `templates/${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabase.storage.from('documents').upload(filePath, file);
+    if (error) {
+      toast.error('Erro ao fazer upload do arquivo');
+      return null;
+    }
+    return filePath;
+  };
+
+  const getPublicUrl = (filePath: string) => {
+    const { data } = supabase.storage.from('documents').getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
   const handleCreate = async () => {
     if (!formName.trim() || !user) return;
     setSaving(true);
+    setUploading(!!formFile);
+
+    let filePath: string | null = null;
+    if (formFile) {
+      filePath = await uploadFile(formFile);
+      if (!filePath) { setSaving(false); setUploading(false); return; }
+    }
+
     const { error } = await supabase.from('templates').insert({
       name: formName.trim(),
       description: formDescription.trim() || null,
       category: formCategory.trim() || null,
       content: '',
       user_id: user.id,
+      file_path: filePath,
     });
     setSaving(false);
+    setUploading(false);
     if (error) {
       toast.error('Erro ao criar modelo');
       return;
     }
     toast.success('Modelo criado com sucesso');
     setCreateOpen(false);
-    setFormName(''); setFormDescription(''); setFormCategory('');
+    resetForm();
     fetchTemplates();
+  };
+
+  const resetForm = () => {
+    setFormName(''); setFormDescription(''); setFormCategory(''); setFormFile(null);
   };
 
   const handleDuplicate = async (t: TemplateRow) => {
@@ -87,6 +124,7 @@ export default function Templates() {
       category: t.category,
       content: t.content,
       user_id: user.id,
+      file_path: t.file_path,
     });
     if (error) { toast.error('Erro ao duplicar'); return; }
     toast.success('Modelo duplicado');
@@ -103,6 +141,12 @@ export default function Templates() {
   const openEditor = (t: TemplateRow) => {
     setEditingTemplate(t);
     setEditorContent(t.content);
+    setEditorPage(1);
+    if (t.file_path) {
+      setDocumentUrl(getPublicUrl(t.file_path));
+    } else {
+      setDocumentUrl(null);
+    }
     setEditorOpen(true);
   };
 
@@ -121,8 +165,23 @@ export default function Templates() {
     fetchTemplates();
   };
 
-  const handleUseTemplate = (t: TemplateRow) => {
-    openEditor(t);
+  const handleUploadToExisting = async (t: TemplateRow) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.png,.doc,.docx';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      setUploading(true);
+      const filePath = await uploadFile(file);
+      if (!filePath) { setUploading(false); return; }
+      const { error } = await supabase.from('templates').update({ file_path: filePath }).eq('id', t.id);
+      setUploading(false);
+      if (error) { toast.error('Erro ao vincular arquivo'); return; }
+      toast.success('Arquivo vinculado ao modelo');
+      fetchTemplates();
+    };
+    input.click();
   };
 
   // Simple toolbar actions for the editor
@@ -138,6 +197,11 @@ export default function Templates() {
       textarea.focus();
       textarea.setSelectionRange(start + before.length, start + before.length + selected.length);
     }, 0);
+  };
+
+  const isFileAllowed = (f: File) => {
+    const ext = f.name.split('.').pop()?.toLowerCase() || '';
+    return ['pdf', 'png', 'doc', 'docx'].includes(ext);
   };
 
   return (
@@ -171,12 +235,19 @@ export default function Templates() {
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-                        <FolderOpen className="w-5 h-5 text-muted-foreground" />
+                        {template.file_path ? (
+                          <File className="w-5 h-5 text-primary" />
+                        ) : (
+                          <FolderOpen className="w-5 h-5 text-muted-foreground" />
+                        )}
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">{template.name}</p>
                         {template.category && (
                           <p className="text-xs text-primary mt-0.5">{template.category}</p>
+                        )}
+                        {template.file_path && (
+                          <p className="text-xs text-muted-foreground mt-0.5">📎 Documento anexado</p>
                         )}
                       </div>
                     </div>
@@ -189,6 +260,9 @@ export default function Templates() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => openEditor(template)}>
                           <Pencil className="w-4 h-4 mr-2" />Editar conteúdo
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleUploadToExisting(template)}>
+                          <Upload className="w-4 h-4 mr-2" />{template.file_path ? 'Trocar documento' : 'Anexar documento'}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleDuplicate(template)}>
                           <Copy className="w-4 h-4 mr-2" />Duplicar
@@ -206,7 +280,7 @@ export default function Templates() {
                     <span className="text-xs text-muted-foreground">
                       {format(new Date(template.created_at), 'dd/MM/yyyy', { locale: ptBR })}
                     </span>
-                    <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => handleUseTemplate(template)}>
+                    <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => openEditor(template)}>
                       Usar modelo
                     </Button>
                   </div>
@@ -218,7 +292,7 @@ export default function Templates() {
       </div>
 
       {/* Create Template Dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) resetForm(); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Novo Modelo</DialogTitle>
@@ -237,20 +311,59 @@ export default function Templates() {
               <Label htmlFor="tpl-cat">Categoria</Label>
               <Input id="tpl-cat" value={formCategory} onChange={(e) => setFormCategory(e.target.value)} placeholder="Ex: Contratos, NDAs, RH" />
             </div>
+
+            {/* File Upload */}
+            <div>
+              <Label>Documento base (opcional)</Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.png,.doc,.docx"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file && isFileAllowed(file)) {
+                    setFormFile(file);
+                  } else if (file) {
+                    toast.error('Formato não suportado. Use PDF, PNG, DOC ou DOCX.');
+                  }
+                }}
+              />
+              {formFile ? (
+                <div className="flex items-center gap-2 mt-1.5 p-2.5 rounded-md border border-border bg-muted/30">
+                  <File className="w-4 h-4 text-primary shrink-0" />
+                  <span className="text-sm truncate flex-1">{formFile.name}</span>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setFormFile(null)}>
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-1.5 w-full"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="w-4 h-4 mr-1.5" />
+                  Fazer upload de documento
+                </Button>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">PDF, PNG, DOC ou DOCX</p>
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setCreateOpen(false); resetForm(); }}>Cancelar</Button>
             <Button onClick={handleCreate} disabled={!formName.trim() || saving}>
-              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+              {(saving || uploading) ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
               Criar modelo
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Template Content Editor Dialog */}
+      {/* Template Content Editor Dialog - with PDF preview */}
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-[95vw] max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>
               <div className="flex items-center gap-2">
@@ -258,7 +371,11 @@ export default function Templates() {
                 {editingTemplate?.name}
               </div>
             </DialogTitle>
-            <DialogDescription>Edite o conteúdo do modelo como um documento de texto.</DialogDescription>
+            <DialogDescription>
+              {documentUrl
+                ? 'Edite o texto ao lado do documento. O PDF é exibido como referência.'
+                : 'Edite o conteúdo do modelo como um documento de texto.'}
+            </DialogDescription>
           </DialogHeader>
 
           {/* Simple toolbar */}
@@ -292,14 +409,48 @@ export default function Templates() {
             </Button>
           </div>
 
-          {/* Editor area */}
-          <div className="flex-1 min-h-0">
-            <textarea
-              id="template-editor"
-              className="w-full h-[50vh] rounded-md border border-input bg-background px-4 py-3 text-sm font-mono leading-relaxed ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
-              value={editorContent}
-              onChange={(e) => setEditorContent(e.target.value)}
-              placeholder={`Escreva o conteúdo do seu modelo aqui...
+          {/* Editor area - side by side when PDF exists */}
+          <div className={`flex-1 min-h-0 ${documentUrl ? 'flex gap-4' : ''}`}>
+            {/* PDF Preview */}
+            {documentUrl && (
+              <div className="w-1/2 flex flex-col border rounded-md overflow-hidden bg-muted/20">
+                <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/40">
+                  <span className="text-xs font-medium text-muted-foreground">Documento</span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      disabled={editorPage <= 1}
+                      onClick={() => setEditorPage((p) => Math.max(1, p - 1))}
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </Button>
+                    <span className="text-xs text-muted-foreground tabular-nums">Pág. {editorPage}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => setEditorPage((p) => p + 1)}
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-auto">
+                  <PdfPagePreview documentUrl={documentUrl} page={editorPage} />
+                </div>
+              </div>
+            )}
+
+            {/* Text Editor */}
+            <div className={documentUrl ? 'w-1/2' : 'w-full'}>
+              <textarea
+                id="template-editor"
+                className="w-full h-[50vh] rounded-md border border-input bg-background px-4 py-3 text-sm font-mono leading-relaxed ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
+                value={editorContent}
+                onChange={(e) => setEditorContent(e.target.value)}
+                placeholder={`Escreva o conteúdo do seu modelo aqui...
 
 Exemplo:
 
@@ -313,7 +464,8 @@ Exemplo:
 O presente contrato tem como objeto...
 
 Use {{campo}} para criar campos variáveis que serão preenchidos ao usar o modelo.`}
-            />
+              />
+            </div>
           </div>
 
           <DialogFooter>
