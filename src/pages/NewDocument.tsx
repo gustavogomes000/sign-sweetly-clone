@@ -281,7 +281,7 @@ export default function NewDocument() {
           userId: user.id,
           name: docName || fileName,
           filePath: path,
-          signatureType,
+          signatureType: 'microservice',
           deadline: hasDeadline ? deadline : undefined,
         });
         
