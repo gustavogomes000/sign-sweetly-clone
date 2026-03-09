@@ -264,3 +264,17 @@ export async function saveSignature(data: {
     console.warn('Webhook dispatch failed:', whErr);
   }
 }
+
+// Complete a validation step (KYC step after signing)
+export async function completeValidationStep(stepId: string, result?: Record<string, unknown>) {
+  const { error } = await supabase
+    .from('validation_steps')
+    .update({
+      status: 'completed',
+      completed_at: new Date().toISOString(),
+      bluetech_response: (result as unknown as import('@/integrations/supabase/types').Json) || null,
+    })
+    .eq('id', stepId);
+  
+  if (error) throw error;
+}

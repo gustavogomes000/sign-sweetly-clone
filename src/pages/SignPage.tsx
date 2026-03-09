@@ -4,14 +4,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CheckCircle2, FileText, Pen, Type, Download, Loader2, AlertCircle, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { CheckCircle2, FileText, Pen, Type, Download, Loader2, AlertCircle, ChevronLeft, ChevronRight, X, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { loadSigningData, saveSignature } from '@/services/documentService';
+import { loadSigningData, saveSignature, completeValidationStep } from '@/services/documentService';
 import { createBlueTechClient, getBlueTechConfig } from '@/services/bluetechApi';
 import PdfPagePreview from '@/components/documents/PdfPagePreview';
+import { VLSelfie, VLDocumento, VLSelfieDoc } from '@/components/valeris';
+import { useValerisConfig } from '@/components/valeris/useValerisConfig';
 
-type PageStep = 'loading' | 'document' | 'complete' | 'error';
+type PageStep = 'loading' | 'document' | 'validation' | 'complete' | 'error';
 
 interface SignField {
   id: string;
@@ -24,6 +26,14 @@ interface SignField {
   value: string | null;
 }
 
+interface ValidationStep {
+  id: string;
+  step_type: string;
+  step_order: number;
+  status: string;
+  required: boolean;
+}
+
 const PDF_PAGE_WIDTH = 595;
 const PDF_PAGE_HEIGHT = 842;
 
@@ -32,7 +42,9 @@ export default function SignPage() {
   const [pageStep, setPageStep] = useState<PageStep>('loading');
   const [errorMsg, setErrorMsg] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [validationStepIdx, setValidationStepIdx] = useState(0);
   const { toast } = useToast();
+  const { apiKey: valerisApiKey } = useValerisConfig();
 
   // Signature modal state
   const [signingFieldId, setSigningFieldId] = useState<string | null>(null);
@@ -51,7 +63,7 @@ export default function SignPage() {
     signer: Record<string, unknown>;
     document: Record<string, unknown>;
     fields: SignField[];
-    validationSteps: Record<string, unknown>[];
+    validationSteps: ValidationStep[];
   } | null>(null);
 
   // Load signing data
@@ -226,9 +238,19 @@ export default function SignPage() {
       // Check if ALL fields are now signed
       const allFields = signerData.fields || [];
       const pendingFields = allFields.filter((f) => !newSigned.has(f.id));
+      
       if (pendingFields.length === 0) {
-        // All signed → complete
-        setTimeout(() => setPageStep('complete'), 600);
+        // All fields signed - check validation steps
+        const pendingSteps = (signerData.validationSteps || []).filter((s: ValidationStep) => s.status !== 'completed');
+        
+        if (pendingSteps.length > 0) {
+          // Has validation steps - go to validation flow
+          setValidationStepIdx(0);
+          setTimeout(() => setPageStep('validation'), 600);
+        } else {
+          // No validation steps - complete
+          setTimeout(() => setPageStep('complete'), 600);
+        }
       } else {
         // Navigate to next pending field's page
         const nextField = pendingFields[0];
@@ -245,6 +267,31 @@ export default function SignPage() {
       });
     } finally {
       setProcessing(false);
+    }
+  };
+
+  // Handle validation step completion
+  const handleValidationComplete = async (result: unknown) => {
+    if (!signerData) return;
+    
+    const pendingSteps = (signerData.validationSteps || []).filter((s: ValidationStep) => s.status !== 'completed');
+    const currentStep = pendingSteps[validationStepIdx];
+    
+    if (currentStep) {
+      try {
+        await completeValidationStep(currentStep.id, result as Record<string, unknown>);
+        toast({ title: 'Verificação concluída! ✅' });
+      } catch (err) {
+        console.warn('Could not update validation step:', err);
+      }
+    }
+    
+    // Check if more steps remaining
+    if (validationStepIdx + 1 < pendingSteps.length) {
+      setValidationStepIdx(prev => prev + 1);
+    } else {
+      // All validation steps complete
+      setTimeout(() => setPageStep('complete'), 600);
     }
   };
 
@@ -312,7 +359,105 @@ export default function SignPage() {
     );
   }
 
-  // Document view with inline signing
+  // Validation steps
+  if (pageStep === 'validation' && signerData) {
+    const pendingSteps = (signerData.validationSteps || []).filter((s: ValidationStep) => s.status !== 'completed');
+    const currentStep = pendingSteps[validationStepIdx];
+    const signer = signerData.signer as { id: string; bluetech_signatory_id?: string };
+    const doc = signerData.document as { id: string };
+    
+    const stepTitles: Record<string, string> = {
+      'selfie': 'Reconhecimento Facial',
+      'document': 'Foto do Documento',
+      'selfie_document': 'Selfie com Documento',
+    };
+    
+    const stepSubtitles: Record<string, string> = {
+      'selfie': 'Tire uma selfie para verificar sua identidade',
+      'document': 'Fotografe seu RG, CNH ou CPF',
+      'selfie_document': 'Tire uma selfie segurando seu documento',
+    };
+    
+    const stepTitle = stepTitles[currentStep?.step_type] || 'Verificação';
+    const stepSubtitle = stepSubtitles[currentStep?.step_type] || '';
+    
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="h-14 border-b border-border bg-card flex items-center justify-between px-6">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+              <ShieldCheck className="w-4 h-4 text-primary-foreground" />
+            </div>
+            <span className="font-bold text-foreground">SignProof</span>
+          </div>
+          <span className="text-xs text-muted-foreground">
+            Etapa {validationStepIdx + 1} de {pendingSteps.length}
+          </span>
+        </header>
+        
+        <div className="max-w-lg mx-auto p-6 space-y-6">
+          {/* Progress indicator */}
+          <div className="flex gap-2">
+            {pendingSteps.map((_, i) => (
+              <div
+                key={i}
+                className={cn(
+                  'h-1.5 flex-1 rounded-full transition-colors',
+                  i < validationStepIdx ? 'bg-success' :
+                  i === validationStepIdx ? 'bg-primary' : 'bg-muted'
+                )}
+              />
+            ))}
+          </div>
+          
+          <div>
+            <h1 className="text-xl font-bold text-foreground">{stepTitle}</h1>
+            <p className="text-sm text-muted-foreground mt-1">{stepSubtitle}</p>
+          </div>
+          
+          <Card>
+            <CardContent className="p-4">
+              {currentStep?.step_type === 'selfie' && (
+                <VLSelfie
+                  apiKey={valerisApiKey}
+                  signatoryId={signer.bluetech_signatory_id || signer.id}
+                  documentId={doc.id}
+                  aoCompletar={handleValidationComplete}
+                  onError={(err) => {
+                    toast({ title: 'Erro na verificação', description: String(err), variant: 'destructive' });
+                  }}
+                />
+              )}
+              {currentStep?.step_type === 'document' && (
+                <VLDocumento
+                  apiKey={valerisApiKey}
+                  signatoryId={signer.bluetech_signatory_id || signer.id}
+                  documentId={doc.id}
+                  aoCompletar={handleValidationComplete}
+                  onError={(err) => {
+                    toast({ title: 'Erro na verificação', description: String(err), variant: 'destructive' });
+                  }}
+                />
+              )}
+              {currentStep?.step_type === 'selfie_document' && (
+                <VLSelfieDoc
+                  apiKey={valerisApiKey}
+                  signatoryId={signer.bluetech_signatory_id || signer.id}
+                  documentId={doc.id}
+                  aoCompletar={handleValidationComplete}
+                  onError={(err) => {
+                    toast({ title: 'Erro na verificação', description: String(err), variant: 'destructive' });
+                  }}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Document view with inline signing (only shows fields, no bypass)
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -405,19 +550,6 @@ export default function SignPage() {
                     </div>
                   );
                 })}
-
-                {/* No fields at all */}
-                {fields.length === 0 && (
-                  <div className="absolute inset-0 flex items-center justify-center z-10">
-                    <div className="text-center p-6 bg-card/90 rounded-xl border shadow-lg">
-                      <Pen className="w-8 h-8 text-primary mx-auto mb-2" />
-                      <p className="text-sm font-medium">Nenhum campo de assinatura posicionado</p>
-                      <Button className="mt-3" onClick={() => openSigningModal('default')}>
-                        Assinar documento
-                      </Button>
-                    </div>
-                  </div>
-                )}
 
                 {/* No fields on this page */}
                 {fields.length > 0 && currentPageFields.length === 0 && (
