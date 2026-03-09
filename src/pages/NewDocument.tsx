@@ -10,7 +10,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { PostSignatureValidation, ValidationStep } from '@/types/document';
