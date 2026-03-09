@@ -151,10 +151,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginAdmin = async (email: string, password: string): Promise<boolean> => {
     if (email === 'admin@valeris.com' && password === 'admin123') {
-      await supabase.auth.signOut();
       setIsLocalAdminSession(true);
       setUser({ id: 'sa1', name: 'Super Admin', email, role: 'superadmin' });
       setCompany(null);
+      await supabase.auth.signOut();
       return true;
     }
     return false;
