@@ -100,7 +100,6 @@ export default function NewDocument() {
     { id: genSignerId(), name: '', email: '', phone: '', role: 'Signatário', validationSteps: [] },
   ]);
   const [placedFields, setPlacedFields] = useState<PlacedField[]>([]);
-  const [signatureType, setSignatureType] = useState('electronic');
   const [hasDeadline, setHasDeadline] = useState(false);
   const [deadline, setDeadline] = useState('');
   const [message, setMessage] = useState('');
