@@ -10,7 +10,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { PostSignatureValidation, ValidationStep } from '@/types/document';
@@ -100,7 +100,6 @@ export default function NewDocument() {
     { id: genSignerId(), name: '', email: '', phone: '', role: 'Signatário', validationSteps: [] },
   ]);
   const [placedFields, setPlacedFields] = useState<PlacedField[]>([]);
-  const [signatureType, setSignatureType] = useState('electronic');
   const [hasDeadline, setHasDeadline] = useState(false);
   const [deadline, setDeadline] = useState('');
   const [message, setMessage] = useState('');
@@ -282,7 +281,7 @@ export default function NewDocument() {
           userId: user.id,
           name: docName || fileName,
           filePath: path,
-          signatureType,
+          signatureType: 'microservice',
           deadline: hasDeadline ? deadline : undefined,
         });
         
@@ -698,26 +697,16 @@ export default function NewDocument() {
                 <>
                   <CardHeader><CardTitle className="text-base">Configurações do envio</CardTitle></CardHeader>
                   <CardContent className="space-y-5">
-                    <div className="space-y-2">
-                      <Label>Tipo de assinatura</Label>
-                      <RadioGroup value={signatureType} onValueChange={setSignatureType} className="grid grid-cols-2 gap-3">
-                        <label className={cn(
-                          'flex flex-col p-4 rounded-xl border cursor-pointer transition-all',
-                          signatureType === 'electronic' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'
-                        )}>
-                          <RadioGroupItem value="electronic" className="sr-only" />
-                          <span className="text-sm font-medium">Eletrônica</span>
-                          <span className="text-xs text-muted-foreground mt-1">Mais simples e rápida. Validade jurídica pela MP 2.200-2.</span>
-                        </label>
-                        <label className={cn(
-                          'flex flex-col p-4 rounded-xl border cursor-pointer transition-all',
-                          signatureType === 'digital' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'
-                        )}>
-                          <RadioGroupItem value="digital" className="sr-only" />
-                          <span className="text-sm font-medium">Digital (ICP-Brasil)</span>
-                          <span className="text-xs text-muted-foreground mt-1">Certificado digital A1/A3. Máxima segurança jurídica.</span>
-                        </label>
-                      </RadioGroup>
+                    {/* Microservice info banner */}
+                    <div className="rounded-xl bg-primary/5 border border-primary/20 p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-5 h-5 text-primary" />
+                        <span className="text-sm font-semibold text-foreground">Assinatura via Microsserviço</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Todas as assinaturas são processadas pelo microsserviço integrado com validação biométrica, 
+                        captura de selfie e verificação de documentos quando configurado.
+                      </p>
                     </div>
                     <Separator />
                     <div className="rounded-lg bg-secondary/40 p-3">
@@ -788,7 +777,7 @@ export default function NewDocument() {
                       </div>
                       <Separator />
                       <div className="grid grid-cols-2 gap-3 text-xs">
-                        <div><span className="text-muted-foreground">Tipo:</span> <span className="font-medium">{signatureType === 'electronic' ? 'Eletrônica' : 'Digital'}</span></div>
+                        <div><span className="text-muted-foreground">Tipo:</span> <span className="font-medium">Microsserviço</span></div>
                         <div><span className="text-muted-foreground">Notificação:</span> <span className="font-medium">Email</span></div>
                         <div><span className="text-muted-foreground">Campos:</span> <span className="font-medium">{placedFields.length}</span></div>
                         {hasDeadline && deadline && <div><span className="text-muted-foreground">Prazo:</span> <span className="font-medium">{deadline}</span></div>}

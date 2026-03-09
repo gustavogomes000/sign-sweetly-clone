@@ -255,10 +255,7 @@ export default function DocumentFieldEditor({
                   <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">
                     <ft.icon className="w-4 h-4 text-muted-foreground" />
                   </div>
-                  <div>
-                    <p className="text-xs font-medium">{ft.label}</p>
-                    <p className="text-[10px] text-muted-foreground">{ft.defaultW}×{ft.defaultH}</p>
-                  </div>
+                  <p className="text-xs font-medium">{ft.label}</p>
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right">
