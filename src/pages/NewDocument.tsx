@@ -698,26 +698,16 @@ export default function NewDocument() {
                 <>
                   <CardHeader><CardTitle className="text-base">Configurações do envio</CardTitle></CardHeader>
                   <CardContent className="space-y-5">
-                    <div className="space-y-2">
-                      <Label>Tipo de assinatura</Label>
-                      <RadioGroup value={signatureType} onValueChange={setSignatureType} className="grid grid-cols-2 gap-3">
-                        <label className={cn(
-                          'flex flex-col p-4 rounded-xl border cursor-pointer transition-all',
-                          signatureType === 'electronic' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'
-                        )}>
-                          <RadioGroupItem value="electronic" className="sr-only" />
-                          <span className="text-sm font-medium">Eletrônica</span>
-                          <span className="text-xs text-muted-foreground mt-1">Mais simples e rápida. Validade jurídica pela MP 2.200-2.</span>
-                        </label>
-                        <label className={cn(
-                          'flex flex-col p-4 rounded-xl border cursor-pointer transition-all',
-                          signatureType === 'digital' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'
-                        )}>
-                          <RadioGroupItem value="digital" className="sr-only" />
-                          <span className="text-sm font-medium">Digital (ICP-Brasil)</span>
-                          <span className="text-xs text-muted-foreground mt-1">Certificado digital A1/A3. Máxima segurança jurídica.</span>
-                        </label>
-                      </RadioGroup>
+                    {/* Microservice info banner */}
+                    <div className="rounded-xl bg-primary/5 border border-primary/20 p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-5 h-5 text-primary" />
+                        <span className="text-sm font-semibold text-foreground">Assinatura via Microsserviço</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Todas as assinaturas são processadas pelo microsserviço integrado com validação biométrica, 
+                        captura de selfie e verificação de documentos quando configurado.
+                      </p>
                     </div>
                     <Separator />
                     <div className="rounded-lg bg-secondary/40 p-3">
