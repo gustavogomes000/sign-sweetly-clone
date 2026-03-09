@@ -778,7 +778,7 @@ export default function NewDocument() {
                       </div>
                       <Separator />
                       <div className="grid grid-cols-2 gap-3 text-xs">
-                        <div><span className="text-muted-foreground">Tipo:</span> <span className="font-medium">{signatureType === 'electronic' ? 'Eletrônica' : 'Digital'}</span></div>
+                        <div><span className="text-muted-foreground">Tipo:</span> <span className="font-medium">Microsserviço</span></div>
                         <div><span className="text-muted-foreground">Notificação:</span> <span className="font-medium">Email</span></div>
                         <div><span className="text-muted-foreground">Campos:</span> <span className="font-medium">{placedFields.length}</span></div>
                         {hasDeadline && deadline && <div><span className="text-muted-foreground">Prazo:</span> <span className="font-medium">{deadline}</span></div>}
