@@ -9,5 +9,3 @@ export type { VLSelfieProps } from './VLSelfie';
 
 export { VLSelfieDoc } from './VLSelfieDoc';
 export type { VLSelfieDocProps } from './VLSelfieDoc';
-
-export { useValerisConfig } from './useValerisConfig';

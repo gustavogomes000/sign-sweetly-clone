@@ -1,49 +1,196 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { Pen, Type, Check, Loader2, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { bluetechProxy } from '@/services/bluetechProxy';
 
 export interface VLAssinaturaProps {
-  apiKey: string;
-  aoCompletar?: (dados: any) => void;
+  signatoryId: string;
+  documentId: string;
+  aoCompletar?: (dados: { signatureType: 'drawn' | 'typed'; imageBase64?: string; typedText?: string; bluetechResponse?: unknown }) => void;
   onError?: (erro: any) => void;
+  onCancel?: () => void;
+  /** @deprecated Use bluetechProxy instead */
+  apiKey?: string;
 }
 
-export function VLAssinatura({ apiKey, aoCompletar, onError }: VLAssinaturaProps) {
-  const [loading, setLoading] = useState(false);
+export function VLAssinatura({ signatoryId, documentId, aoCompletar, onError, onCancel }: VLAssinaturaProps) {
+  const [method, setMethod] = useState<'draw' | 'type'>('draw');
+  const [typedName, setTypedName] = useState('');
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [hasDrawn, setHasDrawn] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const handleAction = async (data: any) => {
+  const initCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    canvas.width = canvas.offsetWidth * 2;
+    canvas.height = canvas.offsetHeight * 2;
+    ctx.scale(2, 2);
+    ctx.strokeStyle = 'hsl(220, 20%, 14%)';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+  }, []);
+
+  useEffect(() => {
+    setTimeout(initCanvas, 150);
+  }, [initCanvas]);
+
+  const startDraw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const rect = canvas.getBoundingClientRect();
+    ctx.beginPath();
+    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    setIsDrawing(true);
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const rect = canvas.getBoundingClientRect();
+    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+    ctx.stroke();
+    setHasDrawn(true);
+  };
+
+  const stopDraw = () => setIsDrawing(false);
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasDrawn(false);
+  };
+
+  const getCanvasBase64 = (): string => {
+    const canvas = canvasRef.current;
+    if (!canvas) return '';
+    return canvas.toDataURL('image/png');
+  };
+
+  const canSign = method === 'draw' ? hasDrawn : typedName.trim().length >= 3;
+
+  const handleConfirm = async () => {
+    setProcessing(true);
     try {
-      setLoading(true);
-      const endpoint = '/v2/assinatura/criar';
-      const response = await fetch(`https://api.valeris.com.br${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
+      let bluetechResponse: unknown;
+      let imageBase64: string | undefined;
+      let typedText: string | undefined;
+
+      if (method === 'draw') {
+        imageBase64 = getCanvasBase64();
+        try {
+          bluetechResponse = await bluetechProxy.saveSignatureDrawn({
+            signatoryId,
+            documentId,
+            imageBase64,
+            userAgent: navigator.userAgent,
+          });
+        } catch (apiErr) {
+          console.warn('[VLAssinatura] BlueTech draw API failed:', apiErr);
+        }
+      } else {
+        typedText = typedName;
+        try {
+          bluetechResponse = await bluetechProxy.saveSignatureTyped({
+            signatoryId,
+            documentId,
+            text: typedText,
+            userAgent: navigator.userAgent,
+          });
+        } catch (apiErr) {
+          console.warn('[VLAssinatura] BlueTech typed API failed:', apiErr);
+        }
+      }
+
+      aoCompletar?.({
+        signatureType: method === 'draw' ? 'drawn' : 'typed',
+        imageBase64,
+        typedText,
+        bluetechResponse,
       });
-      
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Erro na requisição');
-      
-      aoCompletar?.(result);
     } catch (err) {
       onError?.(err);
     } finally {
-      setLoading(false);
+      setProcessing(false);
     }
   };
 
   return (
-    <div className="p-4 border border-border rounded-lg bg-card text-foreground">
-      <h3 className="text-lg font-bold mb-4">VLAssinatura</h3>
-      {/* Implemente a UI de captura do componente aqui */}
-      <button 
-        onClick={() => handleAction({ /* dados de exemplo */ })} 
-        disabled={loading}
-        className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50"
-      >
-        {loading ? 'Processando...' : 'Testar Integração'}
-      </button>
+    <div className="space-y-4">
+      <Tabs value={method} onValueChange={(v) => setMethod(v as 'draw' | 'type')}>
+        <TabsList className="grid grid-cols-2 w-full">
+          <TabsTrigger value="draw" className="gap-1.5"><Pen className="w-4 h-4" />Desenhar</TabsTrigger>
+          <TabsTrigger value="type" className="gap-1.5"><Type className="w-4 h-4" />Digitar</TabsTrigger>
+        </TabsList>
+        <TabsContent value="draw" className="mt-4">
+          <div className="relative border-2 border-dashed border-border rounded-xl bg-background">
+            <canvas
+              ref={canvasRef}
+              className="w-full h-40 cursor-crosshair rounded-xl"
+              onMouseDown={startDraw}
+              onMouseMove={draw}
+              onMouseUp={stopDraw}
+              onMouseLeave={stopDraw}
+            />
+            <div className="absolute bottom-2 left-0 right-0 flex justify-center">
+              <div className="w-3/4 h-px bg-muted-foreground/30" />
+            </div>
+          </div>
+          <div className="flex justify-end mt-2">
+            <Button variant="ghost" size="sm" onClick={clearCanvas} className="text-xs">Limpar</Button>
+          </div>
+        </TabsContent>
+        <TabsContent value="type" className="mt-4 space-y-3">
+          <Input
+            value={typedName}
+            onChange={(e) => setTypedName(e.target.value)}
+            placeholder="Digite seu nome completo"
+            className="text-center text-lg"
+          />
+          {typedName && (
+            <div className="border-2 border-dashed border-border rounded-xl p-6 text-center bg-background">
+              <p className="text-3xl font-serif italic text-foreground" style={{ fontFamily: 'Georgia, serif' }}>
+                {typedName}
+              </p>
+              <div className="w-3/4 h-px bg-muted-foreground/30 mx-auto mt-3" />
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      <div className="flex items-center justify-between pt-2 border-t border-border">
+        <p className="text-[10px] text-muted-foreground max-w-[200px]">
+          Ao assinar, você concorda com os termos de uso.
+        </p>
+        <div className="flex gap-2">
+          {onCancel && (
+            <Button variant="ghost" size="sm" onClick={onCancel}>
+              <X className="w-4 h-4 mr-1" /> Cancelar
+            </Button>
+          )}
+          <Button onClick={handleConfirm} disabled={!canSign || processing} className="shadow-lg shadow-primary/20">
+            {processing ? (
+              <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Processando...</>
+            ) : (
+              <><Check className="w-4 h-4 mr-1" />Confirmar assinatura</>
+            )}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
