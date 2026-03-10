@@ -200,32 +200,13 @@ export async function saveSignature(data: {
   
   if (sigError) throw sigError;
   
-  // Update signer status
-  await supabase
-    .from('signers')
-    .update({ status: 'signed', signed_at: new Date().toISOString() })
-    .eq('id', data.signerId);
-  
-  // Update field value
+  // Update field value only — do NOT mark signer as signed here
+  // Signer completion is handled by the SignPage after all fields are filled
   if (data.fieldId) {
     await supabase
       .from('document_fields')
       .update({ value: data.signatureType === 'drawn' ? '[assinatura]' : data.typedText })
       .eq('id', data.fieldId);
-  }
-  
-  // Check if all signers signed → mark document as signed
-  const { data: allSigners } = await supabase
-    .from('signers')
-    .select('status')
-    .eq('document_id', data.documentId);
-  
-  const allSigned = allSigners?.every((s) => s.status === 'signed');
-  if (allSigned) {
-    await supabase
-      .from('documents')
-      .update({ status: 'signed' })
-      .eq('id', data.documentId);
   }
   
   // Add audit entry
@@ -236,33 +217,6 @@ export async function saveSignature(data: {
     actor: data.signerId,
     details: `Assinatura ${data.signatureType === 'drawn' ? 'desenhada' : 'tipográfica'} realizada`,
   });
-
-  // Trigger webhooks for signer.signed event
-  try {
-    await supabase.functions.invoke('dispatch-webhook', {
-      body: {
-        event: 'signer.signed',
-        document_id: data.documentId,
-        signer_id: data.signerId,
-        payload: {
-          signature_type: data.signatureType,
-        },
-      },
-    });
-
-    // If all signed, also trigger document.completed
-    if (allSigned) {
-      await supabase.functions.invoke('dispatch-webhook', {
-        body: {
-          event: 'document.completed',
-          document_id: data.documentId,
-          payload: { total_signers: allSigners?.length },
-        },
-      });
-    }
-  } catch (whErr) {
-    console.warn('Webhook dispatch failed:', whErr);
-  }
 }
 
 // Complete a validation step (KYC step after signing)
