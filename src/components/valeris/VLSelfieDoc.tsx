@@ -1,19 +1,21 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Camera, RefreshCw, Check, AlertCircle, UserCheck } from 'lucide-react';
+import { Camera, RefreshCw, Check, AlertCircle, UserCheck, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { bluetechProxy } from '@/services/bluetechProxy';
 
 export interface VLSelfieDocProps {
   signatoryId?: string;
   documentId?: string;
-  aoCompletar?: (dados: { status: string; imageBase64?: string }) => void;
+  aoCompletar?: (dados: { status: string; imageBase64?: string; bluetechResponse?: unknown }) => void;
   onError?: (erro: unknown) => void;
 }
 
-export function VLSelfieDoc({ aoCompletar }: VLSelfieDocProps) {
+export function VLSelfieDoc({ signatoryId, documentId, aoCompletar, onError }: VLSelfieDocProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [streaming, setStreaming] = useState(false);
   const [captured, setCaptured] = useState<string | null>(null);
   const [camError, setCamError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -36,9 +38,27 @@ export function VLSelfieDoc({ aoCompletar }: VLSelfieDocProps) {
     if (ctx) { ctx.drawImage(video, 0, 0); setCaptured(canvas.toDataURL('image/jpeg', 0.85)); }
   };
 
-  const confirm = () => {
+  const confirm = async () => {
     if (!captured) return;
-    aoCompletar?.({ status: 'captured', imageBase64: captured });
+    setSending(true);
+    try {
+      let bluetechResponse: unknown = null;
+      if (signatoryId && documentId) {
+        bluetechResponse = await bluetechProxy.captureSelfieDocument({
+          signatoryId,
+          documentId,
+          imageBase64: captured,
+          userAgent: navigator.userAgent,
+        });
+      }
+      aoCompletar?.({ status: 'captured', imageBase64: captured, bluetechResponse });
+    } catch (err) {
+      console.error('[VLSelfieDoc] Microservice error:', err);
+      onError?.(err);
+      aoCompletar?.({ status: 'captured', imageBase64: captured });
+    } finally {
+      setSending(false);
+    }
   };
 
   if (camError) {
@@ -75,8 +95,11 @@ export function VLSelfieDoc({ aoCompletar }: VLSelfieDocProps) {
           <Button onClick={capture} disabled={!streaming} size="lg" className="gap-2"><Camera className="w-5 h-5" /> Capturar</Button>
         ) : (
           <>
-            <Button variant="outline" onClick={() => setCaptured(null)} className="gap-2"><RefreshCw className="w-4 h-4" /> Refazer</Button>
-            <Button onClick={confirm} className="gap-2"><Check className="w-4 h-4" /> Confirmar</Button>
+            <Button variant="outline" onClick={() => setCaptured(null)} disabled={sending} className="gap-2"><RefreshCw className="w-4 h-4" /> Refazer</Button>
+            <Button onClick={confirm} disabled={sending} className="gap-2">
+              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              {sending ? 'Enviando...' : 'Confirmar'}
+            </Button>
           </>
         )}
       </div>
