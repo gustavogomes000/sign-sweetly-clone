@@ -45,7 +45,6 @@ serve(async (req) => {
 
     // ── Password reset only ──
     if (reset_only) {
-      // Generate recovery link
       const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
         type: 'recovery',
         email,
@@ -53,13 +52,11 @@ serve(async (req) => {
       });
 
       if (linkError) throw linkError;
-
       const actionLink = linkData?.properties?.action_link || `${siteUrl}/login`;
 
-      // Send via Resend
       if (resendApiKey) {
         await sendEmail(resendApiKey, email, full_name || 'Usuário', '🔑 Redefina sua senha — SignProof', `
-          <p>Olá ${full_name || ''},</p>
+          <p>Olá ${escapeHtml(full_name || '')},</p>
           <p>Foi solicitada a redefinição da sua senha no SignProof.</p>
           <p>Clique no botão abaixo para criar uma nova senha:</p>
         `, actionLink, '🔑 Redefinir senha');
@@ -71,7 +68,9 @@ serve(async (req) => {
     // ── Create new user ──
     if (!full_name) throw new Error('Nome é obrigatório');
 
-    const tempPassword = crypto.randomUUID() + 'Aa1!';
+    // Generate a readable temporary password
+    const tempPassword = generateTempPassword();
+    
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
       email,
       password: tempPassword,
@@ -86,32 +85,22 @@ serve(async (req) => {
       throw createError;
     }
 
-    // Update profile
+    // Update profile with hierarchy and must_change_password flag
     if (newUser?.user) {
       await adminClient.from('profiles').update({
         hierarchy: hierarchy || 'user',
         department_id: department_id || null,
+        must_change_password: true,
       }).eq('id', newUser.user.id);
     }
 
-    // Generate magic link for first access
-    const { data: linkData } = await adminClient.auth.admin.generateLink({
-      type: 'magiclink',
-      email,
-      options: { redirectTo: `${siteUrl}/login` },
-    });
-
-    const actionLink = linkData?.properties?.action_link || `${siteUrl}/login`;
-
     const hierarchyLabel = hierarchy === 'owner' ? 'Owner' : hierarchy === 'gestor' ? 'Gestor' : 'Usuário';
+    const loginUrl = `${siteUrl}/login`;
 
+    // Send email with credentials
     if (resendApiKey) {
-      await sendEmail(resendApiKey, email, full_name, '🔑 Bem-vindo ao SignProof — Configure sua senha', `
-        <p>Olá <strong>${escapeHtml(full_name)}</strong>!</p>
-        <p>Você foi convidado para acessar o SignProof como <strong>${hierarchyLabel}</strong>.</p>
-        <p>Clique no botão abaixo para configurar sua senha e acessar o sistema:</p>
-      `, actionLink, '🔑 Acessar o sistema');
-      console.log(`✅ Invite email sent to ${email}`);
+      await sendCredentialsEmail(resendApiKey, email, full_name, tempPassword, hierarchyLabel, loginUrl);
+      console.log(`✅ Credentials email sent to ${email}`);
     }
 
     return jsonResponse({ success: true, user_id: newUser?.user?.id });
@@ -124,6 +113,15 @@ serve(async (req) => {
   }
 });
 
+function generateTempPassword(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let password = '';
+  for (let i = 0; i < 8; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password + 'Aa1!'; // Ensure it meets complexity requirements
+}
+
 function jsonResponse(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -133,6 +131,60 @@ function jsonResponse(data: unknown, status = 200) {
 
 function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+async function sendCredentialsEmail(apiKey: string, to: string, name: string, tempPassword: string, hierarchyLabel: string, loginUrl: string) {
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: 'SignProof by Valeris <onboarding@resend.dev>',
+      to: [to],
+      subject: `🔑 Suas credenciais de acesso — SignProof`,
+      html: `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f0f5f4;font-family:'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f5f4;padding:40px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+        <tr><td style="background:linear-gradient(135deg,#1a3a3a,#2d5a5a,#8a6d3b);padding:32px 40px;text-align:center;">
+          <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;">SignProof</h1>
+          <p style="margin:6px 0 0;color:#d4c5a0;font-size:13px;">by Valeris</p>
+        </td></tr>
+        <tr><td style="padding:36px 40px;color:#2d4a4a;font-size:15px;line-height:1.6;">
+          <p>Olá <strong>${escapeHtml(name)}</strong>!</p>
+          <p>Você foi adicionado ao SignProof como <strong>${hierarchyLabel}</strong>.</p>
+          <p>Abaixo estão suas credenciais de acesso:</p>
+          
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;background:#f0f5f4;border-radius:8px;border:1px solid #d0ddd8;">
+            <tr><td style="padding:20px 24px;">
+              <p style="margin:0 0 8px;color:#5a7a7a;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Suas credenciais</p>
+              <p style="margin:0 0 4px;font-size:15px;"><strong>Email:</strong> ${escapeHtml(to)}</p>
+              <p style="margin:0;font-size:15px;"><strong>Senha temporária:</strong> <code style="background:#1a3a3a;color:#d4c5a0;padding:2px 8px;border-radius:4px;font-size:14px;">${escapeHtml(tempPassword)}</code></p>
+            </td></tr>
+          </table>
+
+          <p style="color:#b91c1c;font-size:13px;font-weight:600;">⚠️ No primeiro acesso, você será solicitado a trocar a senha.</p>
+
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin:28px 0;">
+            <tr><td align="center">
+              <a href="${loginUrl}" style="display:inline-block;background:linear-gradient(135deg,#2d5a5a,#1a3a3a);color:#fff;text-decoration:none;padding:14px 40px;border-radius:8px;font-size:15px;font-weight:600;box-shadow:0 4px 12px rgba(26,58,58,0.3);">
+                🔑 Acessar o sistema
+              </a>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="background:#f0f5f4;padding:20px 40px;border-top:1px solid #d0ddd8;text-align:center;">
+          <p style="margin:0;color:#7a9a8a;font-size:12px;">SignProof by Valeris</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+    }),
+  });
 }
 
 async function sendEmail(apiKey: string, to: string, name: string, subject: string, bodyHtml: string, actionLink: string, btnText: string) {
@@ -163,9 +215,6 @@ async function sendEmail(apiKey: string, to: string, name: string, subject: stri
               </a>
             </td></tr>
           </table>
-          <p style="color:#94a3b8;font-size:12px;text-align:center;">
-            <a href="${actionLink}" style="color:#2d5a5a;word-break:break-all;">${actionLink}</a>
-          </p>
         </td></tr>
         <tr><td style="background:#f0f5f4;padding:20px 40px;border-top:1px solid #d0ddd8;text-align:center;">
           <p style="margin:0;color:#7a9a8a;font-size:12px;">SignProof by Valeris</p>
