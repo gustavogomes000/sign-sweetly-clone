@@ -340,7 +340,7 @@ export default function SignPage() {
   }
 
   // ── Main Document view (always visible) ──
-  const signer = signerData?.signer as { id: string; bluetech_signatory_id?: string; bluetech_document_id?: string } | undefined;
+  const signer = signerData?.signer as { id: string } | undefined;
   const doc = signerData?.document as { id: string } | undefined;
 
   return (
