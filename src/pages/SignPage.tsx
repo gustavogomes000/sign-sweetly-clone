@@ -403,12 +403,12 @@ export default function SignPage() {
       </header>
 
       {/* PDF Document Area */}
-      <div className="flex-1 overflow-auto pb-64 sm:pb-72" ref={pdfContainerRef}>
+      <div className="flex-1 overflow-auto pb-20" ref={pdfContainerRef}>
         <div className="max-w-3xl mx-auto p-4 sm:p-6">
           {/* Signer greeting */}
           <div className="mb-4 text-center">
             <p className="text-sm text-muted-foreground">
-              Olá <strong className="text-foreground">{signerName}</strong>, preencha os campos destacados no documento abaixo.
+              Olá <strong className="text-foreground">{signerName}</strong>, clique nos campos destacados no documento para preenchê-los.
             </p>
           </div>
 
@@ -437,66 +437,99 @@ export default function SignPage() {
                 <PdfPagePreview documentUrl={publicUrl} page={currentPage} className="absolute inset-0 rounded-lg" />
               )}
 
-              {/* Field overlays */}
+              {/* Field overlays on the PDF */}
               {currentPageFields.map((field) => {
-                const isActive = currentField?.id === field.id;
                 const isSigType = field.field_type === 'signature' || field.field_type === 'initials';
                 const isSigned = isSigType && signedFieldIds.has(field.id);
                 const value = fieldValues[field.id] || '';
                 const isFilled = isSigType ? isSigned : !!value.trim();
                 const fieldIndex = sortedFields.findIndex(f => f.id === field.id);
 
-                return (
-                  <div
-                    key={field.id}
-                    ref={(el) => { fieldRefs.current[field.id] = el; }}
-                    onClick={() => {
-                      setCurrentFieldIndex(fieldIndex);
-                      if (isSigType && !isSigned) {
-                        setSigningFieldId(field.id);
-                      }
-                      setIsFormVisible(true);
-                    }}
-                    className={cn(
-                      'absolute z-10 rounded transition-all cursor-pointer',
-                      isActive
-                        ? 'outline outline-2 outline-dashed outline-primary z-20 shadow-lg shadow-primary/10'
-                        : '',
-                      isFilled
-                        ? 'bg-primary/10 border border-primary/30'
-                        : 'bg-destructive/10 border border-destructive/20 hover:bg-destructive/20',
-                    )}
-                    style={{ left: field.x, top: field.y, width: field.width, height: field.height }}
-                  >
-                    {/* Active label */}
-                    {isActive && (
-                      <div className="absolute -top-7 left-0 bg-primary text-primary-foreground text-[11px] font-medium px-2 py-0.5 rounded whitespace-nowrap pointer-events-none">
-                        {fieldTypeLabel[field.field_type] || field.label || 'Campo'}
-                      </div>
-                    )}
+                // Signature fields → click opens modal
+                if (isSigType) {
+                  return (
+                    <div
+                      key={field.id}
+                      ref={(el) => { fieldRefs.current[field.id] = el; }}
+                      onClick={() => {
+                        if (!isSigned) {
+                          setCurrentFieldIndex(fieldIndex);
+                          setSigningFieldId(field.id);
+                        }
+                      }}
+                      className={cn(
+                        'absolute z-10 rounded transition-all flex items-center justify-center gap-1.5',
+                        isSigned
+                          ? 'bg-primary/10 border border-primary/30 cursor-default'
+                          : 'bg-destructive/10 border-2 border-dashed border-destructive/40 cursor-pointer hover:bg-destructive/20 hover:border-destructive/60 hover:shadow-md',
+                      )}
+                      style={{ left: field.x, top: field.y, width: field.width, height: field.height }}
+                    >
+                      {isSigned ? (
+                        <span className="flex items-center gap-1 text-xs text-primary font-medium">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Assinado
+                        </span>
+                      ) : (
+                        <>
+                          <Pen className="w-4 h-4 text-destructive/60" />
+                          <span className="text-[11px] text-destructive/70 font-medium">
+                            {field.field_type === 'initials' ? 'Rubricar' : 'Assinar aqui'}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  );
+                }
 
-                    {/* Field content */}
-                    {isSigned ? (
-                      <span className="flex items-center justify-center h-full gap-1 text-xs text-primary font-medium">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Assinado
-                      </span>
-                    ) : isFilled && !isSigType ? (
-                      <span className="flex items-center h-full px-2 text-xs text-foreground truncate">
-                        {value}
-                      </span>
-                    ) : (
-                      <span className="flex items-center justify-center h-full opacity-50">
-                        {isSigType ? (
-                          <Pen className="w-5 h-5 text-foreground/60" />
-                        ) : field.field_type === 'date' ? (
-                          <Calendar className="w-5 h-5 text-foreground/60" />
-                        ) : field.field_type === 'checkbox' ? (
-                          <Hash className="w-5 h-5 text-foreground/60" />
-                        ) : (
-                          <Type className="w-5 h-5 text-foreground/60" />
+                // Checkbox fields → inline toggle
+                if (field.field_type === 'checkbox') {
+                  return (
+                    <div
+                      key={field.id}
+                      className="absolute z-10 flex items-center gap-1.5 bg-white/90 rounded px-1"
+                      style={{ left: field.x, top: field.y, width: field.width, height: field.height }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={value === 'true'}
+                        onChange={(e) => updateFieldValue(field.id, e.target.checked ? 'true' : 'false')}
+                        className="w-4 h-4 accent-primary cursor-pointer"
+                      />
+                      {field.label && <span className="text-[10px] text-foreground truncate">{field.label}</span>}
+                    </div>
+                  );
+                }
+
+                // Date fields → inline input
+                if (field.field_type === 'date') {
+                  return (
+                    <div key={field.id} className="absolute z-10" style={{ left: field.x, top: field.y, width: field.width, height: field.height }}>
+                      <input
+                        type="date"
+                        value={value}
+                        onChange={(e) => updateFieldValue(field.id, e.target.value)}
+                        className={cn(
+                          'w-full h-full rounded border-2 px-2 text-xs bg-white/90 transition-colors focus:outline-none focus:ring-1 focus:ring-primary',
+                          value ? 'border-primary/40 text-foreground' : 'border-destructive/30 border-dashed text-muted-foreground'
                         )}
-                      </span>
-                    )}
+                      />
+                    </div>
+                  );
+                }
+
+                // Text fields → inline input
+                return (
+                  <div key={field.id} className="absolute z-10" style={{ left: field.x, top: field.y, width: field.width, height: field.height }}>
+                    <input
+                      type="text"
+                      value={value}
+                      onChange={(e) => updateFieldValue(field.id, e.target.value)}
+                      placeholder={field.label || 'Preencher...'}
+                      className={cn(
+                        'w-full h-full rounded border-2 px-2 text-xs bg-white/90 transition-colors focus:outline-none focus:ring-1 focus:ring-primary',
+                        value ? 'border-primary/40 text-foreground' : 'border-destructive/30 border-dashed text-muted-foreground placeholder:text-muted-foreground/50'
+                      )}
+                    />
                   </div>
                 );
               })}
@@ -511,137 +544,55 @@ export default function SignPage() {
         </div>
       </div>
 
-      {/* ══════ Bottom Form Panel (DocuSeal-style) ══════ */}
-      {isFormVisible && currentField && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 bg-card border-t border-border shadow-2xl shadow-black/20 animate-in slide-in-from-bottom-4 duration-300">
-          <div className="max-w-3xl mx-auto">
-            {/* Step indicator */}
-            <div className="flex items-center justify-between px-4 pt-3 pb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-primary bg-primary/10 rounded-full px-2.5 py-0.5">
-                  {currentFieldIndex + 1} de {totalFields}
-                </span>
-                <span className="text-sm font-medium text-foreground">
-                  {fieldTypeLabel[currentField.field_type] || 'Campo'}
-                  {currentField.label && ` — ${currentField.label}`}
-                </span>
-                {currentField.required && (
-                  <span className="text-[10px] text-destructive font-medium">obrigatório</span>
-                )}
+      {/* Bottom action bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-card border-t border-border px-4 py-3">
+        <div className="max-w-3xl mx-auto flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            {allRequiredFilled
+              ? '✅ Todos os campos preenchidos'
+              : `⚠️ ${pendingRequired} campo(s) pendente(s)`}
+          </p>
+          <Button
+            onClick={handleComplete}
+            disabled={saving || !allRequiredFilled}
+            className={cn(
+              'shadow-lg gap-1',
+              allRequiredFilled ? 'bg-success hover:bg-success/90 shadow-success/20' : 'shadow-primary/20'
+            )}
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+            Concluir assinatura
+          </Button>
+        </div>
+      </div>
+
+      {/* ══════ Signature Modal (opens ONLY when clicking signature field) ══════ */}
+      {signingFieldId && signer && doc && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center" onClick={() => setSigningFieldId(null)}>
+          <div
+            className="bg-card w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl animate-in slide-in-from-bottom-4 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <div>
+                <h2 className="text-base font-bold text-foreground">Sua assinatura</h2>
+                <p className="text-xs text-muted-foreground">Desenhe ou digite sua assinatura</p>
               </div>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsFormVisible(false)}>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSigningFieldId(null)}>
                 <X className="w-4 h-4" />
               </Button>
             </div>
-
-            {/* Field input */}
-            <div className="px-4 pb-3">
-              {isSignatureType ? (
-                signingFieldId ? (
-                  <VLAssinatura
-                    signatoryId={signer?.id || ''}
-                    documentId={doc?.id || ''}
-                    aoCompletar={handleSignatureComplete}
-                    onError={(err) => toast({ title: 'Erro na assinatura', description: String(err), variant: 'destructive' })}
-                    onCancel={() => setSigningFieldId(null)}
-                  />
-                ) : signedFieldIds.has(currentField.id) ? (
-                  <div className="flex items-center gap-2 p-4 bg-primary/5 rounded-lg">
-                    <CheckCircle2 className="w-5 h-5 text-primary" />
-                    <span className="text-sm text-foreground font-medium">Assinatura registrada</span>
-                  </div>
-                ) : (
-                  <Button
-                    onClick={() => setSigningFieldId(currentField.id)}
-                    className="w-full h-14 text-base gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
-                  >
-                    <Pen className="w-5 h-5" />
-                    {currentField.field_type === 'initials' ? 'Rubricar aqui' : 'Assinar aqui'}
-                  </Button>
-                )
-              ) : currentField.field_type === 'checkbox' ? (
-                <label className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted">
-                  <input
-                    type="checkbox"
-                    checked={(fieldValues[currentField.id] || '') === 'true'}
-                    onChange={(e) => {
-                      updateFieldValue(currentField.id, e.target.checked ? 'true' : 'false');
-                      setTimeout(() => advanceToNextEmpty(), 300);
-                    }}
-                    className="w-5 h-5 rounded border-border accent-primary"
-                  />
-                  <span className="text-sm text-foreground">{currentField.label || 'Marcar este campo'}</span>
-                </label>
-              ) : currentField.field_type === 'date' ? (
-                <input
-                  type="date"
-                  value={fieldValues[currentField.id] || ''}
-                  onChange={(e) => updateFieldValue(currentField.id, e.target.value)}
-                  className="w-full h-12 rounded-lg border border-border bg-background px-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              ) : (
-                <input
-                  type="text"
-                  autoFocus
-                  value={fieldValues[currentField.id] || ''}
-                  onChange={(e) => updateFieldValue(currentField.id, e.target.value)}
-                  placeholder={currentField.label || 'Digite aqui...'}
-                  className="w-full h-12 rounded-lg border border-border bg-background px-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') advanceToNextEmpty();
-                  }}
-                />
-              )}
-            </div>
-
-            {/* Navigation */}
-            <div className="flex items-center justify-between px-4 pb-4 gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => goToField(currentFieldIndex - 1)}
-                disabled={currentFieldIndex <= 0}
-                className="gap-1"
-              >
-                <ArrowLeft className="w-4 h-4" /> Anterior
-              </Button>
-
-              {allRequiredFilled && !signingFieldId ? (
-                <Button
-                  onClick={handleComplete}
-                  disabled={saving}
-                  className="flex-1 h-10 bg-success hover:bg-success/90 text-success-foreground shadow-lg shadow-success/20 gap-1"
-                >
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                  Concluir
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    if (currentFieldIndex < totalFields - 1) {
-                      goToField(currentFieldIndex + 1);
-                    }
-                  }}
-                  disabled={currentFieldIndex >= totalFields - 1}
-                  className="gap-1"
-                >
-                  Próximo <ArrowRight className="w-4 h-4" />
-                </Button>
-              )}
+            <div className="p-4">
+              <VLAssinatura
+                signatoryId={signer.id}
+                documentId={doc.id}
+                aoCompletar={handleSignatureComplete}
+                onError={(err) => toast({ title: 'Erro na assinatura', description: String(err), variant: 'destructive' })}
+                onCancel={() => setSigningFieldId(null)}
+              />
             </div>
           </div>
         </div>
-      )}
-
-      {/* Floating button to reopen form panel */}
-      {!isFormVisible && currentField && (
-        <button
-          onClick={() => setIsFormVisible(true)}
-          className="fixed bottom-6 right-6 z-30 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30 flex items-center justify-center hover:scale-105 transition-transform"
-        >
-          <Pen className="w-6 h-6" />
-        </button>
       )}
     </div>
   );
