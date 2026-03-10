@@ -214,7 +214,7 @@ export default function Templates() {
   return (
     <>
       <AppHeader title="Modelos" subtitle={`${templates.length} modelos`} />
-      <div className="flex-1 overflow-auto p-6 space-y-4 hex-pattern">
+      <div className="flex-1 overflow-auto p-6 space-y-4">
         <div className="flex justify-end">
           <Button size="sm" onClick={() => setCreateOpen(true)} className="font-game text-xs tracking-wider">
             <Plus className="w-4 h-4 mr-1" /> NOVO MODELO

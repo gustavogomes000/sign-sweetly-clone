@@ -20,7 +20,7 @@ export default function SettingsPage() {
   return (
     <>
       <AppHeader title="Configurações" />
-      <div className="flex-1 overflow-auto p-6 hex-pattern">
+      <div className="flex-1 overflow-auto p-6">
         <Tabs defaultValue="profile" className="space-y-6">
           <TabsList className="bg-secondary/50 border border-border/50">
             <TabsTrigger value="profile" className="font-game text-xs tracking-wider data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><User className="w-3 h-3 mr-1" />PERFIL</TabsTrigger>

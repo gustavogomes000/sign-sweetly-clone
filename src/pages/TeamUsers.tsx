@@ -299,7 +299,7 @@ export default function TeamUsers() {
   return (
     <>
       <AppHeader title="Equipe" subtitle={`${profiles.length} membros`} />
-      <div className="flex-1 overflow-auto p-6 space-y-4 hex-pattern">
+      <div className="flex-1 overflow-auto p-6 space-y-4">
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[

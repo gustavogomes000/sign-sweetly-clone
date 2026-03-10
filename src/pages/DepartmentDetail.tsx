@@ -48,7 +48,7 @@ export default function DepartmentDetail() {
         title={departamento?.nome?.toUpperCase() || 'Departamento'}
         subtitle={`${colaboradores.length} colaboradores`}
       />
-      <div className="flex-1 overflow-auto p-6 space-y-4 hex-pattern">
+      <div className="flex-1 overflow-auto p-6 space-y-4">
         {/* Back link */}
         <Link to="/departments" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-body">
           <ArrowLeft className="w-4 h-4" /> Voltar para departamentos
