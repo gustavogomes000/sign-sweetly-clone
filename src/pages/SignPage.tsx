@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { CheckCircle2, FileText, Pen, Download, Loader2, AlertCircle, ChevronLeft, ChevronRight, X, ShieldCheck, Type, Calendar, Hash, Image } from 'lucide-react';
+import { CheckCircle2, FileText, Pen, Download, Loader2, AlertCircle, ChevronLeft, ChevronRight, ShieldCheck, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { loadSigningData, saveSignature, completeValidationStep } from '@/services/documentService';
@@ -31,18 +31,6 @@ interface ValidationStepData {
   required: boolean;
 }
 
-const PDF_PAGE_WIDTH = 595;
-const PDF_PAGE_HEIGHT = 842;
-
-const fieldTypeLabel: Record<string, string> = {
-  signature: 'Assinatura',
-  initials: 'Rubrica',
-  text: 'Campo de texto',
-  date: 'Data',
-  checkbox: 'Marcação',
-  image: 'Imagem',
-};
-
 type PageStep = 'loading' | 'document' | 'validation' | 'complete' | 'error';
 
 export default function SignPage() {
@@ -50,18 +38,16 @@ export default function SignPage() {
   const [pageStep, setPageStep] = useState<PageStep>('loading');
   const [errorMsg, setErrorMsg] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [currentFieldIndex, setCurrentFieldIndex] = useState(0);
   const [validationStepIdx, setValidationStepIdx] = useState(0);
   const { toast } = useToast();
 
-  const [signingFieldId, setSigningFieldId] = useState<string | null>(null);
-  const [processing, setProcessing] = useState(false);
+  const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [signedFieldIds, setSignedFieldIds] = useState<Set<string>>(new Set());
 
-  const pdfContainerRef = useRef<HTMLDivElement>(null);
+  const signaturePanelRef = useRef<HTMLDivElement>(null);
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const [signerData, setSignerData] = useState<{
@@ -106,45 +92,18 @@ export default function SignPage() {
       });
   }, [token]);
 
-  // Sorted fields by page then y position
   const sortedFields = (signerData?.fields || []).slice().sort((a, b) => {
     if ((a.page || 1) !== (b.page || 1)) return (a.page || 1) - (b.page || 1);
     return a.y - b.y;
   });
 
-  const currentField = sortedFields[currentFieldIndex] || null;
   const totalFields = sortedFields.length;
-
-  // Auto-navigate to field's page and scroll
-  useEffect(() => {
-    if (!currentField) return;
-    const fieldPage = currentField.page || 1;
-    if (fieldPage !== currentPage) {
-      setCurrentPage(fieldPage);
-    }
-    // Scroll to field after page change
-    setTimeout(() => {
-      const el = fieldRefs.current[currentField.id];
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }, 200);
-  }, [currentFieldIndex, currentField?.id]);
-
-  const goToField = useCallback((index: number) => {
-    if (index >= 0 && index < totalFields) {
-      setCurrentFieldIndex(index);
-      setSigningFieldId(null);
-    }
-  }, [totalFields]);
-
-  const updateFieldValue = (fieldId: string, value: string) => {
-    setFieldValues(prev => ({ ...prev, [fieldId]: value }));
-  };
+  const totalPages = Math.max(1, ...sortedFields.map((f) => Math.max(1, f.page || 1)));
+  const currentPageFields = sortedFields.filter((f) => (f.page || 1) === currentPage);
 
   const isFieldFilled = (field: SignField) => {
-    const isSignatureType = field.field_type === 'signature' || field.field_type === 'initials';
-    if (isSignatureType) return signedFieldIds.has(field.id);
+    const isSig = field.field_type === 'signature' || field.field_type === 'initials';
+    if (isSig) return signedFieldIds.has(field.id);
     return !!(fieldValues[field.id] || '').trim();
   };
 
@@ -152,51 +111,45 @@ export default function SignPage() {
   const pendingRequired = sortedFields.filter(f => f.required && !isFieldFilled(f)).length;
   const allRequiredFilled = pendingRequired === 0;
 
-  // Auto-advance to next field after filling
-  const advanceToNextEmpty = useCallback(() => {
-    const nextEmpty = sortedFields.findIndex((f, i) => i > currentFieldIndex && !isFieldFilled(f));
-    if (nextEmpty >= 0) {
-      goToField(nextEmpty);
-    } else {
-      // Try from beginning
-      const fromStart = sortedFields.findIndex((f) => !isFieldFilled(f));
-      if (fromStart >= 0) {
-        goToField(fromStart);
-      }
-    }
-  }, [currentFieldIndex, sortedFields, goToField]);
+  const updateFieldValue = (fieldId: string, value: string) => {
+    setFieldValues(prev => ({ ...prev, [fieldId]: value }));
+  };
+
+  // When user clicks a signature field, scroll to the signature panel below
+  const openSignaturePanel = useCallback((fieldId: string) => {
+    setActiveFieldId(fieldId);
+    setTimeout(() => {
+      signaturePanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  }, []);
 
   const handleSignatureComplete = async (result: {
     signatureType: 'drawn' | 'typed';
     imageBase64?: string;
     typedText?: string;
   }) => {
-    if (!signerData || !currentField) return;
-    setProcessing(true);
+    if (!signerData || !activeFieldId) return;
     const signer = signerData.signer as { id: string };
     const doc = signerData.document as { id: string };
     try {
       await saveSignature({
         signerId: signer.id,
         documentId: doc.id,
-        fieldId: currentField.id,
+        fieldId: activeFieldId,
         signatureType: result.signatureType,
         imageBase64: result.imageBase64,
         typedText: result.typedText,
         userAgent: navigator.userAgent,
       });
       const newSigned = new Set(signedFieldIds);
-      newSigned.add(currentField.id);
+      newSigned.add(activeFieldId);
       setSignedFieldIds(newSigned);
       const displayValue = result.signatureType === 'drawn' ? '[assinatura]' : result.typedText || '[assinatura]';
-      setFieldValues(prev => ({ ...prev, [currentField.id]: displayValue }));
-      setSigningFieldId(null);
+      setFieldValues(prev => ({ ...prev, [activeFieldId]: displayValue }));
+      setActiveFieldId(null);
       toast({ title: 'Assinatura registrada! ✅' });
-      setTimeout(() => advanceToNextEmpty(), 400);
     } catch (err) {
       toast({ title: 'Erro ao assinar', description: err instanceof Error ? err.message : 'Tente novamente', variant: 'destructive' });
-    } finally {
-      setProcessing(false);
     }
   };
 
@@ -204,7 +157,6 @@ export default function SignPage() {
     if (!signerData) return;
     setSaving(true);
     try {
-      // Save all text field values
       for (const field of signerData.fields) {
         const currentValue = fieldValues[field.id];
         if (currentValue !== undefined && currentValue !== field.value) {
@@ -268,13 +220,11 @@ export default function SignPage() {
   const publicUrl = docFilePath
     ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/documents/${docFilePath}`
     : '';
-  const totalPages = Math.max(1, ...sortedFields.map((f) => Math.max(1, f.page || 1)));
-  const currentPageFields = sortedFields.filter((f) => (f.page || 1) === currentPage);
 
   // ── Loading ──
   if (pageStep === 'loading') {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center">
         <div className="text-center space-y-4">
           <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
           <p className="text-muted-foreground">Carregando documento...</p>
@@ -286,7 +236,7 @@ export default function SignPage() {
   // ── Error ──
   if (pageStep === 'error') {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center p-6">
         <Card className="max-w-md w-full text-center">
           <CardContent className="p-8 space-y-4">
             <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
@@ -303,11 +253,11 @@ export default function SignPage() {
   // ── Complete ──
   if (pageStep === 'complete') {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <Card className="max-w-md w-full text-center animate-fade-in">
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center p-6">
+        <Card className="max-w-md w-full text-center">
           <CardContent className="p-8 space-y-4">
-            <div className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-10 h-10 text-success" />
+            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-10 h-10 text-primary" />
             </div>
             <h1 className="text-2xl font-bold text-foreground">Documento assinado!</h1>
             <p className="text-muted-foreground">Sua assinatura foi registrada com sucesso.</p>
@@ -334,7 +284,7 @@ export default function SignPage() {
       selfie_document: 'Selfie com Documento',
     };
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-muted/30">
         <header className="h-14 border-b border-border bg-card flex items-center justify-between px-6">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
@@ -347,11 +297,6 @@ export default function SignPage() {
           </span>
         </header>
         <div className="max-w-lg mx-auto p-6 space-y-6">
-          <div className="flex gap-2">
-            {pendingSteps.map((_, i) => (
-              <div key={i} className={cn('h-1.5 flex-1 rounded-full transition-colors', i < validationStepIdx ? 'bg-success' : i === validationStepIdx ? 'bg-primary' : 'bg-muted')} />
-            ))}
-          </div>
           <h1 className="text-xl font-bold text-foreground">{stepTitles[currentStep?.step_type] || 'Verificação'}</h1>
           <Card>
             <CardContent className="p-4">
@@ -371,25 +316,22 @@ export default function SignPage() {
     );
   }
 
-  // ── Main Document view (DocuSeal-inspired step-by-step) ──
+  // ── Main Document View ──
   const signer = signerData?.signer as { id: string } | undefined;
   const doc = signerData?.document as { id: string } | undefined;
-  const isSignatureType = currentField?.field_type === 'signature' || currentField?.field_type === 'initials';
+  const activeField = activeFieldId ? sortedFields.find(f => f.id === activeFieldId) : null;
 
   return (
-    <div className="min-h-screen bg-muted/30 flex flex-col">
+    <div className="min-h-screen bg-muted/30">
       {/* Header */}
-      <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4 sm:px-6 shrink-0 z-20">
+      <header className="sticky top-0 z-30 h-14 border-b border-border bg-card flex items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
             <FileText className="w-4 h-4 text-primary-foreground" />
           </div>
-          <div className="hidden sm:block">
-            <span className="font-bold text-foreground text-sm">{docName}</span>
-          </div>
+          <span className="font-bold text-foreground text-sm truncate max-w-[200px]">{docName}</span>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Progress */}
+        <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 bg-muted rounded-full px-3 py-1">
             <span className="text-xs font-medium text-foreground">{filledCount}/{totalFields}</span>
             <div className="w-16 h-1.5 bg-border rounded-full overflow-hidden">
@@ -399,201 +341,216 @@ export default function SignPage() {
               />
             </div>
           </div>
+          <Button
+            onClick={handleComplete}
+            disabled={saving || !allRequiredFilled}
+            size="sm"
+            className={cn(
+              'gap-1 text-xs',
+              allRequiredFilled && 'bg-primary hover:bg-primary/90'
+            )}
+          >
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+            Concluir
+          </Button>
         </div>
       </header>
 
-      {/* PDF Document Area */}
-      <div className="flex-1 overflow-auto pb-20" ref={pdfContainerRef}>
-        <div className="max-w-3xl mx-auto p-4 sm:p-6">
-          {/* Signer greeting */}
-          <div className="mb-4 text-center">
-            <p className="text-sm text-muted-foreground">
-              Olá <strong className="text-foreground">{signerName}</strong>, clique nos campos destacados no documento para preenchê-los.
-            </p>
+      {/* Content */}
+      <div className="max-w-[680px] mx-auto px-4 py-6 space-y-6">
+        {/* Greeting */}
+        <p className="text-sm text-muted-foreground text-center">
+          Olá <strong className="text-foreground">{signerName}</strong>, clique nos campos destacados para preencher.
+        </p>
+
+        {/* Page navigation */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-3">
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1}>
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <span className="text-xs font-medium text-muted-foreground">
+              Página {currentPage} de {totalPages}
+            </span>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
           </div>
+        )}
 
-          {/* Page navigation */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1}>
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <span className="text-xs font-medium text-muted-foreground min-w-[80px] text-center">
-                {currentPage} / {totalPages}
-              </span>
-              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}>
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          )}
+        {/* PDF Document Card */}
+        <Card className="overflow-hidden shadow-sm">
+          <div className="relative w-full" style={{ aspectRatio: '595/842' }}>
+            {publicUrl && (
+              <PdfPagePreview documentUrl={publicUrl} page={currentPage} className="absolute inset-0" />
+            )}
 
-          {/* PDF with field overlays */}
-          <div className="flex justify-center">
-            <div
-              className="relative bg-white rounded-lg shadow-lg border border-border/40"
-              style={{ width: PDF_PAGE_WIDTH, minWidth: PDF_PAGE_WIDTH, height: PDF_PAGE_HEIGHT }}
-            >
-              {publicUrl && (
-                <PdfPagePreview documentUrl={publicUrl} page={currentPage} className="absolute inset-0 rounded-lg" />
-              )}
+            {/* Field overlays */}
+            {currentPageFields.map((field) => {
+              const isSigType = field.field_type === 'signature' || field.field_type === 'initials';
+              const isSigned = isSigType && signedFieldIds.has(field.id);
+              const value = fieldValues[field.id] || '';
+              const isActive = activeFieldId === field.id;
 
-              {/* Field overlays on the PDF */}
-              {currentPageFields.map((field) => {
-                const isSigType = field.field_type === 'signature' || field.field_type === 'initials';
-                const isSigned = isSigType && signedFieldIds.has(field.id);
-                const value = fieldValues[field.id] || '';
-                const isFilled = isSigType ? isSigned : !!value.trim();
-                const fieldIndex = sortedFields.findIndex(f => f.id === field.id);
+              // Convert pixel coords to percentages for responsive scaling
+              const leftPct = (field.x / 595) * 100;
+              const topPct = (field.y / 842) * 100;
+              const widthPct = (field.width / 595) * 100;
+              const heightPct = (field.height / 842) * 100;
 
-                // Signature fields → click opens modal
-                if (isSigType) {
-                  return (
-                    <div
-                      key={field.id}
-                      ref={(el) => { fieldRefs.current[field.id] = el; }}
-                      onClick={() => {
-                        if (!isSigned) {
-                          setCurrentFieldIndex(fieldIndex);
-                          setSigningFieldId(field.id);
-                        }
-                      }}
-                      className={cn(
-                        'absolute z-10 rounded transition-all flex items-center justify-center gap-1.5',
-                        isSigned
-                          ? 'bg-primary/10 border border-primary/30 cursor-default'
-                          : 'bg-destructive/10 border-2 border-dashed border-destructive/40 cursor-pointer hover:bg-destructive/20 hover:border-destructive/60 hover:shadow-md',
-                      )}
-                      style={{ left: field.x, top: field.y, width: field.width, height: field.height }}
-                    >
-                      {isSigned ? (
-                        <span className="flex items-center gap-1 text-xs text-primary font-medium">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Assinado
-                        </span>
-                      ) : (
-                        <>
-                          <Pen className="w-4 h-4 text-destructive/60" />
-                          <span className="text-[11px] text-destructive/70 font-medium">
-                            {field.field_type === 'initials' ? 'Rubricar' : 'Assinar aqui'}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  );
-                }
-
-                // Checkbox fields → inline toggle
-                if (field.field_type === 'checkbox') {
-                  return (
-                    <div
-                      key={field.id}
-                      className="absolute z-10 flex items-center gap-1.5 bg-white/90 rounded px-1"
-                      style={{ left: field.x, top: field.y, width: field.width, height: field.height }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={value === 'true'}
-                        onChange={(e) => updateFieldValue(field.id, e.target.checked ? 'true' : 'false')}
-                        className="w-4 h-4 accent-primary cursor-pointer"
-                      />
-                      {field.label && <span className="text-[10px] text-foreground truncate">{field.label}</span>}
-                    </div>
-                  );
-                }
-
-                // Date fields → inline input
-                if (field.field_type === 'date') {
-                  return (
-                    <div key={field.id} className="absolute z-10" style={{ left: field.x, top: field.y, width: field.width, height: field.height }}>
-                      <input
-                        type="date"
-                        value={value}
-                        onChange={(e) => updateFieldValue(field.id, e.target.value)}
-                        className={cn(
-                          'w-full h-full rounded border-2 px-2 text-xs bg-white/90 transition-colors focus:outline-none focus:ring-1 focus:ring-primary',
-                          value ? 'border-primary/40 text-foreground' : 'border-destructive/30 border-dashed text-muted-foreground'
-                        )}
-                      />
-                    </div>
-                  );
-                }
-
-                // Text fields → inline input
+              if (isSigType) {
                 return (
-                  <div key={field.id} className="absolute z-10" style={{ left: field.x, top: field.y, width: field.width, height: field.height }}>
+                  <div
+                    key={field.id}
+                    ref={(el) => { fieldRefs.current[field.id] = el; }}
+                    onClick={() => {
+                      if (!isSigned) openSignaturePanel(field.id);
+                    }}
+                    className={cn(
+                      'absolute z-10 rounded flex items-center justify-center gap-1.5 transition-all',
+                      isSigned
+                        ? 'bg-primary/10 border border-primary/30 cursor-default'
+                        : isActive
+                          ? 'bg-primary/15 border-2 border-primary ring-2 ring-primary/20 cursor-pointer'
+                          : 'bg-amber-50 border-2 border-dashed border-amber-400 cursor-pointer hover:bg-amber-100 hover:border-amber-500',
+                    )}
+                    style={{
+                      left: `${leftPct}%`,
+                      top: `${topPct}%`,
+                      width: `${widthPct}%`,
+                      height: `${heightPct}%`,
+                    }}
+                  >
+                    {isSigned ? (
+                      <span className="flex items-center gap-1 text-[10px] sm:text-xs text-primary font-medium">
+                        <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Assinado
+                      </span>
+                    ) : (
+                      <>
+                        <Pen className="w-3 h-3 sm:w-4 sm:h-4 text-amber-600" />
+                        <span className="text-[9px] sm:text-[11px] text-amber-700 font-medium">
+                          {field.field_type === 'initials' ? 'Rubricar' : 'Assinar aqui'}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                );
+              }
+
+              if (field.field_type === 'checkbox') {
+                return (
+                  <div
+                    key={field.id}
+                    className="absolute z-10 flex items-center gap-1 bg-white/90 rounded px-1"
+                    style={{
+                      left: `${leftPct}%`,
+                      top: `${topPct}%`,
+                      width: `${widthPct}%`,
+                      height: `${heightPct}%`,
+                    }}
+                  >
                     <input
-                      type="text"
+                      type="checkbox"
+                      checked={value === 'true'}
+                      onChange={(e) => updateFieldValue(field.id, e.target.checked ? 'true' : 'false')}
+                      className="w-4 h-4 accent-primary cursor-pointer"
+                    />
+                    {field.label && <span className="text-[10px] text-foreground truncate">{field.label}</span>}
+                  </div>
+                );
+              }
+
+              if (field.field_type === 'date') {
+                return (
+                  <div
+                    key={field.id}
+                    className="absolute z-10"
+                    style={{
+                      left: `${leftPct}%`,
+                      top: `${topPct}%`,
+                      width: `${widthPct}%`,
+                      height: `${heightPct}%`,
+                    }}
+                  >
+                    <input
+                      type="date"
                       value={value}
                       onChange={(e) => updateFieldValue(field.id, e.target.value)}
-                      placeholder={field.label || 'Preencher...'}
                       className={cn(
-                        'w-full h-full rounded border-2 px-2 text-xs bg-white/90 transition-colors focus:outline-none focus:ring-1 focus:ring-primary',
-                        value ? 'border-primary/40 text-foreground' : 'border-destructive/30 border-dashed text-muted-foreground placeholder:text-muted-foreground/50'
+                        'w-full h-full rounded border-2 px-1 text-[10px] sm:text-xs bg-white/90 focus:outline-none focus:ring-1 focus:ring-primary',
+                        value ? 'border-primary/40 text-foreground' : 'border-amber-300 border-dashed text-muted-foreground'
                       )}
                     />
                   </div>
                 );
-              })}
+              }
 
-              {sortedFields.length > 0 && currentPageFields.length === 0 && (
-                <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-card/90 border border-border rounded-md px-3 py-1.5 z-10">
-                  <p className="text-xs text-muted-foreground">Nenhum campo nesta página</p>
+              return (
+                <div
+                  key={field.id}
+                  className="absolute z-10"
+                  style={{
+                    left: `${leftPct}%`,
+                    top: `${topPct}%`,
+                    width: `${widthPct}%`,
+                    height: `${heightPct}%`,
+                  }}
+                >
+                  <input
+                    type="text"
+                    value={value}
+                    onChange={(e) => updateFieldValue(field.id, e.target.value)}
+                    placeholder={field.label || 'Preencher...'}
+                    className={cn(
+                      'w-full h-full rounded border-2 px-1 text-[10px] sm:text-xs bg-white/90 focus:outline-none focus:ring-1 focus:ring-primary',
+                      value ? 'border-primary/40 text-foreground' : 'border-amber-300 border-dashed text-muted-foreground placeholder:text-muted-foreground/50'
+                    )}
+                  />
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+              );
+            })}
 
-      {/* Bottom action bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-card border-t border-border px-4 py-3">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
-            {allRequiredFilled
-              ? '✅ Todos os campos preenchidos'
-              : `⚠️ ${pendingRequired} campo(s) pendente(s)`}
-          </p>
-          <Button
-            onClick={handleComplete}
-            disabled={saving || !allRequiredFilled}
-            className={cn(
-              'shadow-lg gap-1',
-              allRequiredFilled ? 'bg-success hover:bg-success/90 shadow-success/20' : 'shadow-primary/20'
-            )}
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-            Concluir assinatura
-          </Button>
-        </div>
-      </div>
-
-      {/* ══════ Signature Modal (opens ONLY when clicking signature field) ══════ */}
-      {signingFieldId && signer && doc && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center" onClick={() => setSigningFieldId(null)}>
-          <div
-            className="bg-card w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl animate-in slide-in-from-bottom-4 duration-300"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between p-4 border-b border-border">
-              <div>
-                <h2 className="text-base font-bold text-foreground">Sua assinatura</h2>
-                <p className="text-xs text-muted-foreground">Desenhe ou digite sua assinatura</p>
+            {sortedFields.length > 0 && currentPageFields.length === 0 && (
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-card/90 border border-border rounded-md px-3 py-1.5 z-10">
+                <p className="text-xs text-muted-foreground">Nenhum campo nesta página</p>
               </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSigningFieldId(null)}>
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-            <div className="p-4">
+            )}
+          </div>
+        </Card>
+
+        {/* ══════ Inline Signature Panel (appears below the document) ══════ */}
+        {activeFieldId && signer && doc && (
+          <Card ref={signaturePanelRef} className="shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <CardContent className="p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-bold text-foreground">Sua assinatura</h2>
+                <button
+                  onClick={() => setActiveFieldId(null)}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
               <VLAssinatura
                 signatoryId={signer.id}
                 documentId={doc.id}
                 aoCompletar={handleSignatureComplete}
                 onError={(err) => toast({ title: 'Erro na assinatura', description: String(err), variant: 'destructive' })}
-                onCancel={() => setSigningFieldId(null)}
+                onCancel={() => setActiveFieldId(null)}
               />
-            </div>
-          </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Bottom status */}
+        <div className="text-center pb-6">
+          <p className="text-xs text-muted-foreground">
+            {allRequiredFilled
+              ? '✅ Todos os campos preenchidos — clique em "Concluir" para finalizar.'
+              : `${pendingRequired} campo(s) pendente(s) de preenchimento.`}
+          </p>
         </div>
-      )}
+      </div>
     </div>
   );
 }
