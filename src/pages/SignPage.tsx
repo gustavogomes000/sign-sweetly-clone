@@ -281,7 +281,9 @@ export default function SignPage() {
     const stepTitles: Record<string, string> = {
       selfie: 'Reconhecimento Facial',
       document: 'Foto do Documento',
+      document_photo: 'Foto do Documento',
       selfie_document: 'Selfie com Documento',
+      selfie_with_document: 'Selfie com Documento',
     };
     return (
       <div className="min-h-screen bg-muted/30">
@@ -303,10 +305,10 @@ export default function SignPage() {
               {currentStep?.step_type === 'selfie' && (
                 <VLSelfie signatoryId={signer.id} documentId={doc.id} aoCompletar={handleValidationComplete} onError={(err) => toast({ title: 'Erro', description: String(err), variant: 'destructive' })} />
               )}
-              {currentStep?.step_type === 'document' && (
+              {(currentStep?.step_type === 'document' || currentStep?.step_type === 'document_photo') && (
                 <VLDocumento signatoryId={signer.id} documentId={doc.id} aoCompletar={handleValidationComplete} onError={(err) => toast({ title: 'Erro', description: String(err), variant: 'destructive' })} />
               )}
-              {currentStep?.step_type === 'selfie_document' && (
+              {(currentStep?.step_type === 'selfie_document' || currentStep?.step_type === 'selfie_with_document') && (
                 <VLSelfieDoc signatoryId={signer.id} documentId={doc.id} aoCompletar={handleValidationComplete} onError={(err) => toast({ title: 'Erro', description: String(err), variant: 'destructive' })} />
               )}
             </CardContent>
