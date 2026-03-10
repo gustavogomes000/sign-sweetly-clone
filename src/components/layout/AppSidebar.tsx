@@ -151,7 +151,7 @@ export function AppSidebar() {
             </div>
             <div className="min-w-0">
               <p className="text-xs font-semibold text-sidebar-accent-foreground truncate">{user.name}</p>
-              <p className="text-[10px] text-sidebar-foreground/60 truncate">{company?.name || user.email}</p>
+              <p className="text-[10px] text-sidebar-foreground/60 truncate">{user.email}</p>
             </div>
           </div>
         )}
