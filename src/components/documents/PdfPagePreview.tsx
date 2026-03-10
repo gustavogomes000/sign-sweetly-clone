@@ -1,42 +1,12 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getDocument, GlobalWorkerOptions, PDFDocumentProxy } from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { cn } from '@/lib/utils';
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
-// ── Global PDF document cache ──
-const pdfCache = new Map<string, { doc: PDFDocumentProxy; lastUsed: number }>();
-const MAX_CACHE = 8;
-
-async function getCachedPdf(url: string): Promise<PDFDocumentProxy> {
-  const cached = pdfCache.get(url);
-  if (cached) {
-    cached.lastUsed = Date.now();
-    return cached.doc;
-  }
-
-  const doc = await getDocument({ url, cMapUrl: undefined, disableAutoFetch: false, disableStream: false }).promise;
-
-  // Evict oldest if cache full
-  if (pdfCache.size >= MAX_CACHE) {
-    let oldestKey = '';
-    let oldestTime = Infinity;
-    for (const [key, entry] of pdfCache) {
-      if (entry.lastUsed < oldestTime) {
-        oldestTime = entry.lastUsed;
-        oldestKey = key;
-      }
-    }
-    if (oldestKey) {
-      pdfCache.get(oldestKey)?.doc.destroy();
-      pdfCache.delete(oldestKey);
-    }
-  }
-
-  pdfCache.set(url, { doc, lastUsed: Date.now() });
-  return doc;
-}
+// ── Simple PDF document cache ──
+const pdfCache = new Map<string, PDFDocumentProxy>();
 
 interface PdfPagePreviewProps {
   documentUrl: string;
@@ -44,79 +14,106 @@ interface PdfPagePreviewProps {
   className?: string;
 }
 
-const CANVAS_BASE_WIDTH = 595;
-
 export default function PdfPagePreview({ documentUrl, page, className }: PdfPagePreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const renderTaskRef = useRef<ReturnType<PDFDocumentProxy['getPage']> extends Promise<infer P> ? P extends { render: (...args: any[]) => infer R } ? R : null : null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const renderPage = useCallback(async (cancelled: { current: boolean }) => {
-    setIsLoading(true);
-    setError(null);
+  useEffect(() => {
+    let cancelled = false;
 
-    try {
-      const pdf = await getCachedPdf(documentUrl);
-      if (cancelled.current) return;
+    const render = async () => {
+      setIsLoading(true);
+      setError(null);
 
-      const safePageNumber = Math.min(Math.max(page, 1), pdf.numPages);
-      const pdfPage = await pdf.getPage(safePageNumber);
-      if (cancelled.current) return;
+      try {
+        // Get or cache the PDF document
+        let pdf = pdfCache.get(documentUrl);
+        if (!pdf) {
+          console.log('[PDF] Loading document:', documentUrl.slice(-40));
+          pdf = await getDocument(documentUrl).promise;
+          pdfCache.set(documentUrl, pdf);
+          console.log('[PDF] Document loaded, pages:', pdf.numPages);
+        }
 
-      const baseViewport = pdfPage.getViewport({ scale: 1 });
-      const renderScale = CANVAS_BASE_WIDTH / baseViewport.width;
-      const viewport = pdfPage.getViewport({ scale: renderScale });
+        if (cancelled) return;
 
-      const canvas = canvasRef.current;
-      if (!canvas || cancelled.current) return;
+        const safePageNumber = Math.min(Math.max(page, 1), pdf.numPages);
+        const pdfPage = await pdf.getPage(safePageNumber);
+        if (cancelled) return;
 
-      const context = canvas.getContext('2d');
-      if (!context) throw new Error('Erro no contexto do canvas.');
+        const canvas = canvasRef.current;
+        if (!canvas) {
+          console.warn('[PDF] Canvas ref is null');
+          return;
+        }
 
-      canvas.width = Math.floor(viewport.width);
-      canvas.height = Math.floor(viewport.height);
+        const context = canvas.getContext('2d');
+        if (!context) {
+          throw new Error('Cannot get 2d context');
+        }
 
-      const renderTask = pdfPage.render({ canvas, canvasContext: context, viewport });
-      await renderTask.promise;
-    } catch (err: any) {
-      if (!cancelled.current && err?.name !== 'RenderingCancelledException') {
-        console.error('Erro ao renderizar PDF:', err);
-        setError('Falha ao renderizar o PDF.');
+        // Render at fixed 595 width scale
+        const baseViewport = pdfPage.getViewport({ scale: 1 });
+        const scale = 595 / baseViewport.width;
+        const viewport = pdfPage.getViewport({ scale });
+
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+
+        await pdfPage.render({
+          canvas,
+          canvasContext: context,
+          viewport,
+        }).promise;
+
+        if (!cancelled) {
+          console.log('[PDF] Page', safePageNumber, 'rendered successfully');
+          setIsLoading(false);
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          console.error('[PDF] Render error:', err);
+          setError('Falha ao renderizar o PDF.');
+          setIsLoading(false);
+        }
       }
-    } finally {
-      if (!cancelled.current) setIsLoading(false);
-    }
+    };
+
+    render();
+
+    return () => {
+      cancelled = true;
+    };
   }, [documentUrl, page]);
 
-  useEffect(() => {
-    const cancelled = { current: false };
-    renderPage(cancelled);
-    return () => { cancelled.current = true; };
-  }, [renderPage]);
-
   return (
-    <div className={cn('relative h-full w-full bg-background', className)}>
-      <canvas ref={canvasRef} className="h-full w-full pointer-events-none" aria-label={`Prévia do PDF - página ${page}`} />
+    <div className={cn('relative h-full w-full bg-white', className)}>
+      <canvas
+        ref={canvasRef}
+        className="block w-full h-full object-contain pointer-events-none"
+        style={{ display: isLoading && !error ? 'none' : 'block' }}
+        aria-label={`Prévia do PDF - página ${page}`}
+      />
 
-      {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/80">
+      {isLoading && !error && (
+        <div className="absolute inset-0 flex items-center justify-center">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-            <span className="text-xs text-muted-foreground">Carregando...</span>
+            <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+            <span className="text-sm text-muted-foreground">Carregando PDF...</span>
           </div>
         </div>
       )}
 
       {error && (
-        <div className="absolute inset-0 flex items-center justify-center p-6 text-center bg-muted/20">
+        <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
           <div>
             <p className="text-sm font-semibold text-foreground">{error}</p>
             <a
               href={documentUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex mt-3 text-xs px-2.5 py-1.5 rounded border border-border text-foreground bg-card"
+              className="inline-flex mt-3 text-xs px-2.5 py-1.5 rounded border border-border text-foreground bg-card hover:bg-muted transition-colors"
             >
               Abrir arquivo em nova aba
             </a>
