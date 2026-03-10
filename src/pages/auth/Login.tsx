@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import { AnimatedBackground } from '@/components/layout/AnimatedBackground';
 import signproofLogo from '@/assets/signproof-logo.png';
 
 function HexParticles() {
