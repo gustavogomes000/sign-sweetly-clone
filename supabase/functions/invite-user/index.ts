@@ -12,7 +12,6 @@ serve(async (req) => {
   }
 
   try {
-    // Verify the caller is authenticated and has owner/gestor hierarchy
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) throw new Error('Não autenticado');
 
@@ -34,16 +33,44 @@ serve(async (req) => {
       .single();
 
     if (!callerProfile || !['owner', 'gestor'].includes(callerProfile.hierarchy)) {
-      throw new Error('Sem permissão para convidar membros');
+      throw new Error('Sem permissão para gerenciar membros');
     }
 
-    const { email, full_name, hierarchy, department_id } = await req.json();
-    if (!email || !full_name) throw new Error('Email e nome são obrigatórios');
+    const { email, full_name, hierarchy, department_id, reset_only } = await req.json();
+    if (!email) throw new Error('Email é obrigatório');
 
-    // Use service role to create user
     const adminClient = createClient(supabaseUrl, serviceKey);
+    const siteUrl = Deno.env.get('SITE_URL') || 'https://sign-sweetly-clone.lovable.app';
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
 
-    // Create the user with a temporary password and send password reset
+    // ── Password reset only ──
+    if (reset_only) {
+      // Generate recovery link
+      const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+        type: 'recovery',
+        email,
+        options: { redirectTo: `${siteUrl}/login` },
+      });
+
+      if (linkError) throw linkError;
+
+      const actionLink = linkData?.properties?.action_link || `${siteUrl}/login`;
+
+      // Send via Resend
+      if (resendApiKey) {
+        await sendEmail(resendApiKey, email, full_name || 'Usuário', '🔑 Redefina sua senha — SignProof', `
+          <p>Olá ${full_name || ''},</p>
+          <p>Foi solicitada a redefinição da sua senha no SignProof.</p>
+          <p>Clique no botão abaixo para criar uma nova senha:</p>
+        `, actionLink, '🔑 Redefinir senha');
+      }
+
+      return jsonResponse({ success: true, message: 'Reset email sent' });
+    }
+
+    // ── Create new user ──
+    if (!full_name) throw new Error('Nome é obrigatório');
+
     const tempPassword = crypto.randomUUID() + 'Aa1!';
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
       email,
@@ -59,7 +86,7 @@ serve(async (req) => {
       throw createError;
     }
 
-    // Update profile with hierarchy and department
+    // Update profile
     if (newUser?.user) {
       await adminClient.from('profiles').update({
         hierarchy: hierarchy || 'user',
@@ -67,42 +94,56 @@ serve(async (req) => {
       }).eq('id', newUser.user.id);
     }
 
-    // Send password reset email so user can set their own password
-    const siteUrl = Deno.env.get('SITE_URL') || 'https://sign-sweetly-clone.lovable.app';
-    const { error: resetError } = await adminClient.auth.admin.generateLink({
-      type: 'recovery',
+    // Generate magic link for first access
+    const { data: linkData } = await adminClient.auth.admin.generateLink({
+      type: 'magiclink',
       email,
       options: { redirectTo: `${siteUrl}/login` },
     });
 
-    if (resetError) {
-      console.warn('Could not generate reset link:', resetError);
+    const actionLink = linkData?.properties?.action_link || `${siteUrl}/login`;
+
+    const hierarchyLabel = hierarchy === 'owner' ? 'Owner' : hierarchy === 'gestor' ? 'Gestor' : 'Usuário';
+
+    if (resendApiKey) {
+      await sendEmail(resendApiKey, email, full_name, '🔑 Bem-vindo ao SignProof — Configure sua senha', `
+        <p>Olá <strong>${escapeHtml(full_name)}</strong>!</p>
+        <p>Você foi convidado para acessar o SignProof como <strong>${hierarchyLabel}</strong>.</p>
+        <p>Clique no botão abaixo para configurar sua senha e acessar o sistema:</p>
+      `, actionLink, '🔑 Acessar o sistema');
+      console.log(`✅ Invite email sent to ${email}`);
     }
 
-    // Also send via Resend if configured
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
-    if (resendApiKey && newUser?.user) {
-      try {
-        // Generate a magic link for first access
-        const { data: linkData } = await adminClient.auth.admin.generateLink({
-          type: 'magiclink',
-          email,
-          options: { redirectTo: `${siteUrl}/login` },
-        });
+    return jsonResponse({ success: true, user_id: newUser?.user?.id });
+  } catch (error) {
+    console.error('Invite error:', error);
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Erro desconhecido' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});
 
-        const actionLink = linkData?.properties?.action_link || `${siteUrl}/login`;
+function jsonResponse(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
 
-        await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${resendApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from: 'SignProof by Valeris <onboarding@resend.dev>',
-            to: [email],
-            subject: '🔑 Bem-vindo ao SignProof — Configure sua senha',
-            html: `<!DOCTYPE html>
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+async function sendEmail(apiKey: string, to: string, name: string, subject: string, bodyHtml: string, actionLink: string, btnText: string) {
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: 'SignProof by Valeris <onboarding@resend.dev>',
+      to: [to],
+      subject,
+      html: `<!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#f0f5f4;font-family:'Segoe UI',Roboto,sans-serif;">
@@ -113,23 +154,16 @@ serve(async (req) => {
           <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;">SignProof</h1>
           <p style="margin:6px 0 0;color:#d4c5a0;font-size:13px;">by Valeris</p>
         </td></tr>
-        <tr><td style="padding:36px 40px;">
-          <h2 style="margin:0 0 16px;color:#1a3a3a;font-size:20px;">Olá ${full_name}!</h2>
-          <p style="color:#2d4a4a;font-size:15px;line-height:1.6;">
-            Você foi convidado para acessar o SignProof como <strong>${hierarchy === 'owner' ? 'Owner' : hierarchy === 'gestor' ? 'Gestor' : 'Usuário'}</strong>.
-          </p>
-          <p style="color:#2d4a4a;font-size:15px;line-height:1.6;">
-            Clique no botão abaixo para configurar sua senha e acessar o sistema:
-          </p>
+        <tr><td style="padding:36px 40px;color:#2d4a4a;font-size:15px;line-height:1.6;">
+          ${bodyHtml}
           <table width="100%" cellpadding="0" cellspacing="0" style="margin:28px 0;">
             <tr><td align="center">
               <a href="${actionLink}" style="display:inline-block;background:linear-gradient(135deg,#2d5a5a,#1a3a3a);color:#fff;text-decoration:none;padding:14px 40px;border-radius:8px;font-size:15px;font-weight:600;box-shadow:0 4px 12px rgba(26,58,58,0.3);">
-                🔑 Acessar o sistema
+                ${btnText}
               </a>
             </td></tr>
           </table>
           <p style="color:#94a3b8;font-size:12px;text-align:center;">
-            Após acessar, defina uma nova senha em Configurações.<br>
             <a href="${actionLink}" style="color:#2d5a5a;word-break:break-all;">${actionLink}</a>
           </p>
         </td></tr>
@@ -141,23 +175,6 @@ serve(async (req) => {
   </table>
 </body>
 </html>`,
-          }),
-        });
-        console.log(`✅ Invite email sent to ${email}`);
-      } catch (emailErr) {
-        console.warn('Invite email failed (Resend):', emailErr);
-      }
-    }
-
-    return new Response(
-      JSON.stringify({ success: true, user_id: newUser?.user?.id }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  } catch (error) {
-    console.error('Invite error:', error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Erro desconhecido' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-});
+    }),
+  });
+}

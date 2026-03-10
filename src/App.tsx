@@ -53,6 +53,7 @@ function AppRoutes() {
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/team" element={<TeamUsers />} />
         <Route path="/departments" element={<Departments />} />
+        <Route path="/departments/:id" element={<DepartmentDetail />} />
         <Route path="/integrations" element={<Integrations />} />
         <Route path="/api-docs" element={<ApiDocs />} />
         <Route path="/settings" element={<SettingsPage />} />
