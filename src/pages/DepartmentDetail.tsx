@@ -9,10 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Loader2, ArrowLeft, Users, Building2, Search, RefreshCw, Shield, Mail, Briefcase, Crown, User, UserPlus, CheckCircle2, Send } from 'lucide-react';
+import { Loader2, ArrowLeft, Users, Building2, Search, RefreshCw, Shield, Mail, Briefcase, Crown, User, UserPlus, CheckCircle2, Send, AlertCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { bluepointApi, type BPColaborador, type BPDepartamento } from '@/services/bluepointApi';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { bluepointApi, type BPColaborador } from '@/services/bluepointApi';
 import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
@@ -27,7 +27,7 @@ export default function DepartmentDetail() {
   const { id } = useParams<{ id: string }>();
   const deptId = Number(id);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('ativo');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -43,18 +43,27 @@ export default function DepartmentDetail() {
   const [batchImporting, setBatchImporting] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
 
-  const { data: departamento, isLoading: loadingDept } = useQuery({
+  const { data: departamento, isLoading: loadingDept, error: deptError } = useQuery({
     queryKey: ['bluepoint-departamento', deptId],
-    queryFn: () => bluepointApi.obterDepartamento(deptId),
-    enabled: !!deptId,
+    queryFn: async () => {
+      const result = await bluepointApi.obterDepartamento(deptId);
+      return result;
+    },
+    enabled: !isNaN(deptId) && deptId > 0,
     staleTime: 5 * 60_000,
+    retry: 2,
   });
 
-  const { data: colaboradores = [], isLoading: loadingColab, refetch, isFetching } = useQuery({
+  const { data: colaboradores = [], isLoading: loadingColab, refetch, isFetching, error: colabError } = useQuery({
     queryKey: ['bluepoint-dept-colaboradores', deptId],
-    queryFn: () => bluepointApi.listarColaboradoresDepartamento(deptId),
-    enabled: !!deptId,
+    queryFn: async () => {
+      const result = await bluepointApi.listarColaboradoresDepartamento(deptId);
+      if (Array.isArray(result)) return result;
+      return [];
+    },
+    enabled: !isNaN(deptId) && deptId > 0,
     staleTime: 5 * 60_000,
+    retry: 2,
   });
 
   // Check which collaborators are already imported
@@ -71,15 +80,19 @@ export default function DepartmentDetail() {
   });
 
   const importedBpIds = new Set(importedProfiles.map(p => p.bluepoint_id));
+  const apiError = deptError || colabError;
 
   const filtered = colaboradores.filter((c) => {
-    const matchSearch = !search || c.nome.toLowerCase().includes(search.toLowerCase()) || c.email.toLowerCase().includes(search.toLowerCase());
+    if (!c) return false;
+    const matchSearch = !search || 
+      (c.nome || '').toLowerCase().includes(search.toLowerCase()) || 
+      (c.email || '').toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'all' || c.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
-  const activeCount = colaboradores.filter(c => c.status === 'ativo').length;
-  const importedCount = colaboradores.filter(c => importedBpIds.has(c.id)).length;
+  const activeCount = colaboradores.filter(c => c?.status === 'ativo').length;
+  const importedCount = colaboradores.filter(c => c && importedBpIds.has(c.id)).length;
   const isLoading = loadingDept || loadingColab;
 
   const handleImportSingle = async () => {
@@ -91,7 +104,7 @@ export default function DepartmentDetail() {
           email: importingColab.email,
           full_name: importingColab.nome,
           hierarchy: importHierarchy,
-          department_id: null, // We'll set bluepoint_id instead
+          department_id: null,
         },
       });
       if (error) throw new Error(error.message);
@@ -109,14 +122,14 @@ export default function DepartmentDetail() {
       setImportingColab(null);
       queryClient.invalidateQueries({ queryKey: ['imported-profiles-bp'] });
     } catch (err) {
-      toast({ title: 'Erro ao importar', description: err instanceof Error ? err.message : 'Erro', variant: 'destructive' });
+      toast({ title: 'Erro ao importar', description: err instanceof Error ? err.message : 'Erro desconhecido', variant: 'destructive' });
     } finally {
       setImporting(false);
     }
   };
 
   const handleBatchImport = async () => {
-    const selected = colaboradores.filter(c => batchSelected.has(c.id) && !importedBpIds.has(c.id));
+    const selected = colaboradores.filter(c => c && batchSelected.has(c.id) && !importedBpIds.has(c.id));
     if (selected.length === 0) return;
     setBatchImporting(true);
     setBatchProgress({ current: 0, total: selected.length });
@@ -163,20 +176,38 @@ export default function DepartmentDetail() {
   };
 
   const selectAllNotImported = () => {
-    const notImported = filtered.filter(c => !importedBpIds.has(c.id)).map(c => c.id);
+    const notImported = filtered.filter(c => c && !importedBpIds.has(c.id)).map(c => c.id);
     setBatchSelected(new Set(notImported));
   };
+
+  const deptName = departamento?.nome?.toUpperCase() || `DEPARTAMENTO ${id}`;
 
   return (
     <>
       <AppHeader
-        title={departamento?.nome?.toUpperCase() || 'Departamento'}
+        title={deptName}
         subtitle={`${colaboradores.length} colaboradores`}
       />
       <div className="flex-1 overflow-auto p-6 space-y-4">
         <Link to="/departments" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-body">
           <ArrowLeft className="w-4 h-4" /> Voltar para departamentos
         </Link>
+
+        {/* Error state */}
+        {apiError && (
+          <Card className="border-destructive/50 bg-destructive/5">
+            <CardContent className="p-4 flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-destructive shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-destructive">Erro ao carregar dados</p>
+                <p className="text-xs text-muted-foreground">{apiError instanceof Error ? apiError.message : 'Erro desconhecido'}</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => refetch()} className="ml-auto shrink-0">
+                Tentar novamente
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -226,9 +257,11 @@ export default function DepartmentDetail() {
             <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching} className="font-game text-xs tracking-wider">
               <RefreshCw className={`w-4 h-4 mr-1 ${isFetching ? 'animate-spin' : ''}`} /> ATUALIZAR
             </Button>
-            <Button size="sm" onClick={() => { selectAllNotImported(); setShowBatchImport(true); }} className="font-game text-xs tracking-wider">
-              <Send className="w-4 h-4 mr-1" /> IMPORTAR EM LOTE
-            </Button>
+            {filtered.filter(c => c && !importedBpIds.has(c.id)).length > 0 && (
+              <Button size="sm" onClick={() => { selectAllNotImported(); setShowBatchImport(true); }} className="font-game text-xs tracking-wider">
+                <Send className="w-4 h-4 mr-1" /> IMPORTAR EM LOTE
+              </Button>
+            )}
           </div>
         </div>
 
@@ -241,89 +274,89 @@ export default function DepartmentDetail() {
               ) : filtered.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                   <Users className="w-10 h-10 mb-2 opacity-30" />
-                  <p className="font-body">Nenhum colaborador encontrado</p>
+                  <p className="font-body">{colaboradores.length === 0 ? 'Nenhum colaborador neste departamento' : 'Nenhum colaborador encontrado com os filtros atuais'}</p>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border/50">
-                      <TableHead className="font-game text-[10px] tracking-wider">COLABORADOR</TableHead>
-                      <TableHead className="font-game text-[10px] tracking-wider">CARGO</TableHead>
-                      <TableHead className="font-game text-[10px] tracking-wider">MATRÍCULA</TableHead>
-                      <TableHead className="font-game text-[10px] tracking-wider">TIPO</TableHead>
-                      <TableHead className="font-game text-[10px] tracking-wider">STATUS</TableHead>
-                      <TableHead className="font-game text-[10px] tracking-wider">SISTEMA</TableHead>
-                      <TableHead className="font-game text-[10px] tracking-wider text-right">AÇÕES</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filtered.map((c) => {
-                      const isImported = importedBpIds.has(c.id);
-                      const profile = importedProfiles.find(p => p.bluepoint_id === c.id);
-                      return (
-                        <TableRow key={c.id} className="border-border/30 hover:bg-primary/5">
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <Avatar className="w-9 h-9 border border-border/30">
-                                {c.foto && <AvatarImage src={c.foto} alt={c.nome} />}
-                                <AvatarFallback className="bg-primary/10 text-primary text-xs font-game font-bold">
-                                  {c.nome.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <p className="text-sm font-body font-semibold">{c.nome}</p>
-                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                  <Mail className="w-3 h-3" /> {c.email}
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-border/50">
+                        <TableHead className="font-game text-[10px] tracking-wider">COLABORADOR</TableHead>
+                        <TableHead className="font-game text-[10px] tracking-wider hidden md:table-cell">CARGO</TableHead>
+                        <TableHead className="font-game text-[10px] tracking-wider hidden lg:table-cell">MATRÍCULA</TableHead>
+                        <TableHead className="font-game text-[10px] tracking-wider">STATUS</TableHead>
+                        <TableHead className="font-game text-[10px] tracking-wider">SISTEMA</TableHead>
+                        <TableHead className="font-game text-[10px] tracking-wider text-right">AÇÕES</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filtered.map((c) => {
+                        if (!c) return null;
+                        const isImported = importedBpIds.has(c.id);
+                        const profile = importedProfiles.find(p => p.bluepoint_id === c.id);
+                        const initials = (c.nome || 'NN').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+                        return (
+                          <TableRow key={c.id} className="border-border/30 hover:bg-primary/5">
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <Avatar className="w-9 h-9 border border-border/30">
+                                  {c.foto && <AvatarImage src={c.foto} alt={c.nome} />}
+                                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-game font-bold">
+                                    {initials}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <p className="text-sm font-body font-semibold">{c.nome || '—'}</p>
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    <Mail className="w-3 h-3" /> {c.email || '—'}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1.5 text-sm font-body">
-                              <Briefcase className="w-3.5 h-3.5 text-muted-foreground" />
-                              {c.cargo?.nome || '—'}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-sm font-body font-mono">{c.matricula}</TableCell>
-                          <TableCell>
-                            <Badge variant={c.tipo === 'admin' ? 'default' : 'secondary'} className="text-[10px] font-game tracking-wider">
-                              {c.tipo === 'admin' ? 'ADMIN' : 'COLAB'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={c.status === 'ativo' ? 'default' : 'secondary'} className="text-[10px] font-game tracking-wider">
-                              {c.status === 'ativo' ? 'ATIVO' : 'INATIVO'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {isImported ? (
-                              <Badge variant="outline" className={`text-[10px] font-game tracking-wider ${hierarchyConfig[profile?.hierarchy || 'user'].color}`}>
-                                <CheckCircle2 className="w-3 h-3 mr-1" />
-                                {hierarchyConfig[profile?.hierarchy || 'user'].label}
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              <div className="flex items-center gap-1.5 text-sm font-body">
+                                <Briefcase className="w-3.5 h-3.5 text-muted-foreground" />
+                                {c.cargo?.nome || '—'}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm font-body font-mono hidden lg:table-cell">{c.matricula || '—'}</TableCell>
+                            <TableCell>
+                              <Badge variant={c.status === 'ativo' ? 'default' : 'secondary'} className="text-[10px] font-game tracking-wider">
+                                {(c.status || 'N/A').toUpperCase()}
                               </Badge>
-                            ) : (
-                              <span className="text-xs text-muted-foreground font-body">Não importado</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {!isImported ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="font-game text-xs tracking-wider"
-                                onClick={() => { setImportingColab(c); setImportHierarchy(c.tipo === 'admin' ? 'gestor' : 'user'); }}
-                              >
-                                <UserPlus className="w-3.5 h-3.5 mr-1" /> IMPORTAR
-                              </Button>
-                            ) : (
-                              <span className="text-xs text-success font-game">✓ ATIVO</span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                            </TableCell>
+                            <TableCell>
+                              {isImported ? (
+                                <Badge variant="outline" className={`text-[10px] font-game tracking-wider ${hierarchyConfig[profile?.hierarchy || 'user']?.color || ''}`}>
+                                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                                  {hierarchyConfig[profile?.hierarchy || 'user']?.label || 'USUÁRIO'}
+                                </Badge>
+                              ) : (
+                                <span className="text-xs text-muted-foreground font-body">Não importado</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {!isImported && c.email ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="font-game text-xs tracking-wider"
+                                  onClick={() => { setImportingColab(c); setImportHierarchy(c.tipo === 'admin' ? 'gestor' : 'user'); }}
+                                >
+                                  <UserPlus className="w-3.5 h-3.5 mr-1" /> IMPORTAR
+                                </Button>
+                              ) : isImported ? (
+                                <span className="text-xs text-success font-game">✓ ATIVO</span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">Sem email</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -344,7 +377,7 @@ export default function DepartmentDetail() {
               <div className="p-3 rounded-lg bg-secondary/50 space-y-1">
                 <p className="text-sm font-semibold">{importingColab.nome}</p>
                 <p className="text-xs text-muted-foreground">{importingColab.email}</p>
-                <p className="text-xs text-muted-foreground">Cargo: {importingColab.cargo?.nome || '—'} • Matrícula: {importingColab.matricula}</p>
+                <p className="text-xs text-muted-foreground">Cargo: {importingColab.cargo?.nome || '—'} • Matrícula: {importingColab.matricula || '—'}</p>
               </div>
               <div>
                 <Label className="text-xs font-game tracking-wider text-muted-foreground">HIERARQUIA NO SISTEMA</Label>
@@ -401,7 +434,7 @@ export default function DepartmentDetail() {
               </Select>
             </div>
             <div className="max-h-60 overflow-auto space-y-1">
-              {filtered.filter(c => !importedBpIds.has(c.id)).map(c => (
+              {filtered.filter(c => c && !importedBpIds.has(c.id) && c.email).map(c => (
                 <label key={c.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50 cursor-pointer">
                   <input
                     type="checkbox"
@@ -415,7 +448,7 @@ export default function DepartmentDetail() {
                   </div>
                 </label>
               ))}
-              {filtered.filter(c => !importedBpIds.has(c.id)).length === 0 && (
+              {filtered.filter(c => c && !importedBpIds.has(c.id) && c.email).length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">Todos os colaboradores já foram importados!</p>
               )}
             </div>
@@ -424,7 +457,7 @@ export default function DepartmentDetail() {
                 <div className="h-2 rounded-full bg-secondary overflow-hidden">
                   <div
                     className="h-full bg-primary rounded-full transition-all"
-                    style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
+                    style={{ width: `${batchProgress.total > 0 ? (batchProgress.current / batchProgress.total) * 100 : 0}%` }}
                   />
                 </div>
                 <p className="text-xs text-muted-foreground text-center">{batchProgress.current} de {batchProgress.total}</p>
