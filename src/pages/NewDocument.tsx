@@ -270,17 +270,36 @@ export default function NewDocument() {
 
   const handleNext = async () => {
     if (currentStep === 'review') {
-      if (!file || !user) return;
+      if (!user) {
+        toast({ title: 'Erro', description: 'Você precisa estar logado.', variant: 'destructive' });
+        return;
+      }
+      
+      // Need either a file upload OR a template with file_path
+      const templateWithFile = templates.find(t => t.id === selectedTemplate && t.file_path);
+      if (!file && !templateWithFile) {
+        toast({ title: 'Erro', description: 'Nenhum documento selecionado. Faça upload de um arquivo ou escolha um modelo.', variant: 'destructive' });
+        return;
+      }
+
       setSending(true);
       try {
-        // 1. Upload file to storage
-        const { path } = await uploadDocumentFile(file, user.id);
+        let filePath: string;
+        
+        if (file) {
+          // Upload the user's file
+          const { path } = await uploadDocumentFile(file, user.id);
+          filePath = path;
+        } else {
+          // Use the template's existing file path
+          filePath = templateWithFile!.file_path!;
+        }
         
         // 2. Create document record
         const doc = await createDocument({
           userId: user.id,
-          name: docName || fileName,
-          filePath: path,
+          name: docName || fileName || 'Documento',
+          filePath,
           signatureType: 'microservice',
           deadline: hasDeadline ? deadline : undefined,
         });

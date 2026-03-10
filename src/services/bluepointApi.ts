@@ -7,10 +7,27 @@ async function callBluePoint<T = unknown>(endpoint: string, method = 'GET', payl
   const { data, error } = await supabase.functions.invoke('bluepoint-proxy', {
     body: { endpoint, method, payload },
   });
+  
   if (error) throw new Error(`BluePoint proxy error: ${error.message}`);
-  // The API returns { success: true, data: ... }
+  
+  // The proxy returns raw upstream response
+  // Handle various response formats
+  if (data === null || data === undefined) return [] as unknown as T;
+  
+  // If it's an error response
   if (data?.success === false) throw new Error(data.error || 'BluePoint API error');
-  return (data?.data ?? data) as T;
+  
+  // If the response has a 'data' wrapper, extract it
+  if (data?.data !== undefined) return data.data as T;
+  
+  // If it has a 'departamentos' key (list endpoints)
+  if (data?.departamentos) return data.departamentos as T;
+  if (data?.colaboradores) return data.colaboradores as T;
+  if (data?.empresas) return data.empresas as T;
+  if (data?.cargos) return data.cargos as T;
+  
+  // If it's already an array or object, return as-is
+  return data as T;
 }
 
 // ── Types ──
