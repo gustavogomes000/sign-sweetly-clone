@@ -1,17 +1,18 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Camera, RefreshCw, Check, AlertCircle, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { bluetechProxy } from '@/services/bluetechProxy';
 
 export interface VLSelfieProps {
-  apiKey: string;
   signatoryId?: string;
   documentId?: string;
   aoCompletar?: (dados: any) => void;
   onError?: (erro: any) => void;
+  /** @deprecated Use bluetechProxy instead */
+  apiKey?: string;
 }
 
-export function VLSelfie({ apiKey, signatoryId, documentId, aoCompletar, onError }: VLSelfieProps) {
+export function VLSelfie({ signatoryId, documentId, aoCompletar, onError }: VLSelfieProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [streaming, setStreaming] = useState(false);
   const [captured, setCaptured] = useState<string | null>(null);
@@ -60,32 +61,18 @@ export function VLSelfie({ apiKey, signatoryId, documentId, aoCompletar, onError
     setLoading(true);
     
     try {
-      if (apiKey) {
-        const res = await fetch('https://api.valeris.com.br/v2/selfie/capturar', {
-          method: 'POST',
-          headers: { 
-            'Authorization': `Bearer ${apiKey}`, 
-            'Content-Type': 'application/json' 
-          },
-          body: JSON.stringify({ 
-            signatoryId, 
-            documentId, 
-            imageBase64: captured.split(',')[1], // Remove data:image/jpeg;base64, prefix
-            userAgent: navigator.userAgent 
-          }),
-        });
-        
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error || 'Erro na verificação');
-        aoCompletar?.(result);
-      } else {
-        // No API key - complete locally for development
-        console.warn('[VLSelfie] API key not configured, completing locally');
-        aoCompletar?.({ status: 'captured', imageBase64: captured });
-      }
+      // Selfie currently goes through the selfie-documento endpoint
+      // as there's no separate selfie-only microservice
+      const result = await bluetechProxy.captureSelfieDocument({
+        signatoryId: signatoryId || '',
+        documentId: documentId || '',
+        imageBase64: captured.split(',')[1],
+        userAgent: navigator.userAgent,
+      });
+      aoCompletar?.(result);
     } catch (err) {
       console.warn('[VLSelfie] API call failed:', err);
-      // Complete anyway for development
+      // Fallback: complete with local data for dev
       aoCompletar?.({ status: 'captured', imageBase64: captured, error: String(err) });
     } finally {
       setLoading(false);
@@ -119,7 +106,6 @@ export function VLSelfie({ apiKey, signatoryId, documentId, aoCompletar, onError
           <img src={captured} alt="Selfie capturada" className="w-full h-full object-cover" />
         )}
         
-        {/* Face guide overlay */}
         {!captured && streaming && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="w-40 h-52 border-2 border-white/60 rounded-full" />
@@ -136,30 +122,15 @@ export function VLSelfie({ apiKey, signatoryId, documentId, aoCompletar, onError
 
       <div className="flex justify-center gap-3">
         {!captured ? (
-          <Button 
-            onClick={capture} 
-            disabled={!streaming} 
-            size="lg" 
-            className="gap-2"
-          >
-            <Camera className="w-5 h-5" /> 
-            Tirar selfie
+          <Button onClick={capture} disabled={!streaming} size="lg" className="gap-2">
+            <Camera className="w-5 h-5" /> Tirar selfie
           </Button>
         ) : (
           <>
-            <Button 
-              variant="outline" 
-              onClick={() => setCaptured(null)} 
-              className="gap-2"
-            >
-              <RefreshCw className="w-4 h-4" /> 
-              Refazer
+            <Button variant="outline" onClick={() => setCaptured(null)} className="gap-2">
+              <RefreshCw className="w-4 h-4" /> Refazer
             </Button>
-            <Button 
-              onClick={confirm} 
-              disabled={loading} 
-              className="gap-2"
-            >
+            <Button onClick={confirm} disabled={loading} className="gap-2">
               <Check className="w-4 h-4" />
               {loading ? 'Enviando...' : 'Confirmar'}
             </Button>

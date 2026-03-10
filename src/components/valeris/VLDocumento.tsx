@@ -2,17 +2,18 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Camera, RefreshCw, Check, AlertCircle, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
+import { bluetechProxy } from '@/services/bluetechProxy';
 
 export interface VLDocumentoProps {
-  apiKey: string;
   signatoryId?: string;
   documentId?: string;
   aoCompletar?: (dados: any) => void;
   onError?: (erro: any) => void;
+  /** @deprecated Use bluetechProxy instead */
+  apiKey?: string;
 }
 
-export function VLDocumento({ apiKey, signatoryId, documentId, aoCompletar, onError }: VLDocumentoProps) {
+export function VLDocumento({ signatoryId, documentId, aoCompletar, onError }: VLDocumentoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [streaming, setStreaming] = useState(false);
   const [captured, setCaptured] = useState<string | null>(null);
@@ -23,7 +24,6 @@ export function VLDocumento({ apiKey, signatoryId, documentId, aoCompletar, onEr
   useEffect(() => {
     let stream: MediaStream | null = null;
     
-    // Try back camera first for documents, fallback to front
     navigator.mediaDevices.getUserMedia({ 
       video: { facingMode: 'environment' }, 
       audio: false 
@@ -67,34 +67,17 @@ export function VLDocumento({ apiKey, signatoryId, documentId, aoCompletar, onEr
     setLoading(true);
     
     try {
-      if (apiKey) {
-        const res = await fetch('https://api.valeris.com.br/v2/documento/capturar', {
-          method: 'POST',
-          headers: { 
-            'Authorization': `Bearer ${apiKey}`, 
-            'Content-Type': 'application/json' 
-          },
-          body: JSON.stringify({ 
-            signatoryId,
-            documentId,
-            type: docType,
-            side: 'front', // Assume front for now
-            imageBase64: captured.split(',')[1], // Remove data:image/jpeg;base64, prefix
-            userAgent: navigator.userAgent 
-          }),
-        });
-        
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error || 'Erro na verificação');
-        aoCompletar?.(result);
-      } else {
-        // No API key - complete locally for development
-        console.warn('[VLDocumento] API key not configured, completing locally');
-        aoCompletar?.({ status: 'captured', type: docType, imageBase64: captured });
-      }
+      const result = await bluetechProxy.uploadDocument({
+        signatoryId: signatoryId || '',
+        documentId: documentId || '',
+        type: docType,
+        side: 'front',
+        imageBase64: captured.split(',')[1],
+        userAgent: navigator.userAgent,
+      });
+      aoCompletar?.(result);
     } catch (err) {
       console.warn('[VLDocumento] API call failed:', err);
-      // Complete anyway for development
       aoCompletar?.({ status: 'captured', type: docType, imageBase64: captured, error: String(err) });
     } finally {
       setLoading(false);
@@ -115,7 +98,6 @@ export function VLDocumento({ apiKey, signatoryId, documentId, aoCompletar, onEr
 
   return (
     <div className="space-y-4">
-      {/* Document type selector */}
       <div>
         <label className="block text-sm font-medium mb-2">Tipo de documento:</label>
         <Select value={docType} onValueChange={(value: 'rg' | 'cnh' | 'cpf') => setDocType(value)}>
@@ -132,18 +114,11 @@ export function VLDocumento({ apiKey, signatoryId, documentId, aoCompletar, onEr
 
       <div className="relative bg-black rounded-xl overflow-hidden aspect-[4/3] max-w-sm mx-auto">
         {!captured ? (
-          <video 
-            ref={videoRef} 
-            autoPlay 
-            playsInline 
-            muted 
-            className="w-full h-full object-cover" 
-          />
+          <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
         ) : (
           <img src={captured} alt="Documento capturado" className="w-full h-full object-cover" />
         )}
         
-        {/* Document guide overlay */}
         {!captured && streaming && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="w-72 h-44 border-2 border-white/60 rounded-lg" />
@@ -162,30 +137,15 @@ export function VLDocumento({ apiKey, signatoryId, documentId, aoCompletar, onEr
 
       <div className="flex justify-center gap-3">
         {!captured ? (
-          <Button 
-            onClick={capture} 
-            disabled={!streaming} 
-            size="lg" 
-            className="gap-2"
-          >
-            <Camera className="w-5 h-5" /> 
-            Fotografar
+          <Button onClick={capture} disabled={!streaming} size="lg" className="gap-2">
+            <Camera className="w-5 h-5" /> Fotografar
           </Button>
         ) : (
           <>
-            <Button 
-              variant="outline" 
-              onClick={() => setCaptured(null)} 
-              className="gap-2"
-            >
-              <RefreshCw className="w-4 h-4" /> 
-              Refazer
+            <Button variant="outline" onClick={() => setCaptured(null)} className="gap-2">
+              <RefreshCw className="w-4 h-4" /> Refazer
             </Button>
-            <Button 
-              onClick={confirm} 
-              disabled={loading} 
-              className="gap-2"
-            >
+            <Button onClick={confirm} disabled={loading} className="gap-2">
               <Check className="w-4 h-4" />
               {loading ? 'Enviando...' : 'Confirmar'}
             </Button>
