@@ -167,7 +167,6 @@ export default function SignPage() {
     signatureType: 'drawn' | 'typed';
     imageBase64?: string;
     typedText?: string;
-    bluetechResponse?: unknown;
   }) => {
     if (!signerData || !signingFieldId) return;
     setProcessing(true);
@@ -182,7 +181,6 @@ export default function SignPage() {
         imageBase64: result.imageBase64,
         typedText: result.typedText,
         userAgent: navigator.userAgent,
-        bluetechResponse: result.bluetechResponse as Record<string, unknown>,
       });
       const newSigned = new Set(signedFieldIds);
       newSigned.add(signingFieldId);
@@ -296,7 +294,7 @@ export default function SignPage() {
   if (pageStep === 'validation' && signerData) {
     const pendingSteps = (signerData.validationSteps || []).filter((s) => s.status !== 'completed');
     const currentStep = pendingSteps[validationStepIdx];
-    const signer = signerData.signer as { id: string; bluetech_signatory_id?: string };
+    const signer = signerData.signer as { id: string };
     const doc = signerData.document as { id: string };
     const stepTitles: Record<string, string> = {
       selfie: 'Reconhecimento Facial',
@@ -326,13 +324,13 @@ export default function SignPage() {
           <Card>
             <CardContent className="p-4">
               {currentStep?.step_type === 'selfie' && (
-                <VLSelfie signatoryId={signer.bluetech_signatory_id || signer.id} documentId={doc.id} aoCompletar={handleValidationComplete} onError={(err) => toast({ title: 'Erro', description: String(err), variant: 'destructive' })} />
+                <VLSelfie signatoryId={signer.id} documentId={doc.id} aoCompletar={handleValidationComplete} onError={(err) => toast({ title: 'Erro', description: String(err), variant: 'destructive' })} />
               )}
               {currentStep?.step_type === 'document' && (
-                <VLDocumento signatoryId={signer.bluetech_signatory_id || signer.id} documentId={doc.id} aoCompletar={handleValidationComplete} onError={(err) => toast({ title: 'Erro', description: String(err), variant: 'destructive' })} />
+                <VLDocumento signatoryId={signer.id} documentId={doc.id} aoCompletar={handleValidationComplete} onError={(err) => toast({ title: 'Erro', description: String(err), variant: 'destructive' })} />
               )}
               {currentStep?.step_type === 'selfie_document' && (
-                <VLSelfieDoc signatoryId={signer.bluetech_signatory_id || signer.id} documentId={doc.id} aoCompletar={handleValidationComplete} onError={(err) => toast({ title: 'Erro', description: String(err), variant: 'destructive' })} />
+                <VLSelfieDoc signatoryId={signer.id} documentId={doc.id} aoCompletar={handleValidationComplete} onError={(err) => toast({ title: 'Erro', description: String(err), variant: 'destructive' })} />
               )}
             </CardContent>
           </Card>
@@ -342,7 +340,7 @@ export default function SignPage() {
   }
 
   // ── Main Document view (always visible) ──
-  const signer = signerData?.signer as { id: string; bluetech_signatory_id?: string; bluetech_document_id?: string } | undefined;
+  const signer = signerData?.signer as { id: string } | undefined;
   const doc = signerData?.document as { id: string } | undefined;
 
   return (
@@ -560,8 +558,8 @@ export default function SignPage() {
             </div>
             <div className="p-4">
               <VLAssinatura
-                signatoryId={signer.bluetech_signatory_id || signer.id}
-                documentId={signer.bluetech_document_id || doc.id}
+                signatoryId={signer.id}
+                documentId={doc.id}
                 aoCompletar={handleSignatureComplete}
                 onError={(err) => toast({ title: 'Erro na assinatura', description: String(err), variant: 'destructive' })}
                 onCancel={() => setSigningFieldId(null)}
