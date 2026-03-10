@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,8 +11,6 @@ import { loadSigningData, saveSignature, completeValidationStep } from '@/servic
 import { supabase } from '@/integrations/supabase/client';
 import PdfPagePreview from '@/components/documents/PdfPagePreview';
 import { VLAssinatura, VLSelfie, VLDocumento, VLSelfieDoc } from '@/components/valeris';
-
-type PageStep = 'loading' | 'document' | 'signing' | 'validation' | 'complete' | 'error';
 
 interface SignField {
   id: string;
@@ -56,6 +54,8 @@ const fieldTypeLabel: Record<string, string> = {
   image: 'Imagem',
 };
 
+type PageStep = 'loading' | 'document' | 'validation' | 'complete' | 'error';
+
 export default function SignPage() {
   const { token } = useParams<{ token: string }>();
   const [pageStep, setPageStep] = useState<PageStep>('loading');
@@ -64,16 +64,13 @@ export default function SignPage() {
   const [validationStepIdx, setValidationStepIdx] = useState(0);
   const { toast } = useToast();
 
+  // Signature modal state (overlay, NOT page replacement)
   const [signingFieldId, setSigningFieldId] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Field values (local state for editing)
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
-  // Tracks which signature/initials fields have been signed via microservice
   const [signedFieldIds, setSignedFieldIds] = useState<Set<string>>(new Set());
-  // Track if any value changed
-  const [hasChanges, setHasChanges] = useState(false);
 
   const [signerData, setSignerData] = useState<{
     signer: Record<string, unknown>;
@@ -93,8 +90,6 @@ export default function SignPage() {
       .then((data) => {
         setSignerData(data as typeof signerData);
         const signerFields = (data.fields || []) as SignField[];
-
-        // Initialize field values from existing data
         const initialValues: Record<string, string> = {};
         const alreadySigned = new Set<string>();
         signerFields.forEach((f) => {
@@ -107,12 +102,10 @@ export default function SignPage() {
         });
         setFieldValues(initialValues);
         setSignedFieldIds(alreadySigned);
-
         const firstPage = signerFields.length > 0
           ? Math.min(...signerFields.map((f) => Math.max(1, f.page || 1)))
           : 1;
         setCurrentPage(firstPage);
-
         if ((data.signer as { status: string }).status === 'signed') {
           setPageStep('complete');
         } else {
@@ -127,65 +120,40 @@ export default function SignPage() {
 
   const updateFieldValue = (fieldId: string, value: string) => {
     setFieldValues(prev => ({ ...prev, [fieldId]: value }));
-    setHasChanges(true);
   };
 
-  // Save all field values to database
   const handleSaveAll = async () => {
     if (!signerData) return;
     setSaving(true);
     try {
-      // Save each changed field value
       for (const field of signerData.fields) {
         const currentValue = fieldValues[field.id];
         if (currentValue !== undefined && currentValue !== field.value) {
-          await supabase
-            .from('document_fields')
-            .update({ value: currentValue })
-            .eq('id', field.id);
+          await supabase.from('document_fields').update({ value: currentValue }).eq('id', field.id);
         }
       }
-
-      // Check if all required fields are filled
-      const allFields = signerData.fields;
-      const allFilled = allFields.every(f => {
+      const allFilled = signerData.fields.every(f => {
         if (!f.required) return true;
-        if (f.field_type === 'signature' || f.field_type === 'initials') {
-          return signedFieldIds.has(f.id);
-        }
+        if (f.field_type === 'signature' || f.field_type === 'initials') return signedFieldIds.has(f.id);
         return !!fieldValues[f.id]?.trim();
       });
-
       if (allFilled) {
-        // All fields filled - check for validation steps
         const pendingSteps = (signerData.validationSteps || []).filter((s) => s.status !== 'completed');
         if (pendingSteps.length > 0) {
           setValidationStepIdx(0);
           toast({ title: 'Campos salvos! Prosseguindo para verificação...' });
           setTimeout(() => setPageStep('validation'), 600);
         } else {
-          // Mark signer as signed
-          await supabase
-            .from('signers')
-            .update({ status: 'signed', signed_at: new Date().toISOString() })
-            .eq('id', (signerData.signer as { id: string }).id);
-
-          // Check if all signers completed
+          await supabase.from('signers').update({ status: 'signed', signed_at: new Date().toISOString() }).eq('id', (signerData.signer as { id: string }).id);
           const docId = (signerData.document as { id: string }).id;
-          const { data: allSigners } = await supabase
-            .from('signers')
-            .select('status')
-            .eq('document_id', docId);
-          const allDone = allSigners?.every(s => s.status === 'signed');
-          if (allDone) {
+          const { data: allSigners } = await supabase.from('signers').select('status').eq('document_id', docId);
+          if (allSigners?.every(s => s.status === 'signed')) {
             await supabase.from('documents').update({ status: 'signed' }).eq('id', docId);
           }
-
           toast({ title: 'Documento assinado com sucesso! ✅' });
           setTimeout(() => setPageStep('complete'), 600);
         }
       } else {
-        setHasChanges(false);
         toast({ title: 'Campos salvos ✅', description: 'Preencha todos os campos obrigatórios para concluir.' });
       }
     } catch (err) {
@@ -193,17 +161,6 @@ export default function SignPage() {
     } finally {
       setSaving(false);
     }
-  };
-
-  // Signature field click → open VLAssinatura
-  const openSigningModal = (fieldId: string) => {
-    setSigningFieldId(fieldId);
-    setPageStep('signing');
-  };
-
-  const closeSigningModal = () => {
-    setSigningFieldId(null);
-    setPageStep('document');
   };
 
   const handleSignatureComplete = async (result: {
@@ -214,10 +171,8 @@ export default function SignPage() {
   }) => {
     if (!signerData || !signingFieldId) return;
     setProcessing(true);
-
     const signer = signerData.signer as { id: string };
     const doc = signerData.document as { id: string };
-
     try {
       await saveSignature({
         signerId: signer.id,
@@ -229,21 +184,15 @@ export default function SignPage() {
         userAgent: navigator.userAgent,
         bluetechResponse: result.bluetechResponse as Record<string, unknown>,
       });
-
       const newSigned = new Set(signedFieldIds);
       newSigned.add(signingFieldId);
       setSignedFieldIds(newSigned);
-
-      // Store display value
       const displayValue = result.signatureType === 'drawn' ? '[assinatura]' : result.typedText || '[assinatura]';
       setFieldValues(prev => ({ ...prev, [signingFieldId!]: displayValue }));
-
       setSigningFieldId(null);
-      setPageStep('document');
       toast({ title: 'Assinatura registrada! ✅' });
     } catch (err) {
       toast({ title: 'Erro ao assinar', description: err instanceof Error ? err.message : 'Tente novamente', variant: 'destructive' });
-      setPageStep('document');
     } finally {
       setProcessing(false);
     }
@@ -253,7 +202,6 @@ export default function SignPage() {
     if (!signerData) return;
     const pendingSteps = (signerData.validationSteps || []).filter((s) => s.status !== 'completed');
     const currentStep = pendingSteps[validationStepIdx];
-
     if (currentStep) {
       try {
         await completeValidationStep(currentStep.id, result as Record<string, unknown>);
@@ -262,31 +210,21 @@ export default function SignPage() {
         console.warn('Could not update validation step:', err);
       }
     }
-
     if (validationStepIdx + 1 < pendingSteps.length) {
       setValidationStepIdx((prev) => prev + 1);
     } else {
-      // All validations done - mark as signed
       const signer = signerData.signer as { id: string };
       const doc = signerData.document as { id: string };
-      await supabase
-        .from('signers')
-        .update({ status: 'signed', signed_at: new Date().toISOString() })
-        .eq('id', signer.id);
-
-      const { data: allSigners } = await supabase
-        .from('signers')
-        .select('status')
-        .eq('document_id', doc.id);
+      await supabase.from('signers').update({ status: 'signed', signed_at: new Date().toISOString() }).eq('id', signer.id);
+      const { data: allSigners } = await supabase.from('signers').select('status').eq('document_id', doc.id);
       if (allSigners?.every(s => s.status === 'signed')) {
         await supabase.from('documents').update({ status: 'signed' }).eq('id', doc.id);
       }
-
       setTimeout(() => setPageStep('complete'), 600);
     }
   };
 
-  // Computed values
+  // Computed
   const docName = signerData ? String((signerData.document as { name: string }).name) : '';
   const signerName = signerData ? String((signerData.signer as { name: string }).name) : '';
   const docFilePath = signerData ? String((signerData.document as { file_path: string }).file_path) : '';
@@ -296,14 +234,11 @@ export default function SignPage() {
   const fields = signerData?.fields || [];
   const totalPages = Math.max(1, ...fields.map((f) => Math.max(1, f.page || 1)));
   const currentPageFields = fields.filter((f) => (f.page || 1) === currentPage);
-
-  // Count pending required fields
   const pendingRequired = fields.filter(f => {
     if (!f.required) return false;
     if (f.field_type === 'signature' || f.field_type === 'initials') return !signedFieldIds.has(f.id);
     return !fieldValues[f.id]?.trim();
   }).length;
-
   const allRequiredFilled = pendingRequired === 0;
 
   // ── Loading ──
@@ -345,7 +280,7 @@ export default function SignPage() {
               <CheckCircle2 className="w-10 h-10 text-success" />
             </div>
             <h1 className="text-2xl font-bold text-foreground">Documento assinado!</h1>
-            <p className="text-muted-foreground">Sua assinatura foi registrada com sucesso. Todos os envolvidos serão notificados.</p>
+            <p className="text-muted-foreground">Sua assinatura foi registrada com sucesso.</p>
             {publicUrl && (
               <a href={publicUrl} target="_blank" rel="noopener noreferrer">
                 <Button variant="outline"><Download className="w-4 h-4 mr-1" />Baixar documento</Button>
@@ -357,50 +292,17 @@ export default function SignPage() {
     );
   }
 
-  // ── Signing modal (VLAssinatura) ──
-  if (pageStep === 'signing' && signingFieldId && signerData) {
-    const signer = signerData.signer as { id: string; bluetech_signatory_id?: string; bluetech_document_id?: string };
-    const doc = signerData.document as { id: string };
-
-    return (
-      <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center" onClick={closeSigningModal}>
-        <div className="bg-card w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl animate-fade-in" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-between p-4 border-b border-border">
-            <div>
-              <h2 className="text-base font-bold text-foreground">Assinar documento</h2>
-              <p className="text-xs text-muted-foreground">Desenhe ou digite sua assinatura</p>
-            </div>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={closeSigningModal}>
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-          <div className="p-4">
-            <VLAssinatura
-              signatoryId={signer.bluetech_signatory_id || signer.id}
-              documentId={signer.bluetech_document_id || doc.id}
-              aoCompletar={handleSignatureComplete}
-              onError={(err) => toast({ title: 'Erro na assinatura', description: String(err), variant: 'destructive' })}
-              onCancel={closeSigningModal}
-            />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // ── Validation steps ──
   if (pageStep === 'validation' && signerData) {
     const pendingSteps = (signerData.validationSteps || []).filter((s) => s.status !== 'completed');
     const currentStep = pendingSteps[validationStepIdx];
     const signer = signerData.signer as { id: string; bluetech_signatory_id?: string };
     const doc = signerData.document as { id: string };
-
     const stepTitles: Record<string, string> = {
       selfie: 'Reconhecimento Facial',
       document: 'Foto do Documento',
       selfie_document: 'Selfie com Documento',
     };
-
     return (
       <div className="min-h-screen bg-background">
         <header className="h-14 border-b border-border bg-card flex items-center justify-between px-6">
@@ -439,7 +341,10 @@ export default function SignPage() {
     );
   }
 
-  // ── Main Document view ──
+  // ── Main Document view (always visible) ──
+  const signer = signerData?.signer as { id: string; bluetech_signatory_id?: string; bluetech_document_id?: string } | undefined;
+  const doc = signerData?.document as { id: string } | undefined;
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
@@ -477,7 +382,7 @@ export default function SignPage() {
           <div>
             <h1 className="text-xl font-bold text-foreground">{docName}</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Olá <strong>{signerName}</strong>, preencha os campos destacados e clique em <strong>"Assinar aqui"</strong> nos campos de assinatura.
+              Olá <strong>{signerName}</strong>, preencha os campos destacados abaixo. Campos de assinatura abrirão o painel de assinatura ao clicar.
             </p>
           </div>
 
@@ -506,24 +411,24 @@ export default function SignPage() {
                     <PdfPagePreview documentUrl={publicUrl} page={currentPage} className="absolute inset-0 rounded-lg" />
                   )}
 
-                  {/* Render fields by type */}
+                  {/* Render ALL fields uniformly as interactive overlays */}
                   {currentPageFields.map((field) => {
                     const isSignatureType = field.field_type === 'signature' || field.field_type === 'initials';
                     const isSigned = isSignatureType && signedFieldIds.has(field.id);
                     const value = fieldValues[field.id] || '';
-                    const FieldIcon = fieldTypeIcon[field.field_type] || Type;
+                    const isFilled = isSignatureType ? isSigned : !!value.trim();
 
-                    // ── Signature / Initials fields ──
+                    // ── Signature / Initials: clickable box that opens modal ──
                     if (isSignatureType) {
                       return (
                         <div
                           key={field.id}
-                          onClick={() => !isSigned && openSigningModal(field.id)}
+                          onClick={() => !isSigned && setSigningFieldId(field.id)}
                           className={cn(
-                            'absolute border-2 rounded-lg flex items-center justify-center gap-1.5 transition-all z-10',
+                            'absolute z-10 rounded border-2 flex items-center justify-center gap-1.5 transition-all',
                             isSigned
                               ? 'border-success/50 bg-success/10 cursor-default'
-                              : 'border-primary border-dashed bg-primary/5 cursor-pointer hover:bg-primary/15 hover:shadow-lg hover:shadow-primary/20'
+                              : 'border-accent/60 border-dashed bg-accent/5 cursor-pointer hover:bg-accent/15 hover:border-accent hover:shadow-md'
                           )}
                           style={{ left: field.x, top: field.y, width: field.width, height: field.height }}
                         >
@@ -533,8 +438,8 @@ export default function SignPage() {
                             </span>
                           ) : (
                             <>
-                              <Pen className="w-4 h-4 text-primary" />
-                              <span className="text-xs text-primary font-medium">
+                              <Pen className="w-3.5 h-3.5 text-accent-foreground/70" />
+                              <span className="text-[11px] text-accent-foreground/70 font-medium">
                                 {field.field_type === 'initials' ? 'Rubricar' : 'Assinar aqui'}
                               </span>
                             </>
@@ -543,7 +448,7 @@ export default function SignPage() {
                       );
                     }
 
-                    // ── Checkbox field ──
+                    // ── Checkbox ──
                     if (field.field_type === 'checkbox') {
                       return (
                         <div
@@ -563,7 +468,7 @@ export default function SignPage() {
                       );
                     }
 
-                    // ── Date field ──
+                    // ── Date ──
                     if (field.field_type === 'date') {
                       return (
                         <div
@@ -584,7 +489,7 @@ export default function SignPage() {
                       );
                     }
 
-                    // ── Text / Default field ──
+                    // ── Text / Default ──
                     return (
                       <div
                         key={field.id}
@@ -615,7 +520,7 @@ export default function SignPage() {
             </CardContent>
           </Card>
 
-          {/* Field summary below document */}
+          {/* Field summary */}
           <Card>
             <CardContent className="p-4">
               <h3 className="text-sm font-semibold text-foreground mb-3">Campos atribuídos a você</h3>
@@ -636,7 +541,7 @@ export default function SignPage() {
                       )}
                       onClick={() => {
                         setCurrentPage(field.page || 1);
-                        if (isSignatureType && !isSigned) openSigningModal(field.id);
+                        if (isSignatureType && !isSigned) setSigningFieldId(field.id);
                       }}
                     >
                       <div className={cn('p-1.5 rounded', isFilled ? 'bg-success/10' : 'bg-muted')}>
@@ -662,13 +567,11 @@ export default function SignPage() {
                 })}
               </div>
 
-              {/* Save button at bottom */}
               <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
                 <p className="text-xs text-muted-foreground">
                   {allRequiredFilled
                     ? '✅ Todos os campos obrigatórios foram preenchidos.'
-                    : `⚠️ ${pendingRequired} campo(s) obrigatório(s) pendente(s).`
-                  }
+                    : `⚠️ ${pendingRequired} campo(s) obrigatório(s) pendente(s).`}
                 </p>
                 <Button
                   onClick={handleSaveAll}
@@ -686,6 +589,35 @@ export default function SignPage() {
           </Card>
         </div>
       </div>
+
+      {/* ══════ Signature Modal OVERLAY (always on top of document) ══════ */}
+      {signingFieldId && signer && doc && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center" onClick={() => setSigningFieldId(null)}>
+          <div
+            className="bg-card w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl animate-fade-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <div>
+                <h2 className="text-base font-bold text-foreground">Sua assinatura</h2>
+                <p className="text-xs text-muted-foreground">Desenhe ou digite sua assinatura</p>
+              </div>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSigningFieldId(null)}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="p-4">
+              <VLAssinatura
+                signatoryId={signer.bluetech_signatory_id || signer.id}
+                documentId={signer.bluetech_document_id || doc.id}
+                aoCompletar={handleSignatureComplete}
+                onError={(err) => toast({ title: 'Erro na assinatura', description: String(err), variant: 'destructive' })}
+                onCancel={() => setSigningFieldId(null)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
