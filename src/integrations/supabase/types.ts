@@ -288,34 +288,40 @@ export type Database = {
         Row: {
           active: boolean
           avatar_url: string | null
+          bluepoint_id: number | null
           created_at: string
           department_id: string | null
           email: string
           full_name: string
           hierarchy: string
           id: string
+          must_change_password: boolean
           updated_at: string
         }
         Insert: {
           active?: boolean
           avatar_url?: string | null
+          bluepoint_id?: number | null
           created_at?: string
           department_id?: string | null
           email?: string
           full_name?: string
           hierarchy?: string
           id: string
+          must_change_password?: boolean
           updated_at?: string
         }
         Update: {
           active?: boolean
           avatar_url?: string | null
+          bluepoint_id?: number | null
           created_at?: string
           department_id?: string | null
           email?: string
           full_name?: string
           hierarchy?: string
           id?: string
+          must_change_password?: boolean
           updated_at?: string
         }
         Relationships: [
