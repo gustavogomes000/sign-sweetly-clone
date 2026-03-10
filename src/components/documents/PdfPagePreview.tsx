@@ -77,7 +77,7 @@ export default function PdfPagePreview({ documentUrl, page, className }: PdfPage
       canvas.width = Math.floor(viewport.width);
       canvas.height = Math.floor(viewport.height);
 
-      const renderTask = pdfPage.render({ canvasContext: context, viewport });
+      const renderTask = pdfPage.render({ canvas, canvasContext: context, viewport });
       await renderTask.promise;
     } catch (err: any) {
       if (!cancelled.current && err?.name !== 'RenderingCancelledException') {
