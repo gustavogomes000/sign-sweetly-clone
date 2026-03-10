@@ -4,13 +4,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, ArrowRight, Hexagon, Zap, Lock } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Hexagon, Zap, Lock, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import signproofLogo from '@/assets/signproof-logo.png';
 import { AnimatedBackground } from '@/components/layout/AnimatedBackground';
+import { supabase } from '@/integrations/supabase/client';
 
 function HexParticles() {
   const particles = useMemo(() =>
@@ -63,6 +64,14 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // First-login password change state
+  const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+
   const { login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -72,12 +81,61 @@ export default function Login() {
     setLoading(true);
     try {
       const success = await login(email, password);
-      if (success) navigate('/dashboard');
-      else toast({ title: 'Erro ao entrar', description: 'Email ou senha incorretos.', variant: 'destructive' });
+      if (success) {
+        // Check if user must change password
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('must_change_password')
+            .eq('id', user.id)
+            .single();
+          
+          if (profile?.must_change_password) {
+            setMustChangePassword(true);
+            setLoading(false);
+            return;
+          }
+        }
+        navigate('/dashboard');
+      } else {
+        toast({ title: 'Erro ao entrar', description: 'Email ou senha incorretos.', variant: 'destructive' });
+      }
     } catch {
       toast({ title: 'Erro', description: 'Algo deu errado.', variant: 'destructive' });
     }
     setLoading(false);
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      toast({ title: 'Senha muito curta', description: 'Mínimo de 6 caracteres.', variant: 'destructive' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: 'Senhas não conferem', description: 'Digite a mesma senha nos dois campos.', variant: 'destructive' });
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+
+      // Clear the flag
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('profiles').update({ must_change_password: false }).eq('id', user.id);
+      }
+
+      toast({ title: '✅ Senha alterada!', description: 'Sua nova senha foi salva com sucesso.' });
+      setMustChangePassword(false);
+      navigate('/dashboard');
+    } catch (err) {
+      toast({ title: 'Erro', description: err instanceof Error ? err.message : 'Erro ao alterar senha.', variant: 'destructive' });
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   return (
@@ -102,39 +160,98 @@ export default function Login() {
         <motion.div initial={{ opacity: 0, y: 20, rotateX: -5 }} animate={{ opacity: 1, y: 0, rotateX: 0 }} transition={{ delay: 0.4, duration: 0.5 }} style={{ perspective: 1000 }}>
           <Card className="game-card overflow-hidden" style={{ boxShadow: '0 0 0 1px hsl(var(--border)), 0 10px 40px -10px hsl(var(--primary) / 0.15), 0 20px 60px -15px hsl(0 0% 0% / 0.15)' }}>
             <CardContent className="p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary/15">
-                  <Zap className="w-4 h-4 text-primary" />
-                </div>
-                <h2 className="text-sm font-game font-semibold text-foreground tracking-wide">LOGIN</h2>
-              </div>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-game text-muted-foreground tracking-wider">EMAIL</Label>
-                  <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="usuario@empresa.com" required className="bg-secondary/50 border-border/50 focus:border-primary transition-all" />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-game text-muted-foreground tracking-wider">SENHA</Label>
-                    <button type="button" className="text-[10px] font-game text-primary hover:underline tracking-wider">RECUPERAR</button>
+              {mustChangePassword ? (
+                <>
+                  <div className="flex items-center gap-2 mb-5">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-accent/15">
+                      <Lock className="w-4 h-4 text-accent" />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-game font-semibold text-foreground tracking-wide">PRIMEIRO ACESSO</h2>
+                      <p className="text-xs text-muted-foreground">Defina sua nova senha</p>
+                    </div>
                   </div>
-                  <div className="relative">
-                    <Input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} className="bg-secondary/50 border-border/50 focus:border-primary transition-all pr-10" />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Button type="submit" className="w-full font-game font-bold tracking-wider text-sm h-11 gradient-teal-gold text-primary-foreground glow-primary" disabled={loading}>
-                    {loading ? (
-                      <motion.span animate={{ opacity: [1, 0.5, 1] }} transition={{ duration: 1, repeat: Infinity }}>CONECTANDO...</motion.span>
-                    ) : (
-                      <>ENTRAR <ArrowRight className="w-4 h-4 ml-2" /></>
+                  <form onSubmit={handleChangePassword} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-game text-muted-foreground tracking-wider">NOVA SENHA</Label>
+                      <div className="relative">
+                        <Input
+                          type={showNewPassword ? 'text' : 'password'}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="Mínimo 6 caracteres"
+                          required
+                          minLength={6}
+                          className="bg-secondary/50 border-border/50 focus:border-primary transition-all pr-10"
+                        />
+                        <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                          {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-game text-muted-foreground tracking-wider">CONFIRMAR SENHA</Label>
+                      <Input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Repita a nova senha"
+                        required
+                        minLength={6}
+                        className="bg-secondary/50 border-border/50 focus:border-primary transition-all"
+                      />
+                    </div>
+                    {newPassword && confirmPassword && newPassword !== confirmPassword && (
+                      <p className="text-xs text-destructive">As senhas não conferem</p>
                     )}
-                  </Button>
-                </motion.div>
-              </form>
+                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                      <Button type="submit" className="w-full font-game font-bold tracking-wider text-sm h-11 gradient-teal-gold text-primary-foreground glow-primary" disabled={changingPassword}>
+                        {changingPassword ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <>SALVAR NOVA SENHA <ArrowRight className="w-4 h-4 ml-2" /></>
+                        )}
+                      </Button>
+                    </motion.div>
+                  </form>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 mb-5">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary/15">
+                      <Zap className="w-4 h-4 text-primary" />
+                    </div>
+                    <h2 className="text-sm font-game font-semibold text-foreground tracking-wide">LOGIN</h2>
+                  </div>
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-game text-muted-foreground tracking-wider">EMAIL</Label>
+                      <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="usuario@empresa.com" required className="bg-secondary/50 border-border/50 focus:border-primary transition-all" />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-game text-muted-foreground tracking-wider">SENHA</Label>
+                        <button type="button" className="text-[10px] font-game text-primary hover:underline tracking-wider">RECUPERAR</button>
+                      </div>
+                      <div className="relative">
+                        <Input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} className="bg-secondary/50 border-border/50 focus:border-primary transition-all pr-10" />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                      <Button type="submit" className="w-full font-game font-bold tracking-wider text-sm h-11 gradient-teal-gold text-primary-foreground glow-primary" disabled={loading}>
+                        {loading ? (
+                          <motion.span animate={{ opacity: [1, 0.5, 1] }} transition={{ duration: 1, repeat: Infinity }}>CONECTANDO...</motion.span>
+                        ) : (
+                          <>ENTRAR <ArrowRight className="w-4 h-4 ml-2" /></>
+                        )}
+                      </Button>
+                    </motion.div>
+                  </form>
+                </>
+              )}
             </CardContent>
           </Card>
         </motion.div>

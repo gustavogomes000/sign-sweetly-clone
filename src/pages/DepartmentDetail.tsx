@@ -8,10 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Loader2, ArrowLeft, Users, Building2, Search, RefreshCw, Shield, Mail, Pencil, UserPlus, Crown, UserCheck, User } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Loader2, ArrowLeft, Users, Building2, Search, RefreshCw, Shield, Mail, Briefcase, Crown, User, UserPlus, CheckCircle2, Send } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { bluepointApi, type BPColaborador, type BPDepartamento } from '@/services/bluepointApi';
 import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
@@ -22,138 +23,155 @@ const hierarchyConfig: Record<string, { label: string; color: string; icon: type
   user: { label: 'USUÁRIO', color: 'bg-muted text-muted-foreground border-border', icon: User },
 };
 
-interface ProfileRow {
-  id: string;
-  full_name: string;
-  email: string;
-  avatar_url: string | null;
-  hierarchy: string;
-  active: boolean;
-  department_id: string | null;
-}
-
 export default function DepartmentDetail() {
   const { id } = useParams<{ id: string }>();
+  const deptId = Number(id);
   const [search, setSearch] = useState('');
-  const [editingUser, setEditingUser] = useState<ProfileRow | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editEmail, setEditEmail] = useState('');
-  const [editHierarchy, setEditHierarchy] = useState('');
-  const [editActive, setEditActive] = useState(true);
-  const [addingUser, setAddingUser] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('ativo');
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: department, isLoading: loadingDept } = useQuery({
-    queryKey: ['department', id],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('departments').select('*').eq('id', id!).single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!id,
+  // Dialog state for importing a collaborator
+  const [importingColab, setImportingColab] = useState<BPColaborador | null>(null);
+  const [importHierarchy, setImportHierarchy] = useState<string>('user');
+  const [importing, setImporting] = useState(false);
+
+  // Batch import dialog
+  const [showBatchImport, setShowBatchImport] = useState(false);
+  const [batchHierarchy, setBatchHierarchy] = useState<string>('user');
+  const [batchSelected, setBatchSelected] = useState<Set<number>>(new Set());
+  const [batchImporting, setBatchImporting] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
+
+  const { data: departamento, isLoading: loadingDept } = useQuery({
+    queryKey: ['bluepoint-departamento', deptId],
+    queryFn: () => bluepointApi.obterDepartamento(deptId),
+    enabled: !!deptId,
+    staleTime: 5 * 60_000,
   });
 
-  const { data: members = [], isLoading: loadingMembers, refetch, isFetching } = useQuery({
-    queryKey: ['department-members', id],
+  const { data: colaboradores = [], isLoading: loadingColab, refetch, isFetching } = useQuery({
+    queryKey: ['bluepoint-dept-colaboradores', deptId],
+    queryFn: () => bluepointApi.listarColaboradoresDepartamento(deptId),
+    enabled: !!deptId,
+    staleTime: 5 * 60_000,
+  });
+
+  // Check which collaborators are already imported
+  const { data: importedProfiles = [] } = useQuery({
+    queryKey: ['imported-profiles-bp'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('profiles')
-        .select('*')
-        .eq('department_id', id!)
-        .order('full_name');
-      if (error) throw error;
-      return data as ProfileRow[];
+        .select('id, bluepoint_id, email, full_name, hierarchy, active')
+        .not('bluepoint_id', 'is', null);
+      return data || [];
     },
-    enabled: !!id,
+    staleTime: 30_000,
   });
 
-  // All profiles without department (for adding)
-  const { data: unassigned = [] } = useQuery({
-    queryKey: ['unassigned-profiles'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .is('department_id', null)
-        .eq('active', true)
-        .order('full_name');
-      if (error) throw error;
-      return data as ProfileRow[];
-    },
-    enabled: addingUser,
+  const importedBpIds = new Set(importedProfiles.map(p => p.bluepoint_id));
+
+  const filtered = colaboradores.filter((c) => {
+    const matchSearch = !search || c.nome.toLowerCase().includes(search.toLowerCase()) || c.email.toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === 'all' || c.status === statusFilter;
+    return matchSearch && matchStatus;
   });
 
-  const updateMutation = useMutation({
-    mutationFn: async (updates: { id: string; full_name: string; email: string; hierarchy: string; active: boolean }) => {
-      const { error } = await supabase.from('profiles').update({
-        full_name: updates.full_name,
-        email: updates.email,
-        hierarchy: updates.hierarchy,
-        active: updates.active,
-      }).eq('id', updates.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast({ title: 'Usuário atualizado ✅' });
-      setEditingUser(null);
-      queryClient.invalidateQueries({ queryKey: ['department-members', id] });
-    },
-    onError: (err) => {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
-    },
-  });
+  const activeCount = colaboradores.filter(c => c.status === 'ativo').length;
+  const importedCount = colaboradores.filter(c => importedBpIds.has(c.id)).length;
+  const isLoading = loadingDept || loadingColab;
 
-  const assignMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      const { error } = await supabase.from('profiles').update({ department_id: id }).eq('id', userId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast({ title: 'Membro adicionado ✅' });
-      setAddingUser(false);
-      queryClient.invalidateQueries({ queryKey: ['department-members', id] });
-      queryClient.invalidateQueries({ queryKey: ['unassigned-profiles'] });
-      queryClient.invalidateQueries({ queryKey: ['departments'] });
-    },
-  });
+  const handleImportSingle = async () => {
+    if (!importingColab) return;
+    setImporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('invite-user', {
+        body: {
+          email: importingColab.email,
+          full_name: importingColab.nome,
+          hierarchy: importHierarchy,
+          department_id: null, // We'll set bluepoint_id instead
+        },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
 
-  const removeMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      const { error } = await supabase.from('profiles').update({ department_id: null }).eq('id', userId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast({ title: 'Membro removido do departamento' });
-      queryClient.invalidateQueries({ queryKey: ['department-members', id] });
-      queryClient.invalidateQueries({ queryKey: ['departments'] });
-    },
-  });
+      // Update profile with bluepoint_id and must_change_password
+      if (data?.user_id) {
+        await supabase.from('profiles').update({
+          bluepoint_id: importingColab.id,
+          must_change_password: true,
+        }).eq('id', data.user_id);
+      }
 
-  const filtered = members.filter((m) => {
-    if (!search) return true;
-    const s = search.toLowerCase();
-    return m.full_name.toLowerCase().includes(s) || m.email.toLowerCase().includes(s);
-  });
+      toast({ title: `✅ ${importingColab.nome} importado!`, description: `Email enviado para ${importingColab.email} com credenciais de acesso.` });
+      setImportingColab(null);
+      queryClient.invalidateQueries({ queryKey: ['imported-profiles-bp'] });
+    } catch (err) {
+      toast({ title: 'Erro ao importar', description: err instanceof Error ? err.message : 'Erro', variant: 'destructive' });
+    } finally {
+      setImporting(false);
+    }
+  };
 
-  const activeCount = members.filter(m => m.active).length;
-  const ownerCount = members.filter(m => m.hierarchy === 'owner').length;
-  const gestorCount = members.filter(m => m.hierarchy === 'gestor').length;
-  const isLoading = loadingDept || loadingMembers;
+  const handleBatchImport = async () => {
+    const selected = colaboradores.filter(c => batchSelected.has(c.id) && !importedBpIds.has(c.id));
+    if (selected.length === 0) return;
+    setBatchImporting(true);
+    setBatchProgress({ current: 0, total: selected.length });
 
-  const openEditDialog = (user: ProfileRow) => {
-    setEditingUser(user);
-    setEditName(user.full_name);
-    setEditEmail(user.email);
-    setEditHierarchy(user.hierarchy);
-    setEditActive(user.active);
+    let successCount = 0;
+    for (const colab of selected) {
+      try {
+        const { data, error } = await supabase.functions.invoke('invite-user', {
+          body: {
+            email: colab.email,
+            full_name: colab.nome,
+            hierarchy: batchHierarchy,
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+
+        if (data?.user_id) {
+          await supabase.from('profiles').update({
+            bluepoint_id: colab.id,
+            must_change_password: true,
+          }).eq('id', data.user_id);
+        }
+        successCount++;
+      } catch (err) {
+        console.warn(`Failed to import ${colab.nome}:`, err);
+      }
+      setBatchProgress(prev => ({ ...prev, current: prev.current + 1 }));
+    }
+
+    toast({ title: `✅ ${successCount} de ${selected.length} importados!`, description: 'Emails enviados com credenciais de acesso.' });
+    setBatchImporting(false);
+    setShowBatchImport(false);
+    setBatchSelected(new Set());
+    queryClient.invalidateQueries({ queryKey: ['imported-profiles-bp'] });
+  };
+
+  const toggleBatchSelect = (colabId: number) => {
+    setBatchSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(colabId)) next.delete(colabId); else next.add(colabId);
+      return next;
+    });
+  };
+
+  const selectAllNotImported = () => {
+    const notImported = filtered.filter(c => !importedBpIds.has(c.id)).map(c => c.id);
+    setBatchSelected(new Set(notImported));
   };
 
   return (
     <>
       <AppHeader
-        title={department?.name?.toUpperCase() || 'Departamento'}
-        subtitle={`${members.length} membros`}
+        title={departamento?.nome?.toUpperCase() || 'Departamento'}
+        subtitle={`${colaboradores.length} colaboradores`}
       />
       <div className="flex-1 overflow-auto p-6 space-y-4">
         <Link to="/departments" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-body">
@@ -163,10 +181,10 @@ export default function DepartmentDetail() {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: 'TOTAL', value: members.length, icon: Users, color: 'text-primary', bgColor: 'bg-primary/10' },
-            { label: 'ATIVOS', value: activeCount, icon: UserCheck, color: 'text-success', bgColor: 'bg-success/10' },
-            { label: 'GESTORES', value: gestorCount, icon: Shield, color: 'text-accent', bgColor: 'bg-accent/10' },
-            { label: 'OWNERS', value: ownerCount, icon: Crown, color: 'text-amber-400', bgColor: 'bg-amber-500/10' },
+            { label: 'TOTAL', value: colaboradores.length, icon: Users, color: 'text-primary', bgColor: 'bg-primary/10' },
+            { label: 'ATIVOS', value: activeCount, icon: Users, color: 'text-success', bgColor: 'bg-success/10' },
+            { label: 'IMPORTADOS', value: importedCount, icon: CheckCircle2, color: 'text-accent', bgColor: 'bg-accent/10' },
+            { label: 'STATUS', value: departamento?.status?.toUpperCase() || '—', icon: Building2, color: 'text-primary', bgColor: 'bg-primary/10' },
           ].map((stat, i) => (
             <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }} whileHover={{ y: -2, scale: 1.02 }}>
               <Card className="game-card">
@@ -182,10 +200,10 @@ export default function DepartmentDetail() {
           ))}
         </div>
 
-        {department?.description && (
+        {departamento?.descricao && (
           <Card className="game-card">
             <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground font-body">{department.description}</p>
+              <p className="text-sm text-muted-foreground font-body">{departamento.descricao}</p>
             </CardContent>
           </Card>
         )}
@@ -194,19 +212,27 @@ export default function DepartmentDetail() {
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Buscar membro..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 w-72 bg-secondary/50 border-border/50" />
+            <Input placeholder="Buscar colaborador..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 w-72 bg-secondary/50 border-border/50" />
           </div>
+          <Button
+            variant={statusFilter === 'ativo' ? 'default' : 'outline'}
+            size="sm"
+            className="font-game text-xs tracking-wider"
+            onClick={() => setStatusFilter(statusFilter === 'ativo' ? 'all' : 'ativo')}
+          >
+            {statusFilter === 'ativo' ? 'SOMENTE ATIVOS' : 'TODOS'}
+          </Button>
           <div className="ml-auto flex gap-2">
             <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching} className="font-game text-xs tracking-wider">
               <RefreshCw className={`w-4 h-4 mr-1 ${isFetching ? 'animate-spin' : ''}`} /> ATUALIZAR
             </Button>
-            <Button size="sm" onClick={() => setAddingUser(true)} className="font-game text-xs tracking-wider">
-              <UserPlus className="w-4 h-4 mr-1" /> ADICIONAR MEMBRO
+            <Button size="sm" onClick={() => { selectAllNotImported(); setShowBatchImport(true); }} className="font-game text-xs tracking-wider">
+              <Send className="w-4 h-4 mr-1" /> IMPORTAR EM LOTE
             </Button>
           </div>
         </div>
 
-        {/* Members table */}
+        {/* Collaborators table */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
           <Card className="game-card">
             <CardContent className="p-0">
@@ -215,67 +241,83 @@ export default function DepartmentDetail() {
               ) : filtered.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                   <Users className="w-10 h-10 mb-2 opacity-30" />
-                  <p className="font-body">Nenhum membro neste departamento</p>
-                  <Button variant="link" size="sm" onClick={() => setAddingUser(true)} className="mt-2">
-                    Adicionar membro
-                  </Button>
+                  <p className="font-body">Nenhum colaborador encontrado</p>
                 </div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow className="border-border/50">
-                      <TableHead className="font-game text-[10px] tracking-wider">MEMBRO</TableHead>
-                      <TableHead className="font-game text-[10px] tracking-wider">HIERARQUIA</TableHead>
+                      <TableHead className="font-game text-[10px] tracking-wider">COLABORADOR</TableHead>
+                      <TableHead className="font-game text-[10px] tracking-wider">CARGO</TableHead>
+                      <TableHead className="font-game text-[10px] tracking-wider">MATRÍCULA</TableHead>
+                      <TableHead className="font-game text-[10px] tracking-wider">TIPO</TableHead>
                       <TableHead className="font-game text-[10px] tracking-wider">STATUS</TableHead>
+                      <TableHead className="font-game text-[10px] tracking-wider">SISTEMA</TableHead>
                       <TableHead className="font-game text-[10px] tracking-wider text-right">AÇÕES</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filtered.map((m) => {
-                      const hc = hierarchyConfig[m.hierarchy] || hierarchyConfig.user;
-                      const HIcon = hc.icon;
+                    {filtered.map((c) => {
+                      const isImported = importedBpIds.has(c.id);
+                      const profile = importedProfiles.find(p => p.bluepoint_id === c.id);
                       return (
-                        <TableRow key={m.id} className="border-border/30 hover:bg-primary/5">
+                        <TableRow key={c.id} className="border-border/30 hover:bg-primary/5">
                           <TableCell>
                             <div className="flex items-center gap-3">
                               <Avatar className="w-9 h-9 border border-border/30">
-                                {m.avatar_url && <AvatarImage src={m.avatar_url} alt={m.full_name} />}
+                                {c.foto && <AvatarImage src={c.foto} alt={c.nome} />}
                                 <AvatarFallback className="bg-primary/10 text-primary text-xs font-game font-bold">
-                                  {m.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                                  {c.nome.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
                               <div>
-                                <p className="text-sm font-body font-semibold">{m.full_name}</p>
+                                <p className="text-sm font-body font-semibold">{c.nome}</p>
                                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                  <Mail className="w-3 h-3" /> {m.email}
+                                  <Mail className="w-3 h-3" /> {c.email}
                                 </div>
                               </div>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={`text-[10px] font-game tracking-wider ${hc.color}`}>
-                              <HIcon className="w-3 h-3 mr-1" /> {hc.label}
+                            <div className="flex items-center gap-1.5 text-sm font-body">
+                              <Briefcase className="w-3.5 h-3.5 text-muted-foreground" />
+                              {c.cargo?.nome || '—'}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm font-body font-mono">{c.matricula}</TableCell>
+                          <TableCell>
+                            <Badge variant={c.tipo === 'admin' ? 'default' : 'secondary'} className="text-[10px] font-game tracking-wider">
+                              {c.tipo === 'admin' ? 'ADMIN' : 'COLAB'}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={m.active ? 'default' : 'secondary'} className="text-[10px] font-game tracking-wider">
-                              {m.active ? 'ATIVO' : 'INATIVO'}
+                            <Badge variant={c.status === 'ativo' ? 'default' : 'secondary'} className="text-[10px] font-game tracking-wider">
+                              {c.status === 'ativo' ? 'ATIVO' : 'INATIVO'}
                             </Badge>
                           </TableCell>
+                          <TableCell>
+                            {isImported ? (
+                              <Badge variant="outline" className={`text-[10px] font-game tracking-wider ${hierarchyConfig[profile?.hierarchy || 'user'].color}`}>
+                                <CheckCircle2 className="w-3 h-3 mr-1" />
+                                {hierarchyConfig[profile?.hierarchy || 'user'].label}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground font-body">Não importado</span>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex items-center gap-1 justify-end">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(m)}>
-                                <Pencil className="w-3.5 h-3.5" />
-                              </Button>
+                            {!isImported ? (
                               <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-destructive hover:text-destructive"
-                                onClick={() => removeMutation.mutate(m.id)}
+                                variant="outline"
+                                size="sm"
+                                className="font-game text-xs tracking-wider"
+                                onClick={() => { setImportingColab(c); setImportHierarchy(c.tipo === 'admin' ? 'gestor' : 'user'); }}
                               >
-                                <ArrowLeft className="w-3.5 h-3.5" />
+                                <UserPlus className="w-3.5 h-3.5 mr-1" /> IMPORTAR
                               </Button>
-                            </div>
+                            ) : (
+                              <span className="text-xs text-success font-game">✓ ATIVO</span>
+                            )}
                           </TableCell>
                         </TableRow>
                       );
@@ -288,95 +330,114 @@ export default function DepartmentDetail() {
         </motion.div>
       </div>
 
-      {/* Edit user dialog */}
-      <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+      {/* Import single collaborator dialog */}
+      <Dialog open={!!importingColab} onOpenChange={(open) => !open && setImportingColab(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="font-game tracking-wider">EDITAR MEMBRO</DialogTitle>
+            <DialogTitle className="font-game tracking-wider">IMPORTAR COLABORADOR</DialogTitle>
+            <DialogDescription className="text-sm">
+              Um email será enviado com credenciais de acesso. No primeiro login, o usuário deverá trocar a senha.
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Nome completo</Label>
-              <Input value={editName} onChange={e => setEditName(e.target.value)} />
+          {importingColab && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-secondary/50 space-y-1">
+                <p className="text-sm font-semibold">{importingColab.nome}</p>
+                <p className="text-xs text-muted-foreground">{importingColab.email}</p>
+                <p className="text-xs text-muted-foreground">Cargo: {importingColab.cargo?.nome || '—'} • Matrícula: {importingColab.matricula}</p>
+              </div>
+              <div>
+                <Label className="text-xs font-game tracking-wider text-muted-foreground">HIERARQUIA NO SISTEMA</Label>
+                <Select value={importHierarchy} onValueChange={setImportHierarchy}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="owner">
+                      <div className="flex items-center gap-2"><Crown className="w-3.5 h-3.5 text-amber-400" /> Owner — Acesso total</div>
+                    </SelectItem>
+                    <SelectItem value="gestor">
+                      <div className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 text-primary" /> Gestor — Gerencia equipe e documentos</div>
+                    </SelectItem>
+                    <SelectItem value="user">
+                      <div className="flex items-center gap-2"><User className="w-3.5 h-3.5" /> Usuário — Acesso básico</div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div>
-              <Label>Email</Label>
-              <Input value={editEmail} onChange={e => setEditEmail(e.target.value)} type="email" />
-            </div>
-            <div>
-              <Label>Hierarquia</Label>
-              <Select value={editHierarchy} onValueChange={setEditHierarchy}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="owner">
-                    <div className="flex items-center gap-2"><Crown className="w-3.5 h-3.5 text-amber-400" /> Owner</div>
-                  </SelectItem>
-                  <SelectItem value="gestor">
-                    <div className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 text-primary" /> Gestor</div>
-                  </SelectItem>
-                  <SelectItem value="user">
-                    <div className="flex items-center gap-2"><User className="w-3.5 h-3.5" /> Usuário</div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <Label>Ativo</Label>
-              <Select value={editActive ? 'true' : 'false'} onValueChange={v => setEditActive(v === 'true')}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="true">Ativo</SelectItem>
-                  <SelectItem value="false">Inativo</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingUser(null)}>Cancelar</Button>
-            <Button
-              onClick={() => editingUser && updateMutation.mutate({ id: editingUser.id, full_name: editName, email: editEmail, hierarchy: editHierarchy, active: editActive })}
-              disabled={updateMutation.isPending}
-            >
-              {updateMutation.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />} Salvar
+            <Button variant="outline" onClick={() => setImportingColab(null)}>Cancelar</Button>
+            <Button onClick={handleImportSingle} disabled={importing}>
+              {importing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Send className="w-4 h-4 mr-1" />}
+              Importar e enviar email
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Add member dialog */}
-      <Dialog open={addingUser} onOpenChange={setAddingUser}>
-        <DialogContent>
+      {/* Batch import dialog */}
+      <Dialog open={showBatchImport} onOpenChange={setShowBatchImport}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-game tracking-wider">ADICIONAR MEMBRO</DialogTitle>
+            <DialogTitle className="font-game tracking-wider">IMPORTAÇÃO EM LOTE</DialogTitle>
+            <DialogDescription className="text-sm">
+              Selecione os colaboradores e defina a hierarquia padrão. Todos receberão email com credenciais.
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2 max-h-80 overflow-auto">
-            {unassigned.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">Todos os usuários já pertencem a um departamento.</p>
-            ) : (
-              unassigned.map(u => (
-                <div key={u.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-secondary/50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="w-8 h-8">
-                      <AvatarFallback className="bg-primary/10 text-primary text-xs font-game">
-                        {u.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-semibold">{u.full_name}</p>
-                      <p className="text-xs text-muted-foreground">{u.email}</p>
-                    </div>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs font-game tracking-wider text-muted-foreground">HIERARQUIA PADRÃO</Label>
+              <Select value={batchHierarchy} onValueChange={setBatchHierarchy}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="owner"><div className="flex items-center gap-2"><Crown className="w-3.5 h-3.5 text-amber-400" /> Owner</div></SelectItem>
+                  <SelectItem value="gestor"><div className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 text-primary" /> Gestor</div></SelectItem>
+                  <SelectItem value="user"><div className="flex items-center gap-2"><User className="w-3.5 h-3.5" /> Usuário</div></SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="max-h-60 overflow-auto space-y-1">
+              {filtered.filter(c => !importedBpIds.has(c.id)).map(c => (
+                <label key={c.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={batchSelected.has(c.id)}
+                    onChange={() => toggleBatchSelect(c.id)}
+                    className="rounded border-border"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate">{c.nome}</p>
+                    <p className="text-xs text-muted-foreground truncate">{c.email}</p>
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => assignMutation.mutate(u.id)} disabled={assignMutation.isPending}>
-                    <UserPlus className="w-3.5 h-3.5 mr-1" /> Adicionar
-                  </Button>
+                </label>
+              ))}
+              {filtered.filter(c => !importedBpIds.has(c.id)).length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">Todos os colaboradores já foram importados!</p>
+              )}
+            </div>
+            {batchImporting && (
+              <div className="space-y-1">
+                <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all"
+                    style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
+                  />
                 </div>
-              ))
+                <p className="text-xs text-muted-foreground text-center">{batchProgress.current} de {batchProgress.total}</p>
+              </div>
             )}
           </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBatchImport(false)} disabled={batchImporting}>Cancelar</Button>
+            <Button onClick={handleBatchImport} disabled={batchImporting || batchSelected.size === 0}>
+              {batchImporting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Send className="w-4 h-4 mr-1" />}
+              Importar {batchSelected.size} colaborador{batchSelected.size !== 1 ? 'es' : ''}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
