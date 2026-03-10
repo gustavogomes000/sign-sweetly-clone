@@ -71,7 +71,6 @@ export interface Document {
   reminderDays?: number;
   auditTrail?: AuditEntry[];
   fields?: DocumentField[];
-  companyId?: string;
 }
 
 export interface Contact {
@@ -80,6 +79,9 @@ export interface Contact {
   email: string;
   phone?: string;
   company?: string;
+  role?: string;
+  notes?: string;
+  bluepoint_id?: number;
   createdAt: string;
   documentsCount: number;
 }
@@ -120,56 +122,4 @@ export interface Notification {
   description: string;
   time: string;
   read: boolean;
-}
-
-// SaaS Multi-tenant types
-export type UserRole = 'superadmin' | 'company_admin' | 'company_user';
-
-export interface Company {
-  id: string;
-  name: string;
-  cnpj: string;
-  email: string;
-  phone?: string;
-  logo?: string;
-  plan: 'starter' | 'professional' | 'enterprise';
-  status: 'active' | 'inactive' | 'suspended';
-  createdAt: string;
-  maxUsers: number;
-  maxDocumentsMonth: number;
-  documentsUsed: number;
-  usersCount: number;
-}
-
-export interface CompanyUser {
-  id: string;
-  name: string;
-  email: string;
-  role: 'company_admin' | 'company_user';
-  companyId: string;
-  status: 'active' | 'inactive';
-  createdAt: string;
-  lastLogin?: string;
-  avatar?: string;
-}
-
-export interface ApiIntegration {
-  id: string;
-  name: string;
-  apiKey: string;
-  webhookUrl?: string;
-  events: string[];
-  active: boolean;
-  createdAt: string;
-  lastUsed?: string;
-  companyId: string;
-  rateLimit: number;
-  callsToday: number;
-}
-
-export interface MicroserviceConfig {
-  signatureUrl: string;
-  documentCollectionUrl: string;
-  selfieUrl: string;
-  selfieWithDocumentUrl: string;
 }
