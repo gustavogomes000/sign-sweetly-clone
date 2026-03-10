@@ -1,30 +1,64 @@
 import { AppHeader } from '@/components/layout/AppHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { mockStats } from '@/data/mockData';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState } from 'react';
-
-const pieData = [
-  { name: 'Assinados', value: 112, color: 'hsl(152, 62%, 42%)' },
-  { name: 'Aguardando', value: 23, color: 'hsl(38, 92%, 50%)' },
-  { name: 'Expirados', value: 5, color: 'hsl(220, 10%, 46%)' },
-  { name: 'Cancelados', value: 8, color: 'hsl(0, 84%, 60%)' },
-  { name: 'Rascunhos', value: 8, color: 'hsl(220, 14%, 80%)' },
-];
-
-const timeData = [
-  { day: 'Seg', hours: 8.2 },
-  { day: 'Ter', hours: 12.5 },
-  { day: 'Qua', hours: 6.1 },
-  { day: 'Qui', hours: 15.3 },
-  { day: 'Sex', hours: 22.0 },
-  { day: 'Sáb', hours: 35.4 },
-  { day: 'Dom', hours: 40.2 },
-];
+import { useDashboardStats, useDocuments } from '@/hooks/useDocuments';
+import { Loader2 } from 'lucide-react';
 
 export default function Analytics() {
   const [period, setPeriod] = useState('7d');
+  const { data: stats, isLoading: statsLoading } = useDashboardStats();
+  const { data: documents = [], isLoading: docsLoading } = useDocuments();
+
+  const isLoading = statsLoading || docsLoading;
+
+  // Build pie data from real stats
+  const pieData = [
+    { name: 'Assinados', value: stats?.signedDocuments ?? 0, color: 'hsl(var(--success))' },
+    { name: 'Aguardando', value: stats?.pendingSignatures ?? 0, color: 'hsl(var(--warning))' },
+    { name: 'Expirados', value: stats?.expiredDocuments ?? 0, color: 'hsl(var(--muted-foreground))' },
+    { name: 'Cancelados', value: stats?.cancelledDocuments ?? 0, color: 'hsl(var(--destructive))' },
+    { name: 'Rascunhos', value: stats?.drafts ?? 0, color: 'hsl(var(--border))' },
+  ].filter(d => d.value > 0);
+
+  // Build time data from real documents (avg sign time per day of week)
+  const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const dayBuckets = Array.from({ length: 7 }, () => ({ count: 0, totalHours: 0 }));
+  
+  documents.forEach(doc => {
+    if (doc.status === 'signed' && doc.signers.length > 0) {
+      const createdDate = new Date(doc.created_at);
+      const dayOfWeek = createdDate.getDay();
+      const lastSigned = doc.signers
+        .filter(s => s.signed_at)
+        .map(s => new Date(s.signed_at!).getTime())
+        .sort((a, b) => b - a)[0];
+      if (lastSigned) {
+        const hours = (lastSigned - createdDate.getTime()) / (1000 * 60 * 60);
+        dayBuckets[dayOfWeek].count++;
+        dayBuckets[dayOfWeek].totalHours += hours;
+      }
+    }
+  });
+
+  const timeData = dayNames.map((day, i) => ({
+    day,
+    hours: dayBuckets[i].count > 0
+      ? Math.round((dayBuckets[i].totalHours / dayBuckets[i].count) * 10) / 10
+      : 0,
+  }));
+
+  if (isLoading) {
+    return (
+      <>
+        <AppHeader title="Relatórios" subtitle="Métricas e análises da sua conta" />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="w-10 h-10 animate-spin text-primary" />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -49,17 +83,23 @@ export default function Analytics() {
             <CardHeader><CardTitle className="text-base">Documentos por mês</CardTitle></CardHeader>
             <CardContent>
               <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={mockStats.monthlyData} barGap={4}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
-                    <YAxis tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
-                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} />
-                    <Legend wrapperStyle={{ fontSize: '12px' }} />
-                    <Bar dataKey="sent" name="Enviados" fill="hsl(var(--info))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="signed" name="Assinados" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                {stats?.monthlyData && stats.monthlyData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={stats.monthlyData} barGap={4}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
+                      <YAxis tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
+                      <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} />
+                      <Legend wrapperStyle={{ fontSize: '12px' }} />
+                      <Bar dataKey="sent" name="Enviados" fill="hsl(var(--info))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="signed" name="Assinados" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                    Nenhum dado disponível
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -68,17 +108,21 @@ export default function Analytics() {
             <CardHeader><CardTitle className="text-base">Status dos documentos</CardTitle></CardHeader>
             <CardContent>
               <div className="h-64 flex items-center justify-center">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={3} dataKey="value">
-                      {pieData.map((entry, i) => (
-                        <Cell key={i} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} />
-                    <Legend wrapperStyle={{ fontSize: '12px' }} />
-                  </PieChart>
-                </ResponsiveContainer>
+                {pieData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={3} dataKey="value">
+                        {pieData.map((entry, i) => (
+                          <Cell key={i} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} />
+                      <Legend wrapperStyle={{ fontSize: '12px' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-muted-foreground text-sm">Nenhum documento ainda</div>
+                )}
               </div>
             </CardContent>
           </Card>
