@@ -3,19 +3,16 @@ import { Pen, Type, Check, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { bluetechProxy } from '@/services/bluetechProxy';
 
 export interface VLAssinaturaProps {
   signatoryId: string;
   documentId: string;
-  aoCompletar?: (dados: { signatureType: 'drawn' | 'typed'; imageBase64?: string; typedText?: string; bluetechResponse?: unknown }) => void;
-  onError?: (erro: any) => void;
+  aoCompletar?: (dados: { signatureType: 'drawn' | 'typed'; imageBase64?: string; typedText?: string }) => void;
+  onError?: (erro: unknown) => void;
   onCancel?: () => void;
-  /** @deprecated Use bluetechProxy instead */
-  apiKey?: string;
 }
 
-export function VLAssinatura({ signatoryId, documentId, aoCompletar, onError, onCancel }: VLAssinaturaProps) {
+export function VLAssinatura({ aoCompletar, onError, onCancel }: VLAssinaturaProps) {
   const [method, setMethod] = useState<'draw' | 'type'>('draw');
   const [typedName, setTypedName] = useState('');
   const [isDrawing, setIsDrawing] = useState(false);
@@ -41,25 +38,38 @@ export function VLAssinatura({ signatoryId, documentId, aoCompletar, onError, on
     setTimeout(initCanvas, 150);
   }, [initCanvas]);
 
-  const startDraw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const getPos = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    if ('touches' in e) {
+      const touch = e.touches[0] || e.changedTouches[0];
+      return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+    }
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  const startDraw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const rect = canvas.getBoundingClientRect();
+    const pos = getPos(e);
     ctx.beginPath();
-    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    ctx.moveTo(pos.x, pos.y);
     setIsDrawing(true);
   };
 
-  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
     if (!isDrawing) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const rect = canvas.getBoundingClientRect();
-    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+    const pos = getPos(e);
+    ctx.lineTo(pos.x, pos.y);
     ctx.stroke();
     setHasDrawn(true);
   };
@@ -86,42 +96,17 @@ export function VLAssinatura({ signatoryId, documentId, aoCompletar, onError, on
   const handleConfirm = async () => {
     setProcessing(true);
     try {
-      let bluetechResponse: unknown;
-      let imageBase64: string | undefined;
-      let typedText: string | undefined;
-
       if (method === 'draw') {
-        imageBase64 = getCanvasBase64();
-        try {
-          bluetechResponse = await bluetechProxy.saveSignatureDrawn({
-            signatoryId,
-            documentId,
-            imageBase64,
-            userAgent: navigator.userAgent,
-          });
-        } catch (apiErr) {
-          console.warn('[VLAssinatura] BlueTech draw API failed:', apiErr);
-        }
+        aoCompletar?.({
+          signatureType: 'drawn',
+          imageBase64: getCanvasBase64(),
+        });
       } else {
-        typedText = typedName;
-        try {
-          bluetechResponse = await bluetechProxy.saveSignatureTyped({
-            signatoryId,
-            documentId,
-            text: typedText,
-            userAgent: navigator.userAgent,
-          });
-        } catch (apiErr) {
-          console.warn('[VLAssinatura] BlueTech typed API failed:', apiErr);
-        }
+        aoCompletar?.({
+          signatureType: 'typed',
+          typedText: typedName,
+        });
       }
-
-      aoCompletar?.({
-        signatureType: method === 'draw' ? 'drawn' : 'typed',
-        imageBase64,
-        typedText,
-        bluetechResponse,
-      });
     } catch (err) {
       onError?.(err);
     } finally {
@@ -137,7 +122,7 @@ export function VLAssinatura({ signatoryId, documentId, aoCompletar, onError, on
           <TabsTrigger value="type" className="gap-1.5"><Type className="w-4 h-4" />Digitar</TabsTrigger>
         </TabsList>
         <TabsContent value="draw" className="mt-4">
-          <div className="relative border-2 border-dashed border-border rounded-xl bg-background">
+          <div className="relative border-2 border-dashed border-border rounded-xl bg-background touch-none">
             <canvas
               ref={canvasRef}
               className="w-full h-40 cursor-crosshair rounded-xl"
@@ -145,6 +130,9 @@ export function VLAssinatura({ signatoryId, documentId, aoCompletar, onError, on
               onMouseMove={draw}
               onMouseUp={stopDraw}
               onMouseLeave={stopDraw}
+              onTouchStart={startDraw}
+              onTouchMove={draw}
+              onTouchEnd={stopDraw}
             />
             <div className="absolute bottom-2 left-0 right-0 flex justify-center">
               <div className="w-3/4 h-px bg-muted-foreground/30" />
