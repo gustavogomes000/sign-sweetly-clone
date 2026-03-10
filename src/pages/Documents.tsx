@@ -95,7 +95,7 @@ export default function Documents() {
         title="Documentos"
         subtitle={`${filteredDocs.length} de ${documents.length} documentos`}
       />
-      <div className="flex-1 overflow-auto p-6 space-y-4 hex-pattern">
+      <div className="flex-1 overflow-auto p-6 space-y-4">
         {/* Toolbar */}
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between gap-3">

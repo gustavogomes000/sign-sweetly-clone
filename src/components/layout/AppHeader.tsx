@@ -80,10 +80,10 @@ export function AppHeader({ title, subtitle, actions }: AppHeaderProps) {
     : 'US';
 
   return (
-    <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6 shrink-0">
-      <div>
-        <h1 className="text-lg font-semibold text-foreground">{title}</h1>
-        {subtitle && <p className="text-sm text-muted-foreground -mt-0.5">{subtitle}</p>}
+    <header className="h-16 border-b border-border bg-card/80 backdrop-blur-md flex items-center justify-between px-6 shrink-0 relative z-10">
+      <div className="animate-fade-in">
+        <h1 className="text-lg font-game font-semibold text-foreground tracking-wide">{title}</h1>
+        {subtitle && <p className="text-sm text-muted-foreground -mt-0.5 font-body">{subtitle}</p>}
       </div>
 
       <div className="flex items-center gap-2">

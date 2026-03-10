@@ -51,7 +51,7 @@ export default function Dashboard() {
   return (
     <>
       <AppHeader title="Início" subtitle="Visão geral da sua conta" />
-      <div className="flex-1 overflow-auto p-6 space-y-6 hex-pattern">
+      <div className="flex-1 overflow-auto p-6 space-y-6">
         {/* Stats Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {statCards.map((stat, i) => (

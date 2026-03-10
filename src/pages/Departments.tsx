@@ -22,7 +22,7 @@ export default function Departments() {
   return (
     <>
       <AppHeader title="Departamentos" subtitle={`${departamentos.length} departamentos (BluePoint)`} />
-      <div className="flex-1 overflow-auto p-6 space-y-4 hex-pattern">
+      <div className="flex-1 overflow-auto p-6 space-y-4">
         <div className="flex gap-3 flex-wrap items-center">
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -2 }}>
             <Card className="game-card px-4 py-3">

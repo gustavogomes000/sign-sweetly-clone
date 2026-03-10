@@ -129,7 +129,7 @@
     border-radius: 3px;
   }
 
-  /* Gamified utilities */
+  /* Glow utilities */
   .glow-primary {
     box-shadow: 0 0 15px -3px hsl(var(--glow-primary) / 0.4), 0 0 30px -5px hsl(var(--glow-primary) / 0.15);
   }
@@ -150,9 +150,11 @@
     box-shadow: 0 0 20px -3px hsl(var(--medal-gold) / 0.5), 0 0 40px -5px hsl(var(--medal-gold) / 0.2);
   }
 
+  /* Game cards */
   .game-card {
-    @apply relative overflow-hidden rounded-xl border border-border bg-card;
-    background: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--card)) 80%, hsl(var(--primary) / 0.05) 100%);
+    @apply relative overflow-hidden rounded-xl border bg-card/80 backdrop-blur-sm;
+    border-color: hsl(var(--border));
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .game-card::before {
@@ -161,23 +163,29 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent)), hsl(var(--primary)));
-    opacity: 0.8;
+    height: 2px;
+    background: linear-gradient(90deg, hsl(var(--primary) / 0.6), hsl(var(--accent) / 0.6), hsl(var(--primary) / 0.6));
+    background-size: 200% 100%;
+    animation: glow-line 3s ease infinite;
+    opacity: 0.7;
   }
 
   .game-card:hover::before {
     opacity: 1;
+    height: 3px;
   }
 
   .game-card:hover {
-    box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.2), 0 4px 20px -5px hsl(0 0% 0% / 0.1);
+    border-color: hsl(var(--primary) / 0.3);
+    box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.15), 0 8px 25px -5px hsl(0 0% 0% / 0.08);
+    transform: translateY(-1px);
   }
 
   .game-card-gold {
-    @apply relative overflow-hidden rounded-xl border;
+    @apply relative overflow-hidden rounded-xl border backdrop-blur-sm;
     border-color: hsl(var(--accent) / 0.3);
-    background: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--accent) / 0.06) 100%);
+    background: linear-gradient(145deg, hsl(var(--card) / 0.9) 0%, hsl(var(--accent) / 0.06) 100%);
+    animation: shimmer-border 3s ease-in-out infinite;
   }
 
   .game-card-gold::before {
@@ -188,6 +196,8 @@
     right: 0;
     height: 3px;
     background: linear-gradient(90deg, hsl(var(--accent)), hsl(var(--medal-gold)), hsl(var(--accent)));
+    background-size: 200% 100%;
+    animation: glow-line 2s ease infinite;
     opacity: 0.9;
   }
 
@@ -206,11 +216,6 @@
     @apply h-full rounded-full transition-all duration-500 ease-out;
     background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent)));
     box-shadow: 0 0 8px hsl(var(--primary) / 0.4);
-  }
-
-  .hex-pattern {
-    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 5L55 20V45L30 60L5 45V20L30 5Z' fill='none' stroke='%23267373' stroke-opacity='0.04' stroke-width='1'/%3E%3C/svg%3E");
-    background-size: 60px 60px;
   }
 
   .font-game {
@@ -243,5 +248,32 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+
+  .text-gradient-teal {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(175 60% 50%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Animated border effect */
+  .animated-border {
+    position: relative;
+    border: 1px solid transparent;
+    animation: border-flow 4s ease-in-out infinite;
+  }
+
+  /* Glass effect */
+  .glass {
+    background: hsl(var(--card) / 0.6);
+    backdrop-filter: blur(12px);
+    border: 1px solid hsl(var(--border) / 0.5);
+  }
+
+  .glass-dark {
+    background: hsl(180 25% 8% / 0.8);
+    backdrop-filter: blur(16px);
+    border: 1px solid hsl(var(--border) / 0.3);
   }
 }
