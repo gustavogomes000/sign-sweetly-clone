@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import signproofLogo from '@/assets/signproof-logo.png';
-import signproofLogo from '@/assets/signproof-logo.png';
+import { AnimatedBackground } from '@/components/layout/AnimatedBackground';
 
 function HexParticles() {
   const particles = useMemo(() =>
