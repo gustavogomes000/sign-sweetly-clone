@@ -1,14 +1,14 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, ArrowRight, Shield, Hexagon, Zap, Lock } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Hexagon, Zap, Lock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import signproofLogo from '@/assets/signproof-logo.png';
 
 function HexParticles() {
@@ -57,44 +57,27 @@ function GridOverlay() {
   );
 }
 
-type AuthMode = 'login' | 'admin';
-
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState<AuthMode>('login');
-  const [glowPulse, setGlowPulse] = useState(false);
-  const { login, loginAdmin } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-
-  useEffect(() => {
-    const interval = setInterval(() => setGlowPulse((prev) => !prev), 2000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      if (mode === 'admin') {
-        const success = await loginAdmin(email, password);
-        if (success) navigate('/admin');
-        else toast({ title: 'Erro ao entrar', description: 'Credenciais de admin incorretas.', variant: 'destructive' });
-      } else {
-        const success = await login(email, password);
-        if (success) navigate('/dashboard');
-        else toast({ title: 'Erro ao entrar', description: 'Email ou senha incorretos.', variant: 'destructive' });
-      }
+      const success = await login(email, password);
+      if (success) navigate('/dashboard');
+      else toast({ title: 'Erro ao entrar', description: 'Email ou senha incorretos.', variant: 'destructive' });
     } catch {
       toast({ title: 'Erro', description: 'Algo deu errado.', variant: 'destructive' });
     }
     setLoading(false);
   };
-
-  const isAdmin = mode === 'admin';
 
   return (
     <div className="min-h-screen bg-background relative flex items-center justify-center p-6 hex-pattern overflow-hidden">
@@ -104,7 +87,7 @@ export default function Login() {
         {/* Logo */}
         <motion.div className="text-center space-y-2" initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.5 }}>
           <motion.div className="relative mx-auto w-16 h-16" animate={{ rotateY: [0, 10, -10, 0] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }} style={{ perspective: 600 }}>
-            <div className={cn('w-16 h-16 rounded-xl flex items-center justify-center overflow-hidden transition-shadow duration-1000', glowPulse ? 'glow-primary' : 'shadow-xl')} style={{ background: 'linear-gradient(145deg, hsl(var(--primary) / 0.15), hsl(var(--card)))', border: '1px solid hsl(var(--primary) / 0.3)' }}>
+            <div className="w-16 h-16 rounded-xl flex items-center justify-center overflow-hidden glow-primary shadow-xl" style={{ background: 'linear-gradient(145deg, hsl(var(--primary) / 0.15), hsl(var(--card)))', border: '1px solid hsl(var(--primary) / 0.3)' }}>
               <img src={signproofLogo} alt="SignProof" className="w-full h-full object-cover" />
             </div>
             <div className="absolute -inset-1 rounded-xl bg-primary/10 blur-md -z-10" />
@@ -113,74 +96,50 @@ export default function Login() {
           <p className="text-[10px] text-muted-foreground/50 uppercase tracking-[0.3em] font-game">by Valeris</p>
         </motion.div>
 
-        {/* Mode toggle */}
-        <motion.div className="flex rounded-xl overflow-hidden border border-border" style={{ background: 'linear-gradient(145deg, hsl(var(--secondary)), hsl(var(--card)))' }} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3, duration: 0.4 }}>
-          <button onClick={() => setMode('login')} className={cn('flex-1 py-2.5 text-xs font-game font-medium transition-all duration-300 flex items-center justify-center gap-1.5', mode === 'login' ? 'bg-primary text-primary-foreground shadow-lg glow-primary' : 'text-muted-foreground hover:text-foreground')}>
-            <Lock className="w-3.5 h-3.5" />Empresa
-          </button>
-          <button onClick={() => setMode('admin')} className={cn('flex-1 py-2.5 text-xs font-game font-medium transition-all duration-300 flex items-center justify-center gap-1.5', mode === 'admin' ? 'bg-accent text-accent-foreground shadow-lg glow-accent' : 'text-muted-foreground hover:text-foreground')}>
-            <Shield className="w-3.5 h-3.5" />Admin
-          </button>
-        </motion.div>
-
         {/* Card */}
         <motion.div initial={{ opacity: 0, y: 20, rotateX: -5 }} animate={{ opacity: 1, y: 0, rotateX: 0 }} transition={{ delay: 0.4, duration: 0.5 }} style={{ perspective: 1000 }}>
           <Card className="game-card overflow-hidden" style={{ boxShadow: '0 0 0 1px hsl(var(--border)), 0 10px 40px -10px hsl(var(--primary) / 0.15), 0 20px 60px -15px hsl(0 0% 0% / 0.15)' }}>
             <CardContent className="p-6">
-              <AnimatePresence mode="wait">
-                <motion.div key={mode} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.25 }}>
-                  <div className="flex items-center gap-2 mb-5">
-                    <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center', isAdmin ? 'bg-accent/15' : 'bg-primary/15')}>
-                      {isAdmin ? <Shield className="w-4 h-4 text-accent" /> : <Zap className="w-4 h-4 text-primary" />}
-                    </div>
-                    <h2 className="text-sm font-game font-semibold text-foreground tracking-wide">{isAdmin ? 'ACESSO ADMIN' : 'LOGIN'}</h2>
+              <div className="flex items-center gap-2 mb-5">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary/15">
+                  <Zap className="w-4 h-4 text-primary" />
+                </div>
+                <h2 className="text-sm font-game font-semibold text-foreground tracking-wide">LOGIN</h2>
+              </div>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-game text-muted-foreground tracking-wider">EMAIL</Label>
+                  <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="usuario@empresa.com" required className="bg-secondary/50 border-border/50 focus:border-primary transition-all" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-game text-muted-foreground tracking-wider">SENHA</Label>
+                    <button type="button" className="text-[10px] font-game text-primary hover:underline tracking-wider">RECUPERAR</button>
                   </div>
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label className="text-xs font-game text-muted-foreground tracking-wider">EMAIL</Label>
-                      <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={isAdmin ? 'admin@valeris.com' : 'usuario@empresa.com'} required className="bg-secondary/50 border-border/50 focus:border-primary transition-all" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs font-game text-muted-foreground tracking-wider">SENHA</Label>
-                        {!isAdmin && <button type="button" className="text-[10px] font-game text-primary hover:underline tracking-wider">RECUPERAR</button>}
-                      </div>
-                      <div className="relative">
-                        <Input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} className="bg-secondary/50 border-border/50 focus:border-primary transition-all pr-10" />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
-                    </div>
-                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                      <Button type="submit" className={cn('w-full font-game font-bold tracking-wider text-sm h-11', isAdmin ? 'gradient-gold text-accent-foreground glow-accent' : 'gradient-teal-gold text-primary-foreground glow-primary')} disabled={loading}>
-                        {loading ? (
-                          <motion.span animate={{ opacity: [1, 0.5, 1] }} transition={{ duration: 1, repeat: Infinity }}>CONECTANDO...</motion.span>
-                        ) : (
-                          <>ENTRAR <ArrowRight className="w-4 h-4 ml-2" /></>
-                        )}
-                      </Button>
-                    </motion.div>
-                  </form>
+                  <div className="relative">
+                    <Input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} className="bg-secondary/50 border-border/50 focus:border-primary transition-all pr-10" />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button type="submit" className="w-full font-game font-bold tracking-wider text-sm h-11 gradient-teal-gold text-primary-foreground glow-primary" disabled={loading}>
+                    {loading ? (
+                      <motion.span animate={{ opacity: [1, 0.5, 1] }} transition={{ duration: 1, repeat: Infinity }}>CONECTANDO...</motion.span>
+                    ) : (
+                      <>ENTRAR <ArrowRight className="w-4 h-4 ml-2" /></>
+                    )}
+                  </Button>
                 </motion.div>
-              </AnimatePresence>
+              </form>
             </CardContent>
           </Card>
         </motion.div>
 
-        {isAdmin && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6, duration: 0.4 }}>
-            <div className="rounded-xl p-4 border border-primary/10" style={{ background: 'linear-gradient(145deg, hsl(var(--primary) / 0.05), hsl(var(--card) / 0.8))' }}>
-              <div className="flex items-center gap-2 mb-2">
-                <Zap className="w-3.5 h-3.5 text-accent" />
-                <p className="text-[10px] font-game font-bold text-accent tracking-wider">CREDENCIAIS DEMO</p>
-              </div>
-              <p className="text-xs text-muted-foreground font-body">
-                <span className="font-mono bg-secondary/80 px-1.5 py-0.5 rounded text-foreground">admin@valeris.com</span> / <span className="font-mono bg-secondary/80 px-1.5 py-0.5 rounded text-foreground">admin123</span>
-              </p>
-            </div>
-          </motion.div>
-        )}
+        <p className="text-center text-[10px] text-muted-foreground/50 font-game tracking-wider">
+          Acesso restrito a usuários autorizados
+        </p>
       </motion.div>
     </div>
   );
