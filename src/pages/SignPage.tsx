@@ -57,7 +57,6 @@ export default function SignPage() {
   const [signingFieldId, setSigningFieldId] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [isFormVisible, setIsFormVisible] = useState(true);
 
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [signedFieldIds, setSignedFieldIds] = useState<Set<string>>(new Set());
