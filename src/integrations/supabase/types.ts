@@ -106,6 +106,7 @@ export type Database = {
           bluepoint_id: number | null
           company: string | null
           created_at: string
+          default_validations: string[]
           email: string
           id: string
           name: string
@@ -119,6 +120,7 @@ export type Database = {
           bluepoint_id?: number | null
           company?: string | null
           created_at?: string
+          default_validations?: string[]
           email: string
           id?: string
           name: string
@@ -132,6 +134,7 @@ export type Database = {
           bluepoint_id?: number | null
           company?: string | null
           created_at?: string
+          default_validations?: string[]
           email?: string
           id?: string
           name?: string
