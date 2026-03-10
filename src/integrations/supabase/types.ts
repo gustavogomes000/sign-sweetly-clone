@@ -664,11 +664,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      document_belongs_to_user: {
+        Args: { p_document_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      document_has_signer_token: {
+        Args: { p_document_id: string }
+        Returns: boolean
+      }
       get_user_hierarchy: { Args: { p_user_id: string }; Returns: string }
       has_permission: {
         Args: { p_permission: string; p_user_id: string }
         Returns: boolean
       }
+      signer_has_token: { Args: { p_signer_id: string }; Returns: boolean }
       validate_api_key: {
         Args: { p_key_hash: string }
         Returns: {
