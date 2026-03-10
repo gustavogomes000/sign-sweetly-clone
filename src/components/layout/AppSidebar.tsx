@@ -56,10 +56,12 @@ export function AppSidebar() {
   return (
     <aside
       className={cn(
-        'flex flex-col h-screen bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 relative shrink-0',
+        'flex flex-col h-screen bg-sidebar/95 backdrop-blur-md text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 relative shrink-0 z-20',
         collapsed ? 'w-[68px]' : 'w-[250px]'
       )}
     >
+      {/* Animated side glow */}
+      <div className="absolute right-0 top-0 bottom-0 w-px bg-gradient-to-b from-primary/0 via-primary/30 to-primary/0 animate-pulse-glow" />
       {/* Logo */}
       <div className="flex items-center h-16 px-4 border-b border-sidebar-border">
         <div className="flex items-center gap-2.5">
