@@ -558,8 +558,8 @@ export default function SignPage() {
             </div>
             <div className="p-4">
               <VLAssinatura
-                signatoryId={signer.bluetech_signatory_id || signer.id}
-                documentId={signer.bluetech_document_id || doc.id}
+                signatoryId={signer.id}
+                documentId={doc.id}
                 aoCompletar={handleSignatureComplete}
                 onError={(err) => toast({ title: 'Erro na assinatura', description: String(err), variant: 'destructive' })}
                 onCancel={() => setSigningFieldId(null)}
