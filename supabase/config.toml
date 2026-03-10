@@ -8,3 +8,12 @@ verify_jwt = false
 
 [functions.dispatch-webhook]
 verify_jwt = false
+
+[functions.invite-user]
+verify_jwt = false
+
+[functions.bluepoint-proxy]
+verify_jwt = false
+
+[functions.bluetech-proxy]
+verify_jwt = false
