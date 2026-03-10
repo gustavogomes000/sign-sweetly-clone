@@ -49,7 +49,7 @@ export function VLDocumento({ aoCompletar }: VLDocumentoProps) {
       <div className="flex flex-col items-center gap-4 p-6 text-center">
         <AlertCircle className="w-12 h-12 text-destructive" />
         <p className="text-sm text-muted-foreground">{camError}</p>
-        <Button onClick={() => aoCompletar?.({ status: 'skipped' })} variant="outline" size="sm">Pular esta etapa</Button>
+        <Button onClick={() => aoCompletar?.({ status: 'skipped', type: docType })} variant="outline" size="sm">Pular esta etapa</Button>
       </div>
     );
   }
