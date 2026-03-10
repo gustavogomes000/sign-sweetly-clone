@@ -324,13 +324,13 @@ export default function SignPage() {
           <Card>
             <CardContent className="p-4">
               {currentStep?.step_type === 'selfie' && (
-                <VLSelfie signatoryId={signer.bluetech_signatory_id || signer.id} documentId={doc.id} aoCompletar={handleValidationComplete} onError={(err) => toast({ title: 'Erro', description: String(err), variant: 'destructive' })} />
+                <VLSelfie signatoryId={signer.id} documentId={doc.id} aoCompletar={handleValidationComplete} onError={(err) => toast({ title: 'Erro', description: String(err), variant: 'destructive' })} />
               )}
               {currentStep?.step_type === 'document' && (
-                <VLDocumento signatoryId={signer.bluetech_signatory_id || signer.id} documentId={doc.id} aoCompletar={handleValidationComplete} onError={(err) => toast({ title: 'Erro', description: String(err), variant: 'destructive' })} />
+                <VLDocumento signatoryId={signer.id} documentId={doc.id} aoCompletar={handleValidationComplete} onError={(err) => toast({ title: 'Erro', description: String(err), variant: 'destructive' })} />
               )}
               {currentStep?.step_type === 'selfie_document' && (
-                <VLSelfieDoc signatoryId={signer.bluetech_signatory_id || signer.id} documentId={doc.id} aoCompletar={handleValidationComplete} onError={(err) => toast({ title: 'Erro', description: String(err), variant: 'destructive' })} />
+                <VLSelfieDoc signatoryId={signer.id} documentId={doc.id} aoCompletar={handleValidationComplete} onError={(err) => toast({ title: 'Erro', description: String(err), variant: 'destructive' })} />
               )}
             </CardContent>
           </Card>
