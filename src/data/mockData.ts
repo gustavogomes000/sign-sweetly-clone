@@ -18,7 +18,6 @@ export const mockDocuments: Document[] = [
     envelope: 'ENV-2026-001',
     notifyVia: 'email',
     reminderDays: 3,
-    companyId: 'comp1',
     auditTrail: [
       { id: 'a1', action: 'created', timestamp: '2026-03-04T10:30:00Z', actor: 'Você', details: 'Documento criado' },
       { id: 'a2', action: 'sent', timestamp: '2026-03-04T10:35:00Z', actor: 'Sistema', details: 'Documento enviado para assinatura' },
@@ -42,7 +41,6 @@ export const mockDocuments: Document[] = [
     tags: ['confidencial'],
     envelope: 'ENV-2026-002',
     notifyVia: 'email',
-    companyId: 'comp1',
     auditTrail: [
       { id: 'a6', action: 'created', timestamp: '2026-03-01T09:00:00Z', actor: 'Você', details: 'Documento criado' },
       { id: 'a7', action: 'signed', timestamp: '2026-03-02T10:00:00Z', actor: 'Carlos Oliveira', details: 'Documento assinado' },
@@ -59,7 +57,6 @@ export const mockDocuments: Document[] = [
     signers: [],
     signatureType: 'electronic',
     tags: ['comercial'],
-    companyId: 'comp1',
     auditTrail: [
       { id: 'a10', action: 'created', timestamp: '2026-03-05T08:00:00Z', actor: 'Você', details: 'Rascunho criado' },
     ],
@@ -81,7 +78,6 @@ export const mockDocuments: Document[] = [
     envelope: 'ENV-2026-003',
     notifyVia: 'email',
     reminderDays: 2,
-    companyId: 'comp1',
     auditTrail: [
       { id: 'a11', action: 'created', timestamp: '2026-02-28T14:00:00Z', actor: 'Você', details: 'Documento criado' },
       { id: 'a12', action: 'sent', timestamp: '2026-02-28T14:05:00Z', actor: 'Sistema', details: 'Enviado via email' },
@@ -98,7 +94,6 @@ export const mockDocuments: Document[] = [
     ],
     signatureType: 'electronic',
     folder: 'Comercial',
-    companyId: 'comp2',
     auditTrail: [
       { id: 'a13', action: 'created', timestamp: '2026-02-20T11:00:00Z', actor: 'Você', details: 'Documento criado' },
       { id: 'a14', action: 'refused', timestamp: '2026-02-25T09:00:00Z', actor: 'Lucas Mendes', details: 'Assinatura recusada: termos inaceitáveis' },
@@ -117,7 +112,6 @@ export const mockDocuments: Document[] = [
     ],
     signatureType: 'electronic',
     folder: 'Contratos',
-    companyId: 'comp1',
     auditTrail: [
       { id: 'a16', action: 'created', timestamp: '2026-01-15T10:00:00Z', actor: 'Você', details: 'Documento criado' },
       { id: 'a17', action: 'expired', timestamp: '2026-02-15T23:59:59Z', actor: 'Sistema', details: 'Documento expirado - prazo atingido' },
@@ -140,7 +134,6 @@ export const mockDocuments: Document[] = [
     tags: ['locação', 'comercial'],
     envelope: 'ENV-2026-004',
     notifyVia: 'email',
-    companyId: 'comp2',
     auditTrail: [
       { id: 'a18', action: 'created', timestamp: '2026-03-03T16:00:00Z', actor: 'Você', details: 'Documento criado' },
       { id: 'a19', action: 'signed', timestamp: '2026-03-04T09:00:00Z', actor: 'Pedro Almeida', details: 'Documento assinado' },
@@ -158,7 +151,6 @@ export const mockDocuments: Document[] = [
     signatureType: 'electronic',
     folder: 'Legal',
     tags: ['lgpd', 'privacidade'],
-    companyId: 'comp3',
     auditTrail: [],
   },
 ];
