@@ -2,12 +2,14 @@ import { AppHeader } from '@/components/layout/AppHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Building2, Users, RefreshCw } from 'lucide-react';
+import { Loader2, Building2, Users, RefreshCw, ChevronRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { bluepointApi } from '@/services/bluepointApi';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 export default function Departments() {
+  const navigate = useNavigate();
   const { data: departamentos = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ['bluepoint-departamentos'],
     queryFn: () => bluepointApi.listarDepartamentos(),
@@ -51,11 +53,17 @@ export default function Departments() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {departamentos.map((dept, i) => (
               <motion.div key={dept.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} whileHover={{ y: -4, scale: 1.02 }}>
-                <Card className="game-card h-full">
+                <Card
+                  className="game-card h-full cursor-pointer group"
+                  onClick={() => navigate(`/departments/${dept.id}`)}
+                >
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-game tracking-wider flex items-center justify-between">
                       <span className="truncate">{dept.nome.toUpperCase()}</span>
-                      <Badge variant={dept.status === 'ativo' ? 'default' : 'secondary'} className="text-[10px] ml-2 shrink-0 font-game tracking-wider">{dept.status.toUpperCase()}</Badge>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant={dept.status === 'ativo' ? 'default' : 'secondary'} className="text-[10px] shrink-0 font-game tracking-wider">{dept.status.toUpperCase()}</Badge>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      </div>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -63,7 +71,7 @@ export default function Departments() {
                       <Users className="w-4 h-4" />
                       <span>{dept.totalColaboradores} colaborador{dept.totalColaboradores !== 1 ? 'es' : ''}</span>
                     </div>
-                    {dept.descricao && <p className="text-xs text-muted-foreground mt-2 font-body">{dept.descricao}</p>}
+                    {dept.descricao && <p className="text-xs text-muted-foreground mt-2 font-body line-clamp-2">{dept.descricao}</p>}
                   </CardContent>
                 </Card>
               </motion.div>
