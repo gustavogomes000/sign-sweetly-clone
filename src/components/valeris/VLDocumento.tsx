@@ -1,21 +1,23 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Camera, RefreshCw, Check, AlertCircle, CreditCard } from 'lucide-react';
+import { Camera, RefreshCw, Check, AlertCircle, CreditCard, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { bluetechProxy } from '@/services/bluetechProxy';
 
 export interface VLDocumentoProps {
   signatoryId?: string;
   documentId?: string;
-  aoCompletar?: (dados: { status: string; type: string; imageBase64?: string }) => void;
+  aoCompletar?: (dados: { status: string; type: string; imageBase64?: string; bluetechResponse?: unknown }) => void;
   onError?: (erro: unknown) => void;
 }
 
-export function VLDocumento({ aoCompletar }: VLDocumentoProps) {
+export function VLDocumento({ signatoryId, documentId, aoCompletar, onError }: VLDocumentoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [streaming, setStreaming] = useState(false);
   const [captured, setCaptured] = useState<string | null>(null);
   const [camError, setCamError] = useState<string | null>(null);
   const [docType, setDocType] = useState<'rg' | 'cnh' | 'cpf'>('rg');
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -39,9 +41,29 @@ export function VLDocumento({ aoCompletar }: VLDocumentoProps) {
     if (ctx) { ctx.drawImage(video, 0, 0); setCaptured(canvas.toDataURL('image/jpeg', 0.85)); }
   };
 
-  const confirm = () => {
+  const confirm = async () => {
     if (!captured) return;
-    aoCompletar?.({ status: 'captured', type: docType, imageBase64: captured });
+    setSending(true);
+    try {
+      let bluetechResponse: unknown = null;
+      if (signatoryId && documentId) {
+        bluetechResponse = await bluetechProxy.uploadDocument({
+          signatoryId,
+          documentId,
+          type: docType,
+          side: 'front',
+          imageBase64: captured,
+          userAgent: navigator.userAgent,
+        });
+      }
+      aoCompletar?.({ status: 'captured', type: docType, imageBase64: captured, bluetechResponse });
+    } catch (err) {
+      console.error('[VLDocumento] Microservice error:', err);
+      onError?.(err);
+      aoCompletar?.({ status: 'captured', type: docType, imageBase64: captured });
+    } finally {
+      setSending(false);
+    }
   };
 
   if (camError) {
@@ -86,8 +108,11 @@ export function VLDocumento({ aoCompletar }: VLDocumentoProps) {
           <Button onClick={capture} disabled={!streaming} size="lg" className="gap-2"><Camera className="w-5 h-5" /> Fotografar</Button>
         ) : (
           <>
-            <Button variant="outline" onClick={() => setCaptured(null)} className="gap-2"><RefreshCw className="w-4 h-4" /> Refazer</Button>
-            <Button onClick={confirm} className="gap-2"><Check className="w-4 h-4" /> Confirmar</Button>
+            <Button variant="outline" onClick={() => setCaptured(null)} disabled={sending} className="gap-2"><RefreshCw className="w-4 h-4" /> Refazer</Button>
+            <Button onClick={confirm} disabled={sending} className="gap-2">
+              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              {sending ? 'Enviando...' : 'Confirmar'}
+            </Button>
           </>
         )}
       </div>
