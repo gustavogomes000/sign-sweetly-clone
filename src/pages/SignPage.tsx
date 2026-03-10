@@ -520,73 +520,25 @@ export default function SignPage() {
             </CardContent>
           </Card>
 
-          {/* Field summary */}
-          <Card>
-            <CardContent className="p-4">
-              <h3 className="text-sm font-semibold text-foreground mb-3">Campos atribuídos a você</h3>
-              <div className="space-y-2">
-                {fields.map((field) => {
-                  const isSignatureType = field.field_type === 'signature' || field.field_type === 'initials';
-                  const isSigned = isSignatureType && signedFieldIds.has(field.id);
-                  const value = fieldValues[field.id] || '';
-                  const isFilled = isSignatureType ? isSigned : !!value.trim();
-                  const FieldIcon = fieldTypeIcon[field.field_type] || Type;
-
-                  return (
-                    <div
-                      key={field.id}
-                      className={cn(
-                        'flex items-center gap-3 p-2.5 rounded-lg border transition-colors cursor-pointer',
-                        isFilled ? 'border-success/30 bg-success/5' : 'border-border hover:bg-muted/50'
-                      )}
-                      onClick={() => {
-                        setCurrentPage(field.page || 1);
-                        if (isSignatureType && !isSigned) setSigningFieldId(field.id);
-                      }}
-                    >
-                      <div className={cn('p-1.5 rounded', isFilled ? 'bg-success/10' : 'bg-muted')}>
-                        {isFilled ? <CheckCircle2 className="w-4 h-4 text-success" /> : <FieldIcon className="w-4 h-4 text-muted-foreground" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground">
-                          {field.label || fieldTypeLabel[field.field_type] || field.field_type}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Página {field.page || 1} {field.required ? '• Obrigatório' : '• Opcional'}
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        {isFilled ? (
-                          <span className="text-xs text-success font-medium">✓ Preenchido</span>
-                        ) : (
-                          <span className="text-xs text-warning font-medium">Pendente</span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  {allRequiredFilled
-                    ? '✅ Todos os campos obrigatórios foram preenchidos.'
-                    : `⚠️ ${pendingRequired} campo(s) obrigatório(s) pendente(s).`}
-                </p>
-                <Button
-                  onClick={handleSaveAll}
-                  disabled={saving}
-                  className={cn(
-                    'shadow-lg',
-                    allRequiredFilled ? 'bg-success hover:bg-success/90 shadow-success/20' : 'shadow-primary/20'
-                  )}
-                >
-                  {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
-                  {allRequiredFilled ? 'Concluir e salvar' : 'Salvar progresso'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Bottom action bar */}
+          <div className="flex items-center justify-between p-4 bg-card rounded-lg border border-border">
+            <p className="text-xs text-muted-foreground">
+              {allRequiredFilled
+                ? '✅ Todos os campos obrigatórios foram preenchidos.'
+                : `⚠️ ${pendingRequired} campo(s) obrigatório(s) pendente(s). Clique nos campos no documento acima.`}
+            </p>
+            <Button
+              onClick={handleSaveAll}
+              disabled={saving}
+              className={cn(
+                'shadow-lg',
+                allRequiredFilled ? 'bg-success hover:bg-success/90 shadow-success/20' : 'shadow-primary/20'
+              )}
+            >
+              {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
+              {allRequiredFilled ? 'Concluir e salvar' : 'Salvar progresso'}
+            </Button>
+          </div>
         </div>
       </div>
 
