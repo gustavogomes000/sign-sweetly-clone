@@ -167,7 +167,6 @@ export default function SignPage() {
     signatureType: 'drawn' | 'typed';
     imageBase64?: string;
     typedText?: string;
-    bluetechResponse?: unknown;
   }) => {
     if (!signerData || !signingFieldId) return;
     setProcessing(true);
@@ -182,7 +181,6 @@ export default function SignPage() {
         imageBase64: result.imageBase64,
         typedText: result.typedText,
         userAgent: navigator.userAgent,
-        bluetechResponse: result.bluetechResponse as Record<string, unknown>,
       });
       const newSigned = new Set(signedFieldIds);
       newSigned.add(signingFieldId);
