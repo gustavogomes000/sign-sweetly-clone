@@ -81,7 +81,8 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-background relative flex items-center justify-center p-6 hex-pattern overflow-hidden">
+    <div className="min-h-screen bg-background relative flex items-center justify-center p-6 overflow-hidden">
+      <AnimatedBackground />
       <HexParticles />
       <GridOverlay />
       <motion.div initial={{ opacity: 0, y: 30, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.6, ease: 'easeOut' }} className="w-full max-w-md space-y-6 relative z-10">
