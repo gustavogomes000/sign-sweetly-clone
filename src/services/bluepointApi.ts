@@ -17,17 +17,25 @@ async function callBluePoint<T = unknown>(endpoint: string, method = 'GET', payl
   // If it's an error response
   if (data?.success === false) throw new Error(data.error || 'BluePoint API error');
   
-  // If the response has a 'data' wrapper, extract it
-  if (data?.data !== undefined) return data.data as T;
+  // Unwrap nested data: API may return { data: { data: [...] } } or { data: [...] }
+  let result = data;
   
-  // If it has a 'departamentos' key (list endpoints)
-  if (data?.departamentos) return data.departamentos as T;
-  if (data?.colaboradores) return data.colaboradores as T;
-  if (data?.empresas) return data.empresas as T;
-  if (data?.cargos) return data.cargos as T;
+  // Unwrap up to 2 levels of { data: ... } wrappers
+  if (result?.data !== undefined) {
+    result = result.data;
+    if (result?.data !== undefined && (Array.isArray(result.data) || typeof result.data === 'object')) {
+      result = result.data;
+    }
+  }
   
-  // If it's already an array or object, return as-is
-  return data as T;
+  // If it has known list keys
+  if (result?.departamentos) return result.departamentos as T;
+  if (result?.colaboradores) return result.colaboradores as T;
+  if (result?.empresas) return result.empresas as T;
+  if (result?.cargos) return result.cargos as T;
+  
+  // Return as-is
+  return result as T;
 }
 
 // ── Types ──
