@@ -294,7 +294,7 @@ export default function SignPage() {
   if (pageStep === 'validation' && signerData) {
     const pendingSteps = (signerData.validationSteps || []).filter((s) => s.status !== 'completed');
     const currentStep = pendingSteps[validationStepIdx];
-    const signer = signerData.signer as { id: string; bluetech_signatory_id?: string };
+    const signer = signerData.signer as { id: string };
     const doc = signerData.document as { id: string };
     const stepTitles: Record<string, string> = {
       selfie: 'Reconhecimento Facial',
