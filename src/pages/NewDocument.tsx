@@ -108,7 +108,7 @@ export default function NewDocument() {
   const [templateContent, setTemplateContent] = useState('');
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   const [signers, setSigners] = useState<NewSigner[]>([
-    { id: genSignerId(), name: '', email: '', phone: '', role: 'Signatário', validationSteps: [] },
+    { id: genSignerId(), name: '', email: '', phone: '', cpf: '', role: 'Signatário', validationSteps: [] },
   ]);
   const [placedFields, setPlacedFields] = useState<PlacedField[]>([]);
   const [hasDeadline, setHasDeadline] = useState(false);
