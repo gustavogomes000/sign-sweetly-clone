@@ -325,6 +325,25 @@ export default function SignPage() {
     ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/documents/${docFilePath}`
     : '';
 
+  // Effect to check for generated PDFs (runs when pageStep becomes 'complete')
+  const docIdForPdf = (signerData?.document as { id: string })?.id;
+  useEffect(() => {
+    if (pageStep !== 'complete' || !docIdForPdf) return;
+    const checkPdfs = async () => {
+      const { data } = await supabase.from('documentos').select('caminho_pdf_final, caminho_pdf_dossie').eq('id', docIdForPdf).single();
+      if (data?.caminho_pdf_final) {
+        setSignedPdfUrl(`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/documents/${data.caminho_pdf_final}`);
+      }
+      if (data?.caminho_pdf_dossie) {
+        setDossiePdfUrl(`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/documents/${data.caminho_pdf_dossie}`);
+      }
+    };
+    checkPdfs();
+    const timer = setTimeout(checkPdfs, 5000);
+    const timer2 = setTimeout(checkPdfs, 12000);
+    return () => { clearTimeout(timer); clearTimeout(timer2); };
+  }, [pageStep, docIdForPdf]);
+
   // ── Loading ──
   if (pageStep === 'loading') {
     return (
@@ -355,25 +374,6 @@ export default function SignPage() {
   }
 
   // ── Complete ──
-  // Effect to check for generated PDFs (runs when pageStep becomes 'complete')
-  const docIdForPdf = (signerData?.document as { id: string })?.id;
-  useEffect(() => {
-    if (pageStep !== 'complete' || !docIdForPdf) return;
-    const checkPdfs = async () => {
-      const { data } = await supabase.from('documentos').select('caminho_pdf_final, caminho_pdf_dossie').eq('id', docIdForPdf).single();
-      if (data?.caminho_pdf_final) {
-        setSignedPdfUrl(`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/documents/${data.caminho_pdf_final}`);
-      }
-      if (data?.caminho_pdf_dossie) {
-        setDossiePdfUrl(`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/documents/${data.caminho_pdf_dossie}`);
-      }
-    };
-    checkPdfs();
-    const timer = setTimeout(checkPdfs, 5000);
-    const timer2 = setTimeout(checkPdfs, 12000);
-    return () => { clearTimeout(timer); clearTimeout(timer2); };
-  }, [pageStep, docIdForPdf]);
-
   if (pageStep === 'complete') {
     return (
       <div className="min-h-screen bg-muted/30 flex items-center justify-center p-6">
