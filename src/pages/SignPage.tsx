@@ -47,6 +47,10 @@ export default function SignPage() {
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [signedFieldIds, setSignedFieldIds] = useState<Set<string>>(new Set());
 
+  // For the complete page - signed PDF URLs
+  const [signedPdfUrl, setSignedPdfUrl] = useState<string | null>(null);
+  const [dossiePdfUrl, setDossiePdfUrl] = useState<string | null>(null);
+
   const signaturePanelRef = useRef<HTMLDivElement>(null);
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -179,48 +183,82 @@ export default function SignPage() {
     }
   };
 
-  const handleComplete = async () => {
+  // Shared finalization logic - marks signer as signed and triggers PDF generation if all done
+  const finalizarAssinatura = async () => {
+    if (!signerData) return;
+    const signer = signerData.signer as { id: string };
+    const doc = signerData.document as { id: string };
+
+    // 1. Save all field values to DB first
+    for (const field of signerData.fields) {
+      const currentValue = fieldValues[field.id];
+      if (currentValue !== undefined && currentValue !== field.value) {
+        await supabase.from('campos_documento').update({ valor: currentValue }).eq('id', field.id);
+      }
+    }
+
+    // 2. Mark signer as signed
+    await supabase.from('signatarios').update({ status: 'signed', assinado_em: new Date().toISOString() }).eq('id', signer.id);
+
+    // 3. Register audit trail event
+    await supabase.from('trilha_auditoria').insert({
+      documento_id: doc.id,
+      signatario_id: signer.id,
+      acao: 'signed',
+      ator: String((signerData.signer as { nome: string }).nome),
+      detalhes: 'Assinou o documento eletronicamente',
+    });
+
+    // 4. Check if ALL signers are done
+    const { data: allSigners } = await supabase.from('signatarios').select('status').eq('documento_id', doc.id);
+    const allSigned = allSigners?.every(s => s.status === 'signed');
+
+    if (allSigned) {
+      // 5. Update document status
+      await supabase.from('documentos').update({ status: 'signed' }).eq('id', doc.id);
+
+      // 6. Trigger PDF generation DIRECTLY (not via processar-assinatura which uses participantes_documento)
+      toast({ title: 'Todas as assinaturas concluídas! Gerando PDFs...' });
+      try {
+        const { data: pdfResult, error: pdfError } = await supabase.functions.invoke('gerar-documento-final', {
+          body: { documentoId: doc.id },
+        });
+        if (pdfError) {
+          console.error('PDF generation error:', pdfError);
+          toast({ title: 'Documento assinado! ✅', description: 'A geração do PDF pode levar alguns instantes.' });
+        } else {
+          console.log('PDF generation result:', pdfResult);
+          toast({ title: 'Documento assinado e PDFs gerados! ✅' });
+        }
+      } catch (e) {
+        console.warn('gerar-documento-final error:', e);
+        toast({ title: 'Documento assinado! ✅', description: 'Os PDFs serão gerados em breve.' });
+      }
+    } else {
+      toast({ title: 'Assinatura registrada! ✅', description: 'Aguardando demais signatários.' });
+    }
+
+    setTimeout(() => setPageStep('complete'), 800);
+  };
+
+
     if (!signerData) return;
     setSaving(true);
     try {
-      for (const field of signerData.fields) {
-        const currentValue = fieldValues[field.id];
-        if (currentValue !== undefined && currentValue !== field.value) {
-          await supabase.from('campos_documento').update({ valor: currentValue }).eq('id', field.id);
-        }
-      }
-
       const pendingSteps = (signerData.validationSteps || []).filter((s) => s.status !== 'completed');
       if (pendingSteps.length > 0) {
+        // Save field values before going to validation
+        for (const field of signerData.fields) {
+          const currentValue = fieldValues[field.id];
+          if (currentValue !== undefined && currentValue !== field.value) {
+            await supabase.from('campos_documento').update({ valor: currentValue }).eq('id', field.id);
+          }
+        }
         setValidationStepIdx(0);
         toast({ title: 'Campos salvos! Prosseguindo para verificação...' });
         setTimeout(() => setPageStep('validation'), 600);
       } else {
-        const signer = signerData.signer as { id: string };
-        const doc = signerData.document as { id: string };
-        await supabase.from('signatarios').update({ status: 'signed', assinado_em: new Date().toISOString() }).eq('id', signer.id);
-        const { data: allSigners } = await supabase.from('signatarios').select('status').eq('documento_id', doc.id);
-        const allSigned = allSigners?.every(s => s.status === 'signed');
-        if (allSigned) {
-          await supabase.from('documentos').update({ status: 'signed' }).eq('id', doc.id);
-        }
-
-        // Trigger processar-assinatura to register event + generate PDFs
-        try {
-          await supabase.functions.invoke('processar-assinatura', {
-            body: {
-              documentoId: doc.id,
-              participanteId: signer.id,
-              tipoEvento: 'ASSINOU',
-              agenteUsuario: navigator.userAgent,
-            },
-          });
-        } catch (e) {
-          console.warn('processar-assinatura error:', e);
-        }
-
-        toast({ title: 'Documento assinado com sucesso! ✅' });
-        setTimeout(() => setPageStep('complete'), 600);
+        await finalizarAssinatura();
       }
     } catch (err) {
       toast({ title: 'Erro ao salvar', description: err instanceof Error ? err.message : 'Tente novamente', variant: 'destructive' });
@@ -269,29 +307,13 @@ export default function SignPage() {
     if (validationStepIdx + 1 < pendingSteps.length) {
       setValidationStepIdx((prev) => prev + 1);
     } else {
-      // All validations complete — finalize signature
-      await supabase.from('signatarios').update({ status: 'signed', assinado_em: new Date().toISOString() }).eq('id', signer.id);
-      const { data: allSigners } = await supabase.from('signatarios').select('status').eq('documento_id', doc.id);
-      const allSigned = allSigners?.every(s => s.status === 'signed');
-      if (allSigned) {
-        await supabase.from('documentos').update({ status: 'signed' }).eq('id', doc.id);
-      }
-
-      // Register final signature event and trigger PDF generation
+      // All validations complete — finalize using shared logic
+      setSaving(true);
       try {
-        await supabase.functions.invoke('processar-assinatura', {
-          body: {
-            documentoId: doc.id,
-            participanteId: signer.id,
-            tipoEvento: 'ASSINOU',
-            agenteUsuario: navigator.userAgent,
-          },
-        });
-      } catch (e) {
-        console.warn('processar-assinatura error:', e);
+        await finalizarAssinatura();
+      } finally {
+        setSaving(false);
       }
-
-      setTimeout(() => setPageStep('complete'), 600);
     }
   };
 
@@ -302,6 +324,25 @@ export default function SignPage() {
   const publicUrl = docFilePath
     ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/documents/${docFilePath}`
     : '';
+
+  // Effect to check for generated PDFs (runs when pageStep becomes 'complete')
+  const docIdForPdf = (signerData?.document as { id: string })?.id;
+  useEffect(() => {
+    if (pageStep !== 'complete' || !docIdForPdf) return;
+    const checkPdfs = async () => {
+      const { data } = await supabase.from('documentos').select('caminho_pdf_final, caminho_pdf_dossie').eq('id', docIdForPdf).single();
+      if (data?.caminho_pdf_final) {
+        setSignedPdfUrl(`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/documents/${data.caminho_pdf_final}`);
+      }
+      if (data?.caminho_pdf_dossie) {
+        setDossiePdfUrl(`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/documents/${data.caminho_pdf_dossie}`);
+      }
+    };
+    checkPdfs();
+    const timer = setTimeout(checkPdfs, 5000);
+    const timer2 = setTimeout(checkPdfs, 12000);
+    return () => { clearTimeout(timer); clearTimeout(timer2); };
+  }, [pageStep, docIdForPdf]);
 
   // ── Loading ──
   if (pageStep === 'loading') {
@@ -334,29 +375,6 @@ export default function SignPage() {
 
   // ── Complete ──
   if (pageStep === 'complete') {
-    const docId = (signerData?.document as { id: string })?.id;
-    const signerId = (signerData?.signer as { id: string })?.id;
-
-    const handleGenerateAndDownload = async () => {
-      try {
-        setSaving(true);
-        // Chamar processar-assinatura para registrar evidências e disparar geração de PDFs
-        await supabase.functions.invoke('processar-assinatura', {
-          body: {
-            documentoId: docId,
-            participanteId: signerId,
-            tipoEvento: 'ASSINOU',
-            agenteUsuario: navigator.userAgent,
-          },
-        });
-        toast({ title: 'Documento processado! Os PDFs estão sendo gerados.' });
-      } catch (err) {
-        console.warn('Erro ao processar:', err);
-      } finally {
-        setSaving(false);
-      }
-    };
-
     return (
       <div className="min-h-screen bg-muted/30 flex items-center justify-center p-6">
         <Card className="max-w-md w-full text-center">
@@ -367,14 +385,30 @@ export default function SignPage() {
             <h1 className="text-2xl font-bold text-foreground">Documento assinado!</h1>
             <p className="text-muted-foreground">Sua assinatura foi registrada com sucesso. Todas as evidências de segurança foram coletadas.</p>
             <div className="flex flex-col gap-2">
-              {publicUrl && (
+              {signedPdfUrl && (
+                <a href={signedPdfUrl} target="_blank" rel="noopener noreferrer">
+                  <Button className="w-full"><Download className="w-4 h-4 mr-1" />Baixar PDF Assinado</Button>
+                </a>
+              )}
+              {dossiePdfUrl && (
+                <a href={dossiePdfUrl} target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" className="w-full"><Download className="w-4 h-4 mr-1" />Baixar Dossiê de Auditoria</Button>
+                </a>
+              )}
+              {!signedPdfUrl && publicUrl && (
                 <a href={publicUrl} target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" className="w-full"><Download className="w-4 h-4 mr-1" />Baixar documento original</Button>
                 </a>
               )}
+              {!signedPdfUrl && (
+                <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-xs">Gerando PDFs com assinaturas...</span>
+                </div>
+              )}
             </div>
             <p className="text-xs text-muted-foreground">
-              O documento final com assinaturas e o dossiê de auditoria serão enviados por e-mail para todos os participantes.
+              {signedPdfUrl ? 'Os documentos também serão enviados por e-mail.' : 'Os PDFs com assinaturas estão sendo gerados e serão enviados por e-mail.'}
             </p>
           </CardContent>
         </Card>
