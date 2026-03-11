@@ -179,7 +179,65 @@ export default function SignPage() {
     }
   };
 
-  const handleComplete = async () => {
+  // Shared finalization logic - marks signer as signed and triggers PDF generation if all done
+  const finalizarAssinatura = async () => {
+    if (!signerData) return;
+    const signer = signerData.signer as { id: string };
+    const doc = signerData.document as { id: string };
+
+    // 1. Save all field values to DB first
+    for (const field of signerData.fields) {
+      const currentValue = fieldValues[field.id];
+      if (currentValue !== undefined && currentValue !== field.value) {
+        await supabase.from('campos_documento').update({ valor: currentValue }).eq('id', field.id);
+      }
+    }
+
+    // 2. Mark signer as signed
+    await supabase.from('signatarios').update({ status: 'signed', assinado_em: new Date().toISOString() }).eq('id', signer.id);
+
+    // 3. Register audit trail event
+    await supabase.from('trilha_auditoria').insert({
+      documento_id: doc.id,
+      signatario_id: signer.id,
+      acao: 'signed',
+      ator: String((signerData.signer as { nome: string }).nome),
+      detalhes: 'Assinou o documento eletronicamente',
+    });
+
+    // 4. Check if ALL signers are done
+    const { data: allSigners } = await supabase.from('signatarios').select('status').eq('documento_id', doc.id);
+    const allSigned = allSigners?.every(s => s.status === 'signed');
+
+    if (allSigned) {
+      // 5. Update document status
+      await supabase.from('documentos').update({ status: 'signed' }).eq('id', doc.id);
+
+      // 6. Trigger PDF generation DIRECTLY (not via processar-assinatura which uses participantes_documento)
+      toast({ title: 'Todas as assinaturas concluídas! Gerando PDFs...' });
+      try {
+        const { data: pdfResult, error: pdfError } = await supabase.functions.invoke('gerar-documento-final', {
+          body: { documentoId: doc.id },
+        });
+        if (pdfError) {
+          console.error('PDF generation error:', pdfError);
+          toast({ title: 'Documento assinado! ✅', description: 'A geração do PDF pode levar alguns instantes.' });
+        } else {
+          console.log('PDF generation result:', pdfResult);
+          toast({ title: 'Documento assinado e PDFs gerados! ✅' });
+        }
+      } catch (e) {
+        console.warn('gerar-documento-final error:', e);
+        toast({ title: 'Documento assinado! ✅', description: 'Os PDFs serão gerados em breve.' });
+      }
+    } else {
+      toast({ title: 'Assinatura registrada! ✅', description: 'Aguardando demais signatários.' });
+    }
+
+    setTimeout(() => setPageStep('complete'), 800);
+  };
+
+
     if (!signerData) return;
     setSaving(true);
     try {
