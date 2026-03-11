@@ -759,7 +759,7 @@ serve(async (req) => {
         );
 
         // ── 6. Adicionar página(s) de Manifesto/Dossiê ──
-        adicionarPaginaManifesto(pdfDoc, fonteNormal, fonteNegrito, {
+        await adicionarPaginaManifesto(pdfDoc, fonteNormal, fonteNegrito, {
           hashOriginal,
           nomeDocumento: doc.nome,
           documentoId: doc.id,
@@ -768,7 +768,7 @@ serve(async (req) => {
           signatarios,
           participantes,
           assinaturas,
-        });
+        }, supabase);
 
         // ── 7. Salvar PDF montado como Uint8Array ──
         const bufferGerado = await pdfDoc.save();
