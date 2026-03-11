@@ -383,8 +383,8 @@ export default function NewDocument() {
               totalPages={editorTotalPages}
               documentUrl={filePreviewUrl}
             />
-            {/* Navigation for editor step */}
-            <div className="flex justify-between pt-3 pb-2">
+            {/* Navigation for editor step — fixed at bottom */}
+            <div className="sticky bottom-0 z-30 bg-background border-t border-border px-4 py-3 flex justify-between -mx-6 mt-4">
               <Button variant="outline" onClick={handleBack}><ArrowLeft className="w-4 h-4 mr-1" />Voltar</Button>
               <Button onClick={handleNext}>
                 Próximo <ArrowRight className="w-4 h-4 ml-1" />
