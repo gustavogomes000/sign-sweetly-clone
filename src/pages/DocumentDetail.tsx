@@ -115,6 +115,35 @@ export default function DocumentDetail() {
     if (publicUrl) window.open(publicUrl, '_blank');
   };
 
+  const handleDownloadFinal = () => {
+    if (doc.caminho_pdf_final) {
+      const url = getDocumentPublicUrl(doc.caminho_pdf_final);
+      window.open(url, '_blank');
+    }
+  };
+
+  const handleDownloadDossie = () => {
+    if (doc.caminho_pdf_dossie) {
+      const url = getDocumentPublicUrl(doc.caminho_pdf_dossie);
+      window.open(url, '_blank');
+    }
+  };
+
+  const handleGeneratePdfs = async () => {
+    try {
+      toast({ title: 'Gerando PDFs...' });
+      const { error } = await supabase.functions.invoke('gerar-documento-final', {
+        body: { documentoId: doc.id },
+      });
+      if (error) throw error;
+      toast({ title: 'PDFs gerados com sucesso! ✅', description: 'Recarregue para baixar.' });
+      // Force refetch
+      window.location.reload();
+    } catch (err) {
+      toast({ title: 'Erro ao gerar PDFs', description: err instanceof Error ? err.message : '', variant: 'destructive' });
+    }
+  };
+
   return (
     <>
       <AppHeader title={doc.nome} actions={
