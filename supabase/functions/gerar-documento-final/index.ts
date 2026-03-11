@@ -333,9 +333,8 @@ async function adicionarPaginaManifesto(
   desenharLinha();
 
   // ── Declaração de Integridade ──
-  const numDecl = numSecao + 1;
   verificarQuebraPagina(120);
-  escreverTexto(`${numDecl}. DECLARACAO DE INTEGRIDADE E VALIDADE JURIDICA`, { negrito: true, tamanho: 12, cor: { r: 0.08, g: 0.15, b: 0.45 } });
+  escreverTexto('4. DECLARACAO DE INTEGRIDADE E VALIDADE JURIDICA', { negrito: true, tamanho: 12, cor: { r: 0.08, g: 0.15, b: 0.45 } });
   espacamento(4);
   const decl = [
     'Este manifesto atesta que todas as assinaturas e validacoes foram',
