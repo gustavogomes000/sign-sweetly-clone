@@ -113,7 +113,13 @@ export default function DocumentDetail() {
   };
 
   const handleDownload = () => {
-    if (publicUrl) window.open(publicUrl, '_blank');
+    // Always prefer signed PDF with hashes/validations; fallback to original
+    if (doc.caminho_pdf_final) {
+      const url = getDocumentPublicUrl(doc.caminho_pdf_final);
+      window.open(url, '_blank');
+    } else if (publicUrl) {
+      window.open(publicUrl, '_blank');
+    }
   };
 
   const handleDownloadFinal = () => {
