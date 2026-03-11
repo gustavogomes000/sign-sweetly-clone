@@ -239,9 +239,11 @@ export default function SignPage() {
 
   const saveFieldToDb = useCallback(async (fieldId: string, value: string) => {
     try {
-      await supabase.from('campos_documento').update({ valor: value }).eq('id', fieldId);
+      const { error } = await supabase.from('campos_documento').update({ valor: value }).eq('id', fieldId);
+      if (error) console.error('[SignPage] Erro ao salvar campo:', fieldId, error.message);
+      else console.log('[SignPage] Campo salvo:', fieldId);
     } catch (e) {
-      console.warn('Erro ao salvar campo:', e);
+      console.error('[SignPage] Exceção ao salvar campo:', e);
     }
   }, []);
 
