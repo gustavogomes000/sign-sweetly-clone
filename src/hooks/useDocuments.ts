@@ -8,6 +8,8 @@ export interface DbDocument {
   status: string;
   tipo_assinatura: string;
   caminho_arquivo: string | null;
+  caminho_pdf_final: string | null;
+  caminho_pdf_dossie: string | null;
   prazo: string | null;
   criado_em: string;
   atualizado_em: string;

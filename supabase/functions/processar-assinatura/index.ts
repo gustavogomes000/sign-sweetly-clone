@@ -140,27 +140,27 @@ serve(async (req) => {
       const todosConcluidos = assinantes.every(a => a.status === 'ASSINADO');
 
       if (todosConcluidos) {
-        // ── 5. Todos assinaram → atualizar documento para 'signed' ──
-        await supabase
-          .from('documentos')
-          .update({ status: 'signed' })
-          .eq('id', documentoId);
+        // ── 5. Todos assinaram → gerar PDFs finais ──
+        console.log(`✅ Documento ${documentoId} — todas as assinaturas concluídas. Gerando PDFs...`);
 
-        // ── Geração dos dois PDFs ──
-        // NOTA: A geração real de PDFs com hash SHA-256 e dossiê de auditoria
-        // requer uma lib como pdf-lib no Deno. A estrutura está preparada aqui.
-        //
-        // PDF 1: Original com hash SHA-256 no rodapé
-        // PDF 2: Dossiê de Auditoria com:
-        //   - Fotos de KYC de cada participante
-        //   - Logs (IP, user agent, timestamps)
-        //   - Coordenadas GPS com mapa estático via OSM
-        //
-        // Ambos seriam enviados para signatários e observadores.
-
-        console.log(`✅ Documento ${documentoId} — todas as assinaturas concluídas.`);
-        console.log('📄 Geração de PDF Original (com hash SHA-256) — preparado');
-        console.log('📋 Geração de PDF Dossiê de Auditoria — preparado');
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/gerar-documento-final`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${serviceRoleKey}`,
+            },
+            body: JSON.stringify({ documentoId }),
+          });
+          console.log('📄 PDFs Original + Dossiê gerados com sucesso');
+        } catch (pdfErr) {
+          console.error('Erro ao gerar PDFs:', pdfErr);
+          // Ainda marca como signed mesmo se falhar a geração de PDF
+          await supabase
+            .from('documentos')
+            .update({ status: 'signed' })
+            .eq('id', documentoId);
+        }
 
         // Disparar e-mail para todos (signatários + observadores)
         const observadores = (participantes || []).filter(p => p.papel === 'OBSERVADOR');
