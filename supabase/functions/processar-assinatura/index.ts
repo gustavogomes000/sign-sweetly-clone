@@ -171,41 +171,76 @@ serve(async (req) => {
       if (todosConcluidos) {
         console.log(`✅ Documento ${documentoId} — todas as assinaturas concluídas.`);
 
-        try {
-          const respostaPdf = await fetch(`${supabaseUrl}/functions/v1/gerar-documento-final`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceRoleKey}` },
-            body: JSON.stringify({ documentoId }),
-          });
-          const dadosPdf = await respostaPdf.json();
+        // Marcar como signed imediatamente (fallback seguro)
+        await supabase.from('documentos').update({ status: 'signed' }).eq('id', documentoId);
 
-          if (respostaPdf.ok && dadosPdf.sucesso) {
-            console.log('📄 Dossiê Final gerado com sucesso');
+        // Retry com backoff para gerar PDFs
+        const MAX_RETRY = 3;
+        let pdfGerado = false;
 
-            const observadores = (signatarios || []).filter(s => s.papel === 'OBSERVADOR' || s.funcao === 'observer');
-            const todosDestinatarios = [...assinantes, ...observadores];
-            const { data: docData } = await supabase.from('documentos').select('nome').eq('id', documentoId).single();
+        for (let tentativa = 1; tentativa <= MAX_RETRY; tentativa++) {
+          try {
+            console.log(`[PDF ${tentativa}/${MAX_RETRY}] Chamando gerar-documento-final...`);
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 55000); // 55s timeout
 
-            for (const dest of todosDestinatarios) {
-              try {
-                await fetch(`${supabaseUrl}/functions/v1/send-signing-email`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceRoleKey}` },
-                  body: JSON.stringify({
-                    signerName: dest.nome, signerEmail: dest.email,
-                    documentName: docData?.nome || 'Documento', signToken: '',
-                    message: '✅ Todas as assinaturas foram concluídas e o dossiê final foi gerado.',
-                  }),
-                });
-              } catch (e) { console.warn(`[AVISO] E-mail falhou para ${dest.email}:`, e); }
+            const respostaPdf = await fetch(`${supabaseUrl}/functions/v1/gerar-documento-final`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceRoleKey}` },
+              body: JSON.stringify({ documentoId }),
+              signal: controller.signal,
+            });
+            clearTimeout(timeout);
+
+            const dadosPdf = await respostaPdf.json();
+
+            if (respostaPdf.ok && dadosPdf.sucesso) {
+              console.log('📄 Dossiê Final gerado com sucesso');
+              pdfGerado = true;
+
+              // Notificar todos
+              const observadores = (signatarios || []).filter(s => s.papel === 'OBSERVADOR' || s.funcao === 'observer');
+              const todosDestinatarios = [...assinantes, ...observadores];
+              const { data: docData } = await supabase.from('documentos').select('nome').eq('id', documentoId).single();
+
+              for (const dest of todosDestinatarios) {
+                try {
+                  await fetch(`${supabaseUrl}/functions/v1/send-signing-email`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceRoleKey}` },
+                    body: JSON.stringify({
+                      signerName: dest.nome, signerEmail: dest.email,
+                      documentName: docData?.nome || 'Documento', signToken: '',
+                      message: '✅ Todas as assinaturas foram concluídas e o dossiê final foi gerado.',
+                    }),
+                  });
+                } catch (e) { console.warn(`[AVISO] E-mail falhou para ${dest.email}:`, e); }
+              }
+              break; // Sucesso, sair do loop
+            } else {
+              console.error(`[ERRO] Tentativa ${tentativa} falhou:`, dadosPdf);
             }
-          } else {
-            console.error('[ERRO] Falha dossiê:', dadosPdf);
-            await supabase.from('documentos').update({ status: 'signed' }).eq('id', documentoId);
+          } catch (e) {
+            const isAbort = e instanceof DOMException && e.name === 'AbortError';
+            console.error(`[ERRO] Tentativa ${tentativa} ${isAbort ? '(timeout)' : '(exceção)'}:`, e);
           }
-        } catch (e) {
-          console.error('[ERRO] Exceção PDFs:', e);
-          await supabase.from('documentos').update({ status: 'signed' }).eq('id', documentoId);
+
+          if (tentativa < MAX_RETRY) {
+            const delay = 2000 * Math.pow(2, tentativa - 1); // 2s, 4s, 8s
+            console.log(`[RETRY] Aguardando ${delay}ms antes da próxima tentativa...`);
+            await new Promise(r => setTimeout(r, delay));
+          }
+        }
+
+        if (!pdfGerado) {
+          console.error(`[FALHA FINAL] Documento ${documentoId} ficou como 'signed' sem PDFs após ${MAX_RETRY} tentativas`);
+          // Registrar falha na trilha de auditoria
+          await supabase.from('trilha_auditoria').insert({
+            documento_id: documentoId,
+            acao: 'pdf_generation_failed',
+            ator: 'Sistema',
+            detalhes: `Falha ao gerar PDFs após ${MAX_RETRY} tentativas. Use o botão "Gerar PDFs" na página de detalhes.`,
+          });
         }
       } else {
         // Notificar próximo
