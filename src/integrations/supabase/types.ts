@@ -431,6 +431,56 @@ export type Database = {
         }
         Relationships: []
       }
+      participantes_documento: {
+        Row: {
+          atualizado_em: string
+          criado_em: string
+          data_assinatura: string | null
+          documento_id: string
+          email: string
+          id: string
+          nome: string
+          ordem_assinatura: number
+          papel: string
+          status: string
+          tipo_autenticacao: string
+        }
+        Insert: {
+          atualizado_em?: string
+          criado_em?: string
+          data_assinatura?: string | null
+          documento_id: string
+          email: string
+          id?: string
+          nome: string
+          ordem_assinatura?: number
+          papel?: string
+          status?: string
+          tipo_autenticacao?: string
+        }
+        Update: {
+          atualizado_em?: string
+          criado_em?: string
+          data_assinatura?: string | null
+          documento_id?: string
+          email?: string
+          id?: string
+          nome?: string
+          ordem_assinatura?: number
+          papel?: string
+          status?: string
+          tipo_autenticacao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "participantes_documento_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       perfis: {
         Row: {
           ativo: boolean
@@ -619,6 +669,72 @@ export type Database = {
             columns: ["signatario_id"]
             isOneToOne: false
             referencedRelation: "signatarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trilha_auditoria_documentos: {
+        Row: {
+          agente_usuario: string | null
+          caminho_foto_documento_oficial: string | null
+          caminho_foto_selfie: string | null
+          criado_em: string
+          documento_id: string
+          endereco_formatado: string | null
+          endereco_ip: string | null
+          hash_documento: string | null
+          id: string
+          latitude: string | null
+          longitude: string | null
+          metadados: Json | null
+          participante_id: string | null
+          tipo_evento: string
+        }
+        Insert: {
+          agente_usuario?: string | null
+          caminho_foto_documento_oficial?: string | null
+          caminho_foto_selfie?: string | null
+          criado_em?: string
+          documento_id: string
+          endereco_formatado?: string | null
+          endereco_ip?: string | null
+          hash_documento?: string | null
+          id?: string
+          latitude?: string | null
+          longitude?: string | null
+          metadados?: Json | null
+          participante_id?: string | null
+          tipo_evento: string
+        }
+        Update: {
+          agente_usuario?: string | null
+          caminho_foto_documento_oficial?: string | null
+          caminho_foto_selfie?: string | null
+          criado_em?: string
+          documento_id?: string
+          endereco_formatado?: string | null
+          endereco_ip?: string | null
+          hash_documento?: string | null
+          id?: string
+          latitude?: string | null
+          longitude?: string | null
+          metadados?: Json | null
+          participante_id?: string | null
+          tipo_evento?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trilha_auditoria_documentos_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trilha_auditoria_documentos_participante_id_fkey"
+            columns: ["participante_id"]
+            isOneToOne: false
+            referencedRelation: "participantes_documento"
             referencedColumns: ["id"]
           },
         ]
