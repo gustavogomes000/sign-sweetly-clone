@@ -17,3 +17,12 @@ verify_jwt = false
 
 [functions.bluetech-proxy]
 verify_jwt = false
+
+[functions.validar-download]
+verify_jwt = false
+
+[functions.gerar-documento-final]
+verify_jwt = false
+
+[functions.processar-assinatura]
+verify_jwt = false
