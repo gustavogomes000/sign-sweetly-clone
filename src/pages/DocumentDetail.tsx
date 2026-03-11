@@ -157,12 +157,12 @@ export default function DocumentDetail() {
           </Button>
           {(doc.status === 'signed' || doc.status === 'FINALIZADO_COM_SUCESSO') && doc.caminho_pdf_final && (
             <Button size="sm" variant="default" onClick={handleDownloadFinal}>
-              <Download className="w-4 h-4 mr-1" />PDF Assinado + Dossiê
+              <Download className="w-4 h-4 mr-1" />PDF Assinado
             </Button>
           )}
-          {(doc.status === 'signed' || doc.status === 'FINALIZADO_COM_SUCESSO') && doc.caminho_pdf_dossie && doc.caminho_pdf_dossie !== doc.caminho_pdf_final && (
+          {(doc.status === 'signed' || doc.status === 'FINALIZADO_COM_SUCESSO') && doc.caminho_pdf_dossie && (
             <Button size="sm" variant="secondary" onClick={handleDownloadDossie}>
-              <Shield className="w-4 h-4 mr-1" />Dossiê Auditoria
+              <Shield className="w-4 h-4 mr-1" />Dossiê de Auditoria
             </Button>
           )}
           {(doc.status === 'signed' || doc.status === 'FINALIZADO_COM_SUCESSO') && !doc.caminho_pdf_final && (
