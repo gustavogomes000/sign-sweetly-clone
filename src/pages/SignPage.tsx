@@ -800,22 +800,53 @@ export default function SignPage() {
               {!isCurrentSigType && (
                 <div className="md:mt-2">
                   <label className="text-lg sm:text-xl font-medium text-foreground block mb-1">
-                    {currentField.label || 'Preencher campo'}
+                    {currentField.label || (currentField.field_type === 'date' ? 'Data' : 'Preencher campo')}
                     {!currentField.required && (
                       <span className="text-muted-foreground text-sm ml-2">(opcional)</span>
                     )}
                   </label>
-                  <input
-                    type="text"
-                    autoFocus
-                    required={currentField.required}
-                    value={fieldValues[currentField.id] || ''}
-                    onChange={(e) => handleFieldChange(currentField.id, e.target.value)}
-                    onBlur={() => { if (fieldValues[currentField.id]) saveFieldToDb(currentField.id, fieldValues[currentField.id]); }}
-                    placeholder="Digite aqui..."
-                    className="w-full text-xl sm:text-2xl border border-border rounded-lg px-4 py-3 bg-background text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                    onFocus={() => scrollIntoField(currentField)}
-                  />
+
+                  {currentField.field_type === 'date' ? (
+                    <input
+                      type="date"
+                      autoFocus
+                      required={currentField.required}
+                      value={fieldValues[currentField.id] || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        handleFieldChange(currentField.id, val);
+                        // Save immediately for date fields
+                        saveFieldToDb(currentField.id, val);
+                      }}
+                      className="w-full text-xl sm:text-2xl border border-border rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                    />
+                  ) : currentField.field_type === 'checkbox' ? (
+                    <label className="flex items-center gap-3 cursor-pointer py-2">
+                      <input
+                        type="checkbox"
+                        checked={fieldValues[currentField.id] === 'true'}
+                        onChange={(e) => {
+                          const val = e.target.checked ? 'true' : 'false';
+                          handleFieldChange(currentField.id, val);
+                          saveFieldToDb(currentField.id, val);
+                        }}
+                        className="w-6 h-6 rounded border-border accent-primary"
+                      />
+                      <span className="text-lg text-foreground">{currentField.label || 'Confirmar'}</span>
+                    </label>
+                  ) : (
+                    <input
+                      type="text"
+                      autoFocus
+                      required={currentField.required}
+                      value={fieldValues[currentField.id] || ''}
+                      onChange={(e) => handleFieldChange(currentField.id, e.target.value)}
+                      onBlur={() => { if (fieldValues[currentField.id]) saveFieldToDb(currentField.id, fieldValues[currentField.id]); }}
+                      placeholder="Digite aqui..."
+                      className="w-full text-xl sm:text-2xl border border-border rounded-lg px-4 py-3 bg-background text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                      onFocus={() => scrollIntoField(currentField)}
+                    />
+                  )}
                 </div>
               )}
 
