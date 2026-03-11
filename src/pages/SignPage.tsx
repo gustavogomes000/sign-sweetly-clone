@@ -687,13 +687,31 @@ export default function SignPage() {
                         </div>
                       )}
 
-                      {/* Content */}
+                      {/* Content — render actual signature inline on document */}
                       {isFilled ? (
                         isSigType ? (
-                          <div className="flex flex-col items-center gap-0.5">
-                            <CheckCircle2 className="w-4 h-4 text-green-600" />
-                            <span className="text-[8px] text-green-700 font-medium">Assinado</span>
-                          </div>
+                          signatureImages[field.id] ? (
+                            // Drawn signature: show the actual image
+                            <img
+                              src={signatureImages[field.id]}
+                              alt="Assinatura"
+                              className="w-full h-full object-contain pointer-events-none"
+                            />
+                          ) : signatureTexts[field.id] ? (
+                            // Typed signature: show the name in signature font
+                            <span
+                              className="text-foreground/90 italic pointer-events-none px-1 truncate w-full text-center"
+                              style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 'clamp(10px, 2.5vw, 20px)' }}
+                            >
+                              {signatureTexts[field.id]}
+                            </span>
+                          ) : (
+                            // Fallback: checkmark
+                            <div className="flex items-center justify-center gap-1 w-full">
+                              <CheckCircle2 className="w-3 h-3 text-green-600 flex-shrink-0" />
+                              <span className="text-[9px] text-green-700 font-medium">Assinado</span>
+                            </div>
+                          )
                         ) : (
                           <span className="text-[10px] text-foreground/80 truncate px-1">
                             {fieldValues[field.id]}
