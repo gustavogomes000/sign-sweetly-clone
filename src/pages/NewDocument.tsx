@@ -382,7 +382,7 @@ export default function NewDocument() {
               onFieldsChange={setPlacedFields}
               totalPages={editorTotalPages}
               documentUrl={filePreviewUrl}
-              previewMimeType={previewMimeType}
+              
             />
           </div>
         )}
