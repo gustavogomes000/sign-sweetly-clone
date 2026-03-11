@@ -165,7 +165,6 @@ interface DadosManifesto {
   dataCriacao: string;
   trilhaAuditoria: any[];
   signatarios: any[];
-  participantes: any[];
   assinaturas: any[];
 }
 
@@ -260,23 +259,9 @@ async function adicionarPaginaManifesto(
   }
   desenharLinha();
 
-  // ── 3. Participantes ──
-  if (dados.participantes.length > 0) {
-    escreverTexto('3. PARTICIPANTES', { negrito: true, tamanho: 12, cor: { r: 0.08, g: 0.15, b: 0.45 } });
-    espacamento(4);
-    for (const p of dados.participantes) {
-      verificarQuebraPagina(50);
-      escreverTexto(`${p.nome} (${p.email})`, { negrito: true, recuo: 10, tamanho: 9 });
-      escreverTexto(`Papel: ${p.papel} | Auth: ${p.tipo_autenticacao} | Status: ${p.status}`, { recuo: 20, tamanho: 8 });
-      if (p.data_assinatura) escreverTexto(`Assinado em: ${new Date(p.data_assinatura).toISOString()}`, { recuo: 20, tamanho: 8 });
-      espacamento(4);
-    }
-    desenharLinha();
-  }
-
-  // ── 4. Trilha de Auditoria com Evidências ──
-  const numSecao = dados.participantes.length > 0 ? 4 : 3;
-  escreverTexto(`${numSecao}. TRILHA DE AUDITORIA — COFRE DE EVIDENCIAS`, { negrito: true, tamanho: 12, cor: { r: 0.08, g: 0.15, b: 0.45 } });
+  // ── 3. Trilha de Auditoria com Evidências ──
+  escreverTexto('3. TRILHA DE AUDITORIA — COFRE DE EVIDENCIAS', { negrito: true, tamanho: 12, cor: { r: 0.08, g: 0.15, b: 0.45 } });
+  escreverTexto('3. TRILHA DE AUDITORIA — COFRE DE EVIDENCIAS', { negrito: true, tamanho: 12, cor: { r: 0.08, g: 0.15, b: 0.45 } });
   espacamento(4);
 
   if (dados.trilhaAuditoria.length === 0) {
@@ -285,7 +270,7 @@ async function adicionarPaginaManifesto(
 
   for (const evento of dados.trilhaAuditoria) {
     verificarQuebraPagina(100);
-    escreverTexto(`Evento: ${evento.tipo_evento}`, { negrito: true, recuo: 10, tamanho: 9, cor: { r: 0.15, g: 0.3, b: 0.15 } });
+    escreverTexto(`Evento: ${evento.acao}`, { negrito: true, recuo: 10, tamanho: 9, cor: { r: 0.15, g: 0.3, b: 0.15 } });
     escreverTexto(`Data/Hora UTC: ${new Date(evento.criado_em).toISOString()}`, { recuo: 20, tamanho: 8 });
     if (evento.endereco_ip) escreverTexto(`IP: ${evento.endereco_ip}`, { recuo: 20, tamanho: 8 });
     if (evento.agente_usuario) escreverTexto(`UA: ${String(evento.agente_usuario).substring(0, 100)}`, { recuo: 20, tamanho: 7, cor: { r: 0.4, g: 0.4, b: 0.4 } });
@@ -348,9 +333,8 @@ async function adicionarPaginaManifesto(
   desenharLinha();
 
   // ── Declaração de Integridade ──
-  const numDecl = numSecao + 1;
   verificarQuebraPagina(120);
-  escreverTexto(`${numDecl}. DECLARACAO DE INTEGRIDADE E VALIDADE JURIDICA`, { negrito: true, tamanho: 12, cor: { r: 0.08, g: 0.15, b: 0.45 } });
+  escreverTexto('4. DECLARACAO DE INTEGRIDADE E VALIDADE JURIDICA', { negrito: true, tamanho: 12, cor: { r: 0.08, g: 0.15, b: 0.45 } });
   espacamento(4);
   const decl = [
     'Este manifesto atesta que todas as assinaturas e validacoes foram',
@@ -420,13 +404,12 @@ serve(async (req) => {
     console.log(`[INICIO] Fechamento: ${documentoId}`);
 
     // Buscar dados
-    const [docRes, signersRes, fieldsRes, sigsRes, auditRes, participantsRes] = await Promise.all([
+    const [docRes, signersRes, fieldsRes, sigsRes, auditRes] = await Promise.all([
       supabase.from('documentos').select('*').eq('id', documentoId).single(),
       supabase.from('signatarios').select('*').eq('documento_id', documentoId).order('ordem_assinatura'),
       supabase.from('campos_documento').select('*').eq('documento_id', documentoId),
       supabase.from('assinaturas').select('*').eq('documento_id', documentoId),
-      supabase.from('trilha_auditoria_documentos').select('*').eq('documento_id', documentoId).order('criado_em'),
-      supabase.from('participantes_documento').select('*').eq('documento_id', documentoId).order('ordem_assinatura'),
+      supabase.from('trilha_auditoria').select('*').eq('documento_id', documentoId).order('criado_em'),
     ]);
 
     if (docRes.error || !docRes.data) {
@@ -439,7 +422,7 @@ serve(async (req) => {
     const campos = fieldsRes.data || [];
     const assinaturas = sigsRes.data || [];
     const trilhaAuditoria = auditRes.data || [];
-    const participantes = participantsRes.data || [];
+    // participantes removido — usa signatarios unificado
 
     if (!doc.caminho_arquivo) {
       return new Response(JSON.stringify({ error: 'Sem arquivo PDF associado' }),
@@ -513,7 +496,6 @@ serve(async (req) => {
           dataCriacao: doc.criado_em,
           trilhaAuditoria,
           signatarios,
-          participantes,
           assinaturas,
         }, supabase);
 

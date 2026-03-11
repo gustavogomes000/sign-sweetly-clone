@@ -37,7 +37,8 @@ export async function processarEvidencias(dados: {
 }
 
 /**
- * Cria participantes na tabela participantes_documento.
+ * Cria participantes (signatários) na tabela signatarios.
+ * Tabela unificada — substitui a antiga participantes_documento.
  */
 export async function criarParticipantes(
   documentoId: string,
@@ -50,16 +51,17 @@ export async function criarParticipantes(
   }>
 ) {
   const { data, error } = await supabase
-    .from('participantes_documento')
+    .from('signatarios')
     .insert(
       participantes.map((p) => ({
         documento_id: documentoId,
         nome: p.nome,
         email: p.email,
         papel: p.papel,
+        funcao: p.papel === 'ASSINANTE' ? 'signer' : 'observer',
         ordem_assinatura: p.ordemAssinatura,
         tipo_autenticacao: p.tipoAutenticacao,
-        status: 'PENDENTE' as const,
+        status: 'pending',
       }))
     )
     .select();
@@ -69,11 +71,11 @@ export async function criarParticipantes(
 }
 
 /**
- * Buscar participantes de um documento.
+ * Buscar participantes/signatários de um documento.
  */
 export async function buscarParticipantes(documentoId: string) {
   const { data, error } = await supabase
-    .from('participantes_documento')
+    .from('signatarios')
     .select('*')
     .eq('documento_id', documentoId)
     .order('ordem_assinatura', { ascending: true });
@@ -84,10 +86,11 @@ export async function buscarParticipantes(documentoId: string) {
 
 /**
  * Buscar trilha de auditoria com evidências de um documento.
+ * Tabela unificada — substitui a antiga trilha_auditoria_documentos.
  */
 export async function buscarTrilhaAuditoria(documentoId: string) {
   const { data, error } = await supabase
-    .from('trilha_auditoria_documentos')
+    .from('trilha_auditoria')
     .select('*')
     .eq('documento_id', documentoId)
     .order('criado_em', { ascending: true });
