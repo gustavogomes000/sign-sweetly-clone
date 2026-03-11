@@ -357,34 +357,6 @@ export default function SignPage() {
   // ── Complete ──
   if (pageStep === 'complete') {
     const docId = (signerData?.document as { id: string })?.id;
-
-    const [signedPdfUrl, setSignedPdfUrl] = useState<string | null>(null);
-    const [dossiePdfUrl, setDossiePdfUrl] = useState<string | null>(null);
-
-    // Check for generated PDFs
-    useEffect(() => {
-      if (!docId) return;
-      const checkPdfs = async () => {
-        const { data } = await supabase.from('documentos').select('caminho_pdf_final, caminho_pdf_dossie').eq('id', docId).single();
-        if (data?.caminho_pdf_final) {
-          setSignedPdfUrl(`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/documents/${data.caminho_pdf_final}`);
-        }
-        if (data?.caminho_pdf_dossie) {
-          setDossiePdfUrl(`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/documents/${data.caminho_pdf_dossie}`);
-        }
-      };
-      // Check immediately and again after a few seconds (PDF generation may still be running)
-      checkPdfs();
-      const timer = setTimeout(checkPdfs, 5000);
-      return () => clearTimeout(timer);
-    }, [docId]);
-
-    return (
-      <div className="min-h-screen bg-muted/30 flex items-center justify-center p-6">
-        <Card className="max-w-md w-full text-center">
-          <CardContent className="p-8 space-y-4">
-            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-10 h-10 text-primary" />
             </div>
             <h1 className="text-2xl font-bold text-foreground">Documento assinado!</h1>
             <p className="text-muted-foreground">Sua assinatura foi registrada com sucesso. Todas as evidências de segurança foram coletadas.</p>
