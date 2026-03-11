@@ -125,7 +125,7 @@ export default function Login() {
       // Clear the flag
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase.from('profiles').update({ must_change_password: false }).eq('id', user.id);
+        await supabase.from('perfis').update({ trocar_senha: false }).eq('id', user.id);
       }
 
       toast({ title: '✅ Senha alterada!', description: 'Sua nova senha foi salva com sucesso.' });
