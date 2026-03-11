@@ -466,19 +466,39 @@ export default function SignPage() {
   const docIdForPdf = (signerData?.document as { id: string })?.id;
   useEffect(() => {
     if (pageStep !== 'complete' || !docIdForPdf) return;
+    let attempts = 0;
+    const maxAttempts = 8;
+
     const checkPdfs = async () => {
-      const { data } = await supabase.from('documentos').select('caminho_pdf_final, caminho_pdf_dossie').eq('id', docIdForPdf).single();
+      attempts++;
+      const { data } = await supabase.from('documentos').select('caminho_pdf_final, caminho_pdf_dossie, status').eq('id', docIdForPdf).single();
+
       if (data?.caminho_pdf_final) {
         setSignedPdfUrl(`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/documents/${data.caminho_pdf_final}`);
       }
       if (data?.caminho_pdf_dossie) {
         setDossiePdfUrl(`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/documents/${data.caminho_pdf_dossie}`);
       }
+
+      // Fallback: se após 15s ainda não tem PDFs, chamar gerar-documento-final diretamente
+      if (!data?.caminho_pdf_final && attempts === 4) {
+        console.log('[SignPage] PDFs não gerados após 15s — chamando gerar-documento-final diretamente...');
+        try {
+          const { error } = await supabase.functions.invoke('gerar-documento-final', {
+            body: { documentoId: docIdForPdf },
+          });
+          if (error) console.error('[SignPage] Erro fallback gerar-documento-final:', error);
+          else console.log('[SignPage] Fallback gerar-documento-final acionado com sucesso');
+        } catch (e) {
+          console.error('[SignPage] Exceção fallback:', e);
+        }
+      }
     };
+
     checkPdfs();
-    const t1 = setTimeout(checkPdfs, 5000);
-    const t2 = setTimeout(checkPdfs, 12000);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    const intervals = [3000, 5000, 10000, 15000, 20000, 30000, 45000, 60000];
+    const timers = intervals.slice(0, maxAttempts - 1).map((delay) => setTimeout(checkPdfs, delay));
+    return () => timers.forEach(clearTimeout);
   }, [pageStep, docIdForPdf]);
 
   // ═══════════════════════════════════════════════════════════════
