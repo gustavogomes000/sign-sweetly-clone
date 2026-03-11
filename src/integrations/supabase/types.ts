@@ -262,6 +262,8 @@ export type Database = {
           caminho_pdf_dossie: string | null
           caminho_pdf_final: string | null
           criado_em: string
+          hash_pdf_final: string | null
+          hash_pdf_original: string | null
           id: string
           nome: string
           origem: string
@@ -278,6 +280,8 @@ export type Database = {
           caminho_pdf_dossie?: string | null
           caminho_pdf_final?: string | null
           criado_em?: string
+          hash_pdf_final?: string | null
+          hash_pdf_original?: string | null
           id?: string
           nome: string
           origem?: string
@@ -294,6 +298,8 @@ export type Database = {
           caminho_pdf_dossie?: string | null
           caminho_pdf_final?: string | null
           criado_em?: string
+          hash_pdf_final?: string | null
+          hash_pdf_original?: string | null
           id?: string
           nome?: string
           origem?: string
