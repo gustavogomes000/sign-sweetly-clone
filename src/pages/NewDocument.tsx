@@ -480,6 +480,11 @@ export default function NewDocument() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1"><Label className="text-xs">Nome *</Label><Input value={s.name} onChange={(e) => updateSigner(i, 'name', e.target.value)} placeholder="Nome completo" /></div>
                         <div className="space-y-1"><Label className="text-xs">Email *</Label><Input type="email" value={s.email} onChange={(e) => updateSigner(i, 'email', e.target.value)} placeholder="email@exemplo.com" /></div>
+                        <div className="space-y-1"><Label className="text-xs">CPF *</Label><Input value={s.cpf} onChange={(e) => {
+                          const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+                          const formatted = digits.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                          updateSigner(i, 'cpf', formatted);
+                        }} placeholder="000.000.000-00" maxLength={14} /></div>
                         <div className="space-y-1"><Label className="text-xs">Telefone</Label><Input value={s.phone} onChange={(e) => updateSigner(i, 'phone', e.target.value)} placeholder="(11) 99999-0000" /></div>
                         <div className="space-y-1">
                           <Label className="text-xs">Papel</Label>
