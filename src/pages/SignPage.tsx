@@ -810,7 +810,8 @@ export default function SignPage() {
                     autoFocus
                     required={currentField.required}
                     value={fieldValues[currentField.id] || ''}
-                    onChange={(e) => updateFieldValue(currentField.id, e.target.value)}
+                    onChange={(e) => handleFieldChange(currentField.id, e.target.value)}
+                    onBlur={() => { if (fieldValues[currentField.id]) saveFieldToDb(currentField.id, fieldValues[currentField.id]); }}
                     placeholder="Digite aqui..."
                     className="w-full text-xl sm:text-2xl border border-border rounded-lg px-4 py-3 bg-background text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                     onFocus={() => scrollIntoField(currentField)}
