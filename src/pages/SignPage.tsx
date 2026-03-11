@@ -196,31 +196,7 @@ export default function SignPage() {
         toast({ title: 'Campos salvos! Prosseguindo para verificação...' });
         setTimeout(() => setPageStep('validation'), 600);
       } else {
-        const signer = signerData.signer as { id: string };
-        const doc = signerData.document as { id: string };
-        await supabase.from('signatarios').update({ status: 'signed', assinado_em: new Date().toISOString() }).eq('id', signer.id);
-        const { data: allSigners } = await supabase.from('signatarios').select('status').eq('documento_id', doc.id);
-        const allSigned = allSigners?.every(s => s.status === 'signed');
-        if (allSigned) {
-          await supabase.from('documentos').update({ status: 'signed' }).eq('id', doc.id);
-        }
-
-        // Trigger processar-assinatura to register event + generate PDFs
-        try {
-          await supabase.functions.invoke('processar-assinatura', {
-            body: {
-              documentoId: doc.id,
-              participanteId: signer.id,
-              tipoEvento: 'ASSINOU',
-              agenteUsuario: navigator.userAgent,
-            },
-          });
-        } catch (e) {
-          console.warn('processar-assinatura error:', e);
-        }
-
-        toast({ title: 'Documento assinado com sucesso! ✅' });
-        setTimeout(() => setPageStep('complete'), 600);
+        await finalizarAssinatura();
       }
     } catch (err) {
       toast({ title: 'Erro ao salvar', description: err instanceof Error ? err.message : 'Tente novamente', variant: 'destructive' });
