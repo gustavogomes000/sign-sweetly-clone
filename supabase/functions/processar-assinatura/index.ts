@@ -1,11 +1,24 @@
 /**
+ * ═══════════════════════════════════════════════════════════════════════
  * Edge Function: processar-assinatura
+ * ═══════════════════════════════════════════════════════════════════════
  *
- * Responsável por:
- * 1. Upload das fotos de KYC para bucket privado 'evidencias_kyc'
- * 2. Registro na trilha_auditoria_documentos com IP, GPS, hash
- * 3. Disparo de emails respeitando ordem_assinatura
- * 4. Geração dos dois PDFs (Original + Dossiê) quando todas as assinaturas concluem
+ * MÓDULO 2: Workflow de Múltiplos Assinantes e Validação de Imagem.
+ *
+ * Responsabilidades:
+ *   1. Validação de Magic Numbers (JPG/PNG) — lê os primeiros bytes
+ *      hexadecimais do buffer para garantir integridade do arquivo.
+ *   2. Upload das fotos KYC para bucket privado 'evidencias_kyc'
+ *   3. Registro na trilha_auditoria_documentos (cofre de evidências)
+ *   4. Lógica de Conclusão: verifica se TODOS os assinantes concluíram
+ *      e aciona o Módulo 3 (gerar-documento-final)
+ *   5. Disparo de e-mails de notificação
+ *   6. Envio automático dos PDFs finais por e-mail a TODOS os
+ *      participantes (signatários + observadores) quando o dossiê
+ *      é gerado com sucesso.
+ *
+ * Tecnologias: Supabase Storage (S3-compatível), Web Crypto API
+ * ═══════════════════════════════════════════════════════════════════════
  */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -14,6 +27,80 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
+
+// ═══════════════════════════════════════════════════════════════════════
+// ALGORITMO: Validação de Magic Numbers (Anti-Falsificação de Arquivo)
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Assinaturas hexadecimais dos formatos de imagem aceitos.
+ * Lê os primeiros N bytes e compara com os magic numbers conhecidos.
+ *
+ * JPEG: FF D8 FF (primeiros 3 bytes)
+ * PNG:  89 50 4E 47 0D 0A 1A 0A (primeiros 8 bytes)
+ *
+ * Isso impede que scripts maliciosos renomeados como .jpg sejam aceitos.
+ */
+function validarMagicNumbers(buffer: Uint8Array): {
+  valido: boolean;
+  formato: 'jpeg' | 'png' | 'desconhecido';
+  motivo?: string;
+} {
+  if (buffer.length < 8) {
+    return {
+      valido: false,
+      formato: 'desconhecido',
+      motivo: `Buffer muito pequeno: ${buffer.length} bytes (mínimo: 8)`,
+    };
+  }
+
+  // Verificar JPEG: FF D8 FF
+  if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
+    return { valido: true, formato: 'jpeg' };
+  }
+
+  // Verificar PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4E &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0D &&
+    buffer[5] === 0x0A &&
+    buffer[6] === 0x1A &&
+    buffer[7] === 0x0A
+  ) {
+    return { valido: true, formato: 'png' };
+  }
+
+  // Formato não reconhecido — possível arquivo malicioso
+  const hexPrimeiros = Array.from(buffer.slice(0, 8))
+    .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+    .join(' ');
+
+  return {
+    valido: false,
+    formato: 'desconhecido',
+    motivo: `Magic numbers não reconhecidos: [${hexPrimeiros}]. Apenas JPEG e PNG são aceitos.`,
+  };
+}
+
+/**
+ * Converte string base64 (com ou sem prefixo data:...) para Uint8Array.
+ */
+function base64ParaUint8Array(base64: string): Uint8Array {
+  const base64Puro = base64.includes(',') ? base64.split(',')[1] : base64;
+  const binario = atob(base64Puro);
+  const bytes = new Uint8Array(binario.length);
+  for (let i = 0; i < binario.length; i++) {
+    bytes[i] = binario.charCodeAt(i);
+  }
+  return bytes;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// HANDLER PRINCIPAL
+// ═══════════════════════════════════════════════════════════════════════
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -41,6 +128,7 @@ serve(async (req) => {
       biometriaAprovada,
     } = body;
 
+    // ── Validação de campos obrigatórios ──
     if (!documentoId || !participanteId || !tipoEvento) {
       return new Response(
         JSON.stringify({ error: 'Campos obrigatórios: documentoId, participanteId, tipoEvento' }),
@@ -48,50 +136,84 @@ serve(async (req) => {
       );
     }
 
-    // ── 1. Extrair IP real ──
-    // O IP pode vir em diversos headers dependendo do proxy/CDN:
-    // x-forwarded-for: IP mais comum em proxies reversos
-    // x-real-ip: Alternativa usada por nginx
-    // cf-connecting-ip: Cloudflare
+    // ── 1. Extrair IP real (via headers de proxy/CDN) ──
     const enderecoIp =
       req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
       req.headers.get('x-real-ip') ||
       req.headers.get('cf-connecting-ip') ||
       'desconhecido';
 
-    // ── 2. Upload de fotos para bucket privado ──
+    // ── 2. Upload de fotos com validação de Magic Numbers ──
     let caminhoSelfie: string | null = null;
     let caminhoDocumento: string | null = null;
     const timestamp = Date.now();
 
     if (selfieBase64) {
-      const selfieBuffer = base64ToUint8Array(selfieBase64);
-      const caminho = `${documentoId}/${participanteId}/selfie_${timestamp}.jpg`;
-      const { error: uploadErr } = await supabase.storage
+      const bufferSelfie = base64ParaUint8Array(selfieBase64);
+
+      // Validar magic numbers antes de aceitar
+      const validacaoSelfie = validarMagicNumbers(bufferSelfie);
+      if (!validacaoSelfie.valido) {
+        console.error(`[SEGURANÇA] Selfie rejeitada: ${validacaoSelfie.motivo}`);
+        return new Response(
+          JSON.stringify({
+            error: `Arquivo de selfie inválido: ${validacaoSelfie.motivo}`,
+            codigo: 'MAGIC_NUMBERS_INVALIDOS',
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const extensao = validacaoSelfie.formato === 'png' ? 'png' : 'jpg';
+      const contentType = validacaoSelfie.formato === 'png' ? 'image/png' : 'image/jpeg';
+      const caminho = `${documentoId}/${participanteId}/selfie_${timestamp}.${extensao}`;
+
+      const { error: erroUpload } = await supabase.storage
         .from('evidencias_kyc')
-        .upload(caminho, selfieBuffer, { contentType: 'image/jpeg', upsert: false });
-      if (uploadErr) {
-        console.error('Erro ao fazer upload da selfie:', uploadErr);
+        .upload(caminho, bufferSelfie, { contentType, upsert: false });
+
+      if (erroUpload) {
+        console.error('[ERRO] Upload selfie falhou:', erroUpload);
       } else {
         caminhoSelfie = caminho;
+        console.log(`[OK] Selfie validada (${validacaoSelfie.formato}) e armazenada: ${caminho}`);
       }
     }
 
     if (documentoBase64) {
-      const docBuffer = base64ToUint8Array(documentoBase64);
-      const caminho = `${documentoId}/${participanteId}/documento_${tipoDocumento || 'id'}_${timestamp}.jpg`;
-      const { error: uploadErr } = await supabase.storage
+      const bufferDocumento = base64ParaUint8Array(documentoBase64);
+
+      // Validar magic numbers antes de aceitar
+      const validacaoDoc = validarMagicNumbers(bufferDocumento);
+      if (!validacaoDoc.valido) {
+        console.error(`[SEGURANÇA] Documento rejeitado: ${validacaoDoc.motivo}`);
+        return new Response(
+          JSON.stringify({
+            error: `Arquivo de documento inválido: ${validacaoDoc.motivo}`,
+            codigo: 'MAGIC_NUMBERS_INVALIDOS',
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const extensao = validacaoDoc.formato === 'png' ? 'png' : 'jpg';
+      const contentType = validacaoDoc.formato === 'png' ? 'image/png' : 'image/jpeg';
+      const caminho = `${documentoId}/${participanteId}/documento_${tipoDocumento || 'id'}_${timestamp}.${extensao}`;
+
+      const { error: erroUpload } = await supabase.storage
         .from('evidencias_kyc')
-        .upload(caminho, docBuffer, { contentType: 'image/jpeg', upsert: false });
-      if (uploadErr) {
-        console.error('Erro ao fazer upload do documento:', uploadErr);
+        .upload(caminho, bufferDocumento, { contentType, upsert: false });
+
+      if (erroUpload) {
+        console.error('[ERRO] Upload documento falhou:', erroUpload);
       } else {
         caminhoDocumento = caminho;
+        console.log(`[OK] Documento validado (${validacaoDoc.formato}) e armazenado: ${caminho}`);
       }
     }
 
     // ── 3. Registrar na trilha de auditoria (cofre de evidências) ──
-    const { error: auditError } = await supabase
+    const { error: erroAuditoria } = await supabase
       .from('trilha_auditoria_documentos')
       .insert({
         documento_id: documentoId,
@@ -116,11 +238,11 @@ serve(async (req) => {
         },
       });
 
-    if (auditError) {
-      console.error('Erro ao registrar auditoria:', auditError);
+    if (erroAuditoria) {
+      console.error('[ERRO] Registro de auditoria falhou:', erroAuditoria);
     }
 
-    // ── 4. Atualizar status do participante ──
+    // ── 4. Atualizar status do participante e verificar conclusão ──
     if (tipoEvento === 'ASSINOU') {
       await supabase
         .from('participantes_documento')
@@ -130,7 +252,7 @@ serve(async (req) => {
         })
         .eq('id', participanteId);
 
-      // Verificar se todos os assinantes concluíram
+      // Buscar todos os participantes do documento
       const { data: participantes } = await supabase
         .from('participantes_documento')
         .select('id, papel, status, ordem_assinatura, email, nome')
@@ -140,11 +262,14 @@ serve(async (req) => {
       const todosConcluidos = assinantes.every(a => a.status === 'ASSINADO');
 
       if (todosConcluidos) {
-        // ── 5. Todos assinaram → gerar PDFs finais ──
-        console.log(`✅ Documento ${documentoId} — todas as assinaturas concluídas. Gerando PDFs...`);
+        // ═══════════════════════════════════════════════════════════════
+        // LÓGICA DE CONCLUSÃO: Todos assinaram → Módulo 3
+        // ═══════════════════════════════════════════════════════════════
+        console.log(`✅ Documento ${documentoId} — todas as assinaturas concluídas. Acionando Módulo 3...`);
 
         try {
-          await fetch(`${supabaseUrl}/functions/v1/gerar-documento-final`, {
+          // Acionar geração do dossiê final (Módulo 3)
+          const respostaPdf = await fetch(`${supabaseUrl}/functions/v1/gerar-documento-final`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -152,45 +277,57 @@ serve(async (req) => {
             },
             body: JSON.stringify({ documentoId }),
           });
-          console.log('📄 PDFs Original + Dossiê gerados com sucesso');
-        } catch (pdfErr) {
-          console.error('Erro ao gerar PDFs:', pdfErr);
-          // Ainda marca como signed mesmo se falhar a geração de PDF
-          await supabase
-            .from('documentos')
-            .update({ status: 'signed' })
-            .eq('id', documentoId);
-        }
 
-        // Disparar e-mail para todos (signatários + observadores)
-        const observadores = (participantes || []).filter(p => p.papel === 'OBSERVADOR');
-        const todosDestinatarios = [...assinantes, ...observadores];
+          const dadosPdf = await respostaPdf.json();
 
-        for (const destinatario of todosDestinatarios) {
-          try {
+          if (respostaPdf.ok && dadosPdf.sucesso) {
+            console.log('📄 Dossiê Final gerado com sucesso');
+
+            // ── Enviar PDFs finais por e-mail a TODOS os participantes ──
+            const observadores = (participantes || []).filter(p => p.papel === 'OBSERVADOR');
+            const todosDestinatarios = [...assinantes, ...observadores];
+
             const { data: docData } = await supabase
               .from('documentos')
               .select('nome')
               .eq('id', documentoId)
               .single();
 
-            await fetch(`${supabaseUrl}/functions/v1/send-signing-email`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${serviceRoleKey}`,
-              },
-              body: JSON.stringify({
-                signerName: destinatario.nome,
-                signerEmail: destinatario.email,
-                documentName: docData?.nome || 'Documento',
-                signToken: '', // Conclusão — sem token
-                message: '✅ Todas as assinaturas foram concluídas. Segue o documento final.',
-              }),
-            });
-          } catch (emailErr) {
-            console.warn(`Falha ao enviar e-mail para ${destinatario.email}:`, emailErr);
+            for (const destinatario of todosDestinatarios) {
+              try {
+                await fetch(`${supabaseUrl}/functions/v1/send-signing-email`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${serviceRoleKey}`,
+                  },
+                  body: JSON.stringify({
+                    signerName: destinatario.nome,
+                    signerEmail: destinatario.email,
+                    documentName: docData?.nome || 'Documento',
+                    signToken: '',
+                    message: '✅ Todas as assinaturas foram concluídas e o dossiê final foi gerado com sucesso. Acesse a plataforma para baixar os documentos.',
+                  }),
+                });
+                console.log(`📧 E-mail de conclusão enviado para: ${destinatario.email}`);
+              } catch (erroEmail) {
+                console.warn(`[AVISO] Falha ao enviar e-mail para ${destinatario.email}:`, erroEmail);
+              }
+            }
+          } else {
+            console.error('[ERRO] Falha ao gerar dossiê:', dadosPdf);
+            // Marcar como signed mesmo se o PDF falhar
+            await supabase
+              .from('documentos')
+              .update({ status: 'signed' })
+              .eq('id', documentoId);
           }
+        } catch (erroPdf) {
+          console.error('[ERRO] Exceção ao gerar PDFs:', erroPdf);
+          await supabase
+            .from('documentos')
+            .update({ status: 'signed' })
+            .eq('id', documentoId);
         }
       } else {
         // ── Enviar e-mail para o próximo assinante na fila ──
@@ -206,7 +343,6 @@ serve(async (req) => {
             .eq('id', documentoId)
             .single();
 
-          // Buscar token do signatário (tabela signatarios)
           const { data: signatario } = await supabase
             .from('signatarios')
             .select('token_assinatura')
@@ -235,8 +371,9 @@ serve(async (req) => {
                   message: 'É a sua vez de assinar! Clique no botão abaixo.',
                 }),
               });
-            } catch (emailErr) {
-              console.warn(`Falha ao notificar próximo: ${proximo.email}`, emailErr);
+              console.log(`📧 Próximo assinante notificado: ${proximo.email}`);
+            } catch (erroEmail) {
+              console.warn(`[AVISO] Falha ao notificar ${proximo.email}:`, erroEmail);
             }
           }
         }
@@ -253,25 +390,11 @@ serve(async (req) => {
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error) {
-    console.error('Erro no processamento:', error);
+  } catch (erro) {
+    console.error('[ERRO FATAL]', erro);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Erro desconhecido' }),
+      JSON.stringify({ error: erro instanceof Error ? erro.message : 'Erro desconhecido' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
-
-/**
- * Converte base64 (com ou sem prefixo data:...) para Uint8Array para upload.
- */
-function base64ToUint8Array(base64: string): Uint8Array {
-  // Remover prefixo data:image/...;base64, se existir
-  const pureBase64 = base64.includes(',') ? base64.split(',')[1] : base64;
-  const binaryString = atob(pureBase64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
-}

@@ -9,3 +9,6 @@ export type { VLSelfieProps } from './VLSelfie';
 
 export { VLSelfieDoc } from './VLSelfieDoc';
 export type { VLSelfieDocProps } from './VLSelfieDoc';
+
+export { VLCameraBlindada } from './VLCameraBlindada';
+export type { VLCameraBlindadaProps, ModoCameraBlindada } from './VLCameraBlindada';
