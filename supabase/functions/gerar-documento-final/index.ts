@@ -165,7 +165,6 @@ interface DadosManifesto {
   dataCriacao: string;
   trilhaAuditoria: any[];
   signatarios: any[];
-  participantes: any[];
   assinaturas: any[];
 }
 
