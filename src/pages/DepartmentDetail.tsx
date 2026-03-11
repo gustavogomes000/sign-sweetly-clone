@@ -71,8 +71,8 @@ export default function DepartmentDetail() {
     queryKey: ['imported-profiles-bp'],
     queryFn: async () => {
       const { data } = await supabase
-        .from('profiles')
-        .select('id, bluepoint_id, email, full_name, hierarchy, active')
+        .from('perfis')
+        .select('id, bluepoint_id, email, nome_completo, hierarquia, ativo')
         .not('bluepoint_id', 'is', null);
       return data || [];
     },
@@ -110,11 +110,11 @@ export default function DepartmentDetail() {
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
 
-      // Update profile with bluepoint_id and must_change_password
+      // Update profile with bluepoint_id and trocar_senha
       if (data?.user_id) {
-        await supabase.from('profiles').update({
+        await supabase.from('perfis').update({
           bluepoint_id: importingColab.id,
-          must_change_password: true,
+          trocar_senha: true,
         }).eq('id', data.user_id);
       }
 
@@ -148,9 +148,9 @@ export default function DepartmentDetail() {
         if (data?.error) throw new Error(data.error);
 
         if (data?.user_id) {
-          await supabase.from('profiles').update({
+          await supabase.from('perfis').update({
             bluepoint_id: colab.id,
-            must_change_password: true,
+            trocar_senha: true,
           }).eq('id', data.user_id);
         }
         successCount++;
@@ -327,9 +327,9 @@ export default function DepartmentDetail() {
                             </TableCell>
                             <TableCell>
                               {isImported ? (
-                                <Badge variant="outline" className={`text-[10px] font-game tracking-wider ${hierarchyConfig[profile?.hierarchy || 'user']?.color || ''}`}>
+                                <Badge variant="outline" className={`text-[10px] font-game tracking-wider ${hierarchyConfig[profile?.hierarquia || 'user']?.color || ''}`}>
                                   <CheckCircle2 className="w-3 h-3 mr-1" />
-                                  {hierarchyConfig[profile?.hierarchy || 'user']?.label || 'USUÁRIO'}
+                                  {hierarchyConfig[profile?.hierarquia || 'user']?.label || 'USUÁRIO'}
                                 </Badge>
                               ) : (
                                 <span className="text-xs text-muted-foreground font-body">Não importado</span>
@@ -364,113 +364,90 @@ export default function DepartmentDetail() {
       </div>
 
       {/* Import single collaborator dialog */}
-      <Dialog open={!!importingColab} onOpenChange={(open) => !open && setImportingColab(null)}>
-        <DialogContent>
+      <Dialog open={!!importingColab} onOpenChange={(open) => { if (!open) setImportingColab(null); }}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-game tracking-wider">IMPORTAR COLABORADOR</DialogTitle>
-            <DialogDescription className="text-sm">
-              Um email será enviado com credenciais de acesso. No primeiro login, o usuário deverá trocar a senha.
+            <DialogTitle className="font-game tracking-wider">Importar Colaborador</DialogTitle>
+            <DialogDescription>
+              O colaborador receberá um email com credenciais de acesso ao SignProof.
             </DialogDescription>
           </DialogHeader>
           {importingColab && (
             <div className="space-y-4">
-              <div className="p-3 rounded-lg bg-secondary/50 space-y-1">
-                <p className="text-sm font-semibold">{importingColab.nome}</p>
-                <p className="text-xs text-muted-foreground">{importingColab.email}</p>
-                <p className="text-xs text-muted-foreground">Cargo: {importingColab.cargo?.nome || '—'} • Matrícula: {importingColab.matricula || '—'}</p>
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
+                <Avatar className="w-10 h-10">
+                  {importingColab.foto && <AvatarImage src={importingColab.foto} />}
+                  <AvatarFallback className="bg-primary/10 text-primary font-game font-bold text-sm">
+                    {(importingColab.nome || '').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="text-sm font-semibold">{importingColab.nome}</p>
+                  <p className="text-xs text-muted-foreground">{importingColab.email}</p>
+                </div>
               </div>
-              <div>
-                <Label className="text-xs font-game tracking-wider text-muted-foreground">HIERARQUIA NO SISTEMA</Label>
+              <div className="space-y-2">
+                <Label className="text-xs font-game tracking-wider">NÍVEL DE ACESSO</Label>
                 <Select value={importHierarchy} onValueChange={setImportHierarchy}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="owner">
-                      <div className="flex items-center gap-2"><Crown className="w-3.5 h-3.5 text-amber-400" /> Owner — Acesso total</div>
-                    </SelectItem>
-                    <SelectItem value="gestor">
-                      <div className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 text-primary" /> Gestor — Gerencia equipe e documentos</div>
-                    </SelectItem>
-                    <SelectItem value="user">
-                      <div className="flex items-center gap-2"><User className="w-3.5 h-3.5" /> Usuário — Acesso básico</div>
-                    </SelectItem>
+                    <SelectItem value="user">Usuário</SelectItem>
+                    <SelectItem value="gestor">Gestor</SelectItem>
+                    <SelectItem value="owner">Owner</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setImportingColab(null)}>Cancelar</Button>
+                <Button onClick={handleImportSingle} disabled={importing}>
+                  {importing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <UserPlus className="w-4 h-4 mr-1" />}
+                  Importar e enviar credenciais
+                </Button>
+              </DialogFooter>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setImportingColab(null)}>Cancelar</Button>
-            <Button onClick={handleImportSingle} disabled={importing}>
-              {importing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Send className="w-4 h-4 mr-1" />}
-              Importar e enviar email
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Batch import dialog */}
       <Dialog open={showBatchImport} onOpenChange={setShowBatchImport}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-game tracking-wider">IMPORTAÇÃO EM LOTE</DialogTitle>
-            <DialogDescription className="text-sm">
-              Selecione os colaboradores e defina a hierarquia padrão. Todos receberão email com credenciais.
+            <DialogTitle className="font-game tracking-wider">Importação em Lote</DialogTitle>
+            <DialogDescription>
+              Selecione os colaboradores e o nível de acesso padrão.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label className="text-xs font-game tracking-wider text-muted-foreground">HIERARQUIA PADRÃO</Label>
+            <div className="space-y-2">
+              <Label className="text-xs font-game tracking-wider">NÍVEL DE ACESSO PADRÃO</Label>
               <Select value={batchHierarchy} onValueChange={setBatchHierarchy}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="owner"><div className="flex items-center gap-2"><Crown className="w-3.5 h-3.5 text-amber-400" /> Owner</div></SelectItem>
-                  <SelectItem value="gestor"><div className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 text-primary" /> Gestor</div></SelectItem>
-                  <SelectItem value="user"><div className="flex items-center gap-2"><User className="w-3.5 h-3.5" /> Usuário</div></SelectItem>
+                  <SelectItem value="user">Usuário</SelectItem>
+                  <SelectItem value="gestor">Gestor</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="max-h-60 overflow-auto space-y-1">
-              {filtered.filter(c => c && !importedBpIds.has(c.id) && c.email).map(c => (
-                <label key={c.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={batchSelected.has(c.id)}
-                    onChange={() => toggleBatchSelect(c.id)}
-                    className="rounded border-border"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate">{c.nome}</p>
-                    <p className="text-xs text-muted-foreground truncate">{c.email}</p>
-                  </div>
-                </label>
-              ))}
-              {filtered.filter(c => c && !importedBpIds.has(c.id) && c.email).length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">Todos os colaboradores já foram importados!</p>
-              )}
-            </div>
+            <p className="text-sm text-muted-foreground">
+              {batchSelected.size} colaborador(es) selecionado(s)
+            </p>
             {batchImporting && (
-              <div className="space-y-1">
-                <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                  <div
-                    className="h-full bg-primary rounded-full transition-all"
-                    style={{ width: `${batchProgress.total > 0 ? (batchProgress.current / batchProgress.total) * 100 : 0}%` }}
-                  />
+              <div className="space-y-2">
+                <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                  <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${batchProgress.total > 0 ? (batchProgress.current / batchProgress.total) * 100 : 0}%` }} />
                 </div>
                 <p className="text-xs text-muted-foreground text-center">{batchProgress.current} de {batchProgress.total}</p>
               </div>
             )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowBatchImport(false)} disabled={batchImporting}>Cancelar</Button>
+              <Button onClick={handleBatchImport} disabled={batchImporting || batchSelected.size === 0}>
+                {batchImporting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Send className="w-4 h-4 mr-1" />}
+                Importar {batchSelected.size} colaborador(es)
+              </Button>
+            </DialogFooter>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowBatchImport(false)} disabled={batchImporting}>Cancelar</Button>
-            <Button onClick={handleBatchImport} disabled={batchImporting || batchSelected.size === 0}>
-              {batchImporting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Send className="w-4 h-4 mr-1" />}
-              Importar {batchSelected.size} colaborador{batchSelected.size !== 1 ? 'es' : ''}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

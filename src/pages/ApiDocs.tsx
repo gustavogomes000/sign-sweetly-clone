@@ -25,22 +25,22 @@ const API_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway`
 
 interface ApiKey {
   id: string;
-  name: string;
-  key_prefix: string;
-  scopes: string[];
-  active: boolean;
-  last_used_at: string | null;
-  created_at: string;
+  nome: string;
+  prefixo_chave: string;
+  escopos: string[];
+  ativo: boolean;
+  ultimo_uso_em: string | null;
+  criado_em: string;
 }
 
 interface Webhook {
   id: string;
   url: string;
-  events: string[];
-  active: boolean;
-  created_at: string;
-  last_triggered_at: string | null;
-  failure_count: number;
+  eventos: string[];
+  ativo: boolean;
+  criado_em: string;
+  ultimo_disparo_em: string | null;
+  contagem_falhas: number;
 }
 
 // Generate API key
@@ -74,8 +74,8 @@ export default function ApiDocs() {
     if (!user) return;
     setLoading(true);
     const [keysRes, whRes] = await Promise.all([
-      supabase.from('api_keys').select('id, name, key_prefix, scopes, active, last_used_at, created_at').order('created_at', { ascending: false }),
-      supabase.from('webhooks').select('*').order('created_at', { ascending: false }),
+      supabase.from('chaves_api').select('id, nome, prefixo_chave, escopos, ativo, ultimo_uso_em, criado_em').order('criado_em', { ascending: false }),
+      supabase.from('webhooks').select('*').order('criado_em', { ascending: false }),
     ]);
     setApiKeys((keysRes.data || []) as ApiKey[]);
     setWebhooks((whRes.data || []) as Webhook[]);
@@ -90,12 +90,12 @@ export default function ApiDocs() {
     const keyHash = await hashKey(rawKey);
     const keyPrefix = rawKey.substring(0, 10);
 
-    const { error } = await supabase.from('api_keys').insert({
-      user_id: user.id,
-      name: newKeyName.trim(),
-      key_hash: keyHash,
-      key_prefix: keyPrefix,
-      scopes: ['documents:read', 'documents:write'],
+    const { error } = await supabase.from('chaves_api').insert({
+      usuario_id: user.id,
+      nome: newKeyName.trim(),
+      hash_chave: keyHash,
+      prefixo_chave: keyPrefix,
+      escopos: ['documents:read', 'documents:write'],
     });
 
     if (error) {
@@ -110,7 +110,7 @@ export default function ApiDocs() {
   };
 
   const handleDeleteKey = async (id: string) => {
-    await supabase.from('api_keys').delete().eq('id', id);
+    await supabase.from('chaves_api').delete().eq('id', id);
     loadData();
     toast({ title: 'Chave removida ✓' });
   };
@@ -118,11 +118,11 @@ export default function ApiDocs() {
   const handleCreateWebhook = async () => {
     if (!user || !newWebhookUrl.trim()) return;
     const { error } = await supabase.from('webhooks').insert({
-      user_id: user.id,
+      usuario_id: user.id,
       url: newWebhookUrl.trim(),
-      events: newWebhookEvents,
-      secret: crypto.randomUUID(),
-      active: true,
+      eventos: newWebhookEvents,
+      segredo: crypto.randomUUID(),
+      ativo: true,
     });
 
     if (error) {
@@ -142,8 +142,8 @@ export default function ApiDocs() {
     toast({ title: 'Webhook removido ✓' });
   };
 
-  const handleToggleWebhook = async (id: string, active: boolean) => {
-    await supabase.from('webhooks').update({ active }).eq('id', id);
+  const handleToggleWebhook = async (id: string, ativo: boolean) => {
+    await supabase.from('webhooks').update({ ativo }).eq('id', id);
     loadData();
   };
 
@@ -399,15 +399,19 @@ export default function ApiDocs() {
                           </Button>
                         </div>
                       </div>
-                      <Button className="w-full" onClick={() => { setCreateKeyOpen(false); setNewKeyRevealed(null); }}>Fechar</Button>
+                      <Button variant="outline" className="w-full" onClick={() => { setCreateKeyOpen(false); setNewKeyRevealed(null); }}>
+                        Fechar
+                      </Button>
                     </div>
                   ) : (
                     <div className="space-y-4 pt-2">
-                      <div className="space-y-2">
+                      <div>
                         <Label>Nome da chave</Label>
-                        <Input value={newKeyName} onChange={(e) => setNewKeyName(e.target.value)} placeholder="Ex: Produção, Integração ERP..." />
+                        <Input placeholder="Ex: Integração ERP" value={newKeyName} onChange={(e) => setNewKeyName(e.target.value)} />
                       </div>
-                      <Button className="w-full" onClick={handleCreateKey} disabled={!newKeyName.trim()}>Gerar chave</Button>
+                      <Button className="w-full" onClick={handleCreateKey} disabled={!newKeyName.trim()}>
+                        Gerar chave
+                      </Button>
                     </div>
                   )}
                 </DialogContent>
@@ -415,46 +419,65 @@ export default function ApiDocs() {
             </div>
 
             {loading ? (
-              <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+              <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
             ) : apiKeys.length === 0 ? (
               <Card>
                 <CardContent className="p-8 text-center">
-                  <AlertCircle className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-30" />
-                  <p className="text-sm font-medium">Nenhuma chave de API criada</p>
-                  <p className="text-xs text-muted-foreground mt-1">Crie uma chave para integrar com sistemas externos</p>
+                  <AlertCircle className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
+                  <p className="text-sm text-foreground font-medium">Nenhuma chave criada</p>
+                  <p className="text-xs text-muted-foreground mt-1">Crie uma chave para começar a usar a API.</p>
                 </CardContent>
               </Card>
             ) : (
-              apiKeys.map((key) => (
-                <Card key={key.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
+              <div className="space-y-2">
+                {apiKeys.map((key) => (
+                  <Card key={key.id}>
+                    <CardContent className="p-4 flex items-center gap-4">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium">{key.name}</p>
-                          <Badge variant={key.active ? 'default' : 'secondary'} className="text-[10px]">{key.active ? 'Ativa' : 'Inativa'}</Badge>
+                          <p className="text-sm font-medium text-foreground">{key.nome}</p>
+                          <Badge variant={key.ativo ? 'default' : 'secondary'} className="text-[10px]">
+                            {key.ativo ? 'Ativa' : 'Inativa'}
+                          </Badge>
                         </div>
-                        <code className="text-xs font-mono text-muted-foreground mt-1 block">{key.key_prefix}••••••••••••</code>
-                        <div className="flex items-center gap-3 mt-1.5 text-[10px] text-muted-foreground">
-                          <span>Criada: {new Date(key.created_at).toLocaleDateString('pt-BR')}</span>
-                          {key.last_used_at && <span>Último uso: {new Date(key.last_used_at).toLocaleDateString('pt-BR')}</span>}
-                          <span>Escopos: {key.scopes.join(', ')}</span>
+                        <div className="flex items-center gap-3 mt-1">
+                          <code className="text-xs font-mono text-muted-foreground">
+                            {showKey[key.id] ? key.prefixo_chave + '••••••••••••' : key.prefixo_chave + '••••••'}
+                          </code>
+                          <span className="text-[10px] text-muted-foreground">
+                            Criada em {new Date(key.criado_em).toLocaleDateString('pt-BR')}
+                          </span>
+                          {key.ultimo_uso_em && (
+                            <span className="text-[10px] text-muted-foreground">
+                              Último uso: {new Date(key.ultimo_uso_em).toLocaleDateString('pt-BR')}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex gap-1 mt-1.5">
+                          {key.escopos.map((s) => (
+                            <Badge key={s} variant="outline" className="text-[10px]">{s}</Badge>
+                          ))}
                         </div>
                       </div>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteKey(key.id)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowKey(prev => ({ ...prev, [key.id]: !prev[key.id] }))}>
+                          {showKey[key.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteKey(key.id)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             )}
           </TabsContent>
 
           {/* ─── WEBHOOKS ──────────────────────────────────── */}
           <TabsContent value="webhooks" className="space-y-4">
             <div className="flex justify-between items-center">
-              <p className="text-sm text-muted-foreground">Receba notificações em tempo real sobre assinaturas.</p>
+              <p className="text-sm text-muted-foreground">Receba notificações em tempo real sobre eventos.</p>
               <Dialog open={createWebhookOpen} onOpenChange={setCreateWebhookOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm"><Plus className="w-4 h-4 mr-1" />Novo webhook</Button>
@@ -462,70 +485,78 @@ export default function ApiDocs() {
                 <DialogContent>
                   <DialogHeader><DialogTitle>Registrar webhook</DialogTitle></DialogHeader>
                   <div className="space-y-4 pt-2">
-                    <div className="space-y-2">
+                    <div>
                       <Label>URL do endpoint</Label>
-                      <Input value={newWebhookUrl} onChange={(e) => setNewWebhookUrl(e.target.value)} placeholder="https://meusite.com/webhook" />
+                      <Input placeholder="https://api.seusite.com/webhook" value={newWebhookUrl} onChange={(e) => setNewWebhookUrl(e.target.value)} />
                     </div>
-                    <div className="space-y-2">
+                    <div>
                       <Label>Eventos</Label>
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex flex-wrap gap-1.5 mt-1.5">
                         {allEvents.map((ev) => (
                           <button
                             key={ev}
                             onClick={() => toggleEvent(ev)}
                             className={cn(
-                              'px-2 py-1 rounded text-xs font-mono transition-colors',
-                              newWebhookEvents.includes(ev)
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-secondary text-muted-foreground hover:text-foreground'
+                              'px-2.5 py-1 rounded-full text-xs font-mono transition-all border',
+                              newWebhookEvents.includes(ev) ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border hover:border-primary/50'
                             )}
-                          >{ev}</button>
+                          >
+                            {ev}
+                          </button>
                         ))}
                       </div>
                     </div>
-                    <Button className="w-full" onClick={handleCreateWebhook} disabled={!newWebhookUrl.trim()}>Registrar</Button>
+                    <Button className="w-full" onClick={handleCreateWebhook} disabled={!newWebhookUrl.trim()}>
+                      Registrar webhook
+                    </Button>
                   </div>
                 </DialogContent>
               </Dialog>
             </div>
 
             {loading ? (
-              <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+              <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
             ) : webhooks.length === 0 ? (
               <Card>
                 <CardContent className="p-8 text-center">
-                  <AlertCircle className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-30" />
-                  <p className="text-sm font-medium">Nenhum webhook registrado</p>
-                  <p className="text-xs text-muted-foreground mt-1">Registre um endpoint para receber notificações de assinatura</p>
+                  <AlertCircle className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
+                  <p className="text-sm text-foreground font-medium">Nenhum webhook registrado</p>
+                  <p className="text-xs text-muted-foreground mt-1">Registre um endpoint para receber notificações.</p>
                 </CardContent>
               </Card>
             ) : (
-              webhooks.map((wh) => (
-                <Card key={wh.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="min-w-0 flex-1">
+              <div className="space-y-2">
+                {webhooks.map((wh) => (
+                  <Card key={wh.id}>
+                    <CardContent className="p-4 flex items-center gap-4">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <code className="text-sm font-mono truncate">{wh.url}</code>
-                          <Switch checked={wh.active} onCheckedChange={(v) => handleToggleWebhook(wh.id, v)} />
+                          <code className="text-sm font-mono text-foreground truncate">{wh.url}</code>
+                          <Badge variant={wh.ativo ? 'default' : 'secondary'} className="text-[10px] shrink-0">
+                            {wh.ativo ? 'Ativo' : 'Inativo'}
+                          </Badge>
                         </div>
-                        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                          {wh.events.map((ev) => (
+                        <div className="flex gap-1 mt-1.5 flex-wrap">
+                          {wh.eventos.map((ev) => (
                             <Badge key={ev} variant="outline" className="text-[10px] font-mono">{ev}</Badge>
                           ))}
                         </div>
-                        <div className="flex items-center gap-3 mt-1.5 text-[10px] text-muted-foreground">
-                          {wh.last_triggered_at && <span>Último disparo: {new Date(wh.last_triggered_at).toLocaleString('pt-BR')}</span>}
-                          {wh.failure_count > 0 && <span className="text-destructive">Falhas: {wh.failure_count}</span>}
+                        <div className="flex gap-3 mt-1 text-[10px] text-muted-foreground">
+                          <span>Criado: {new Date(wh.criado_em).toLocaleDateString('pt-BR')}</span>
+                          {wh.ultimo_disparo_em && <span>Último disparo: {new Date(wh.ultimo_disparo_em).toLocaleDateString('pt-BR')}</span>}
+                          {wh.contagem_falhas > 0 && <span className="text-destructive">Falhas: {wh.contagem_falhas}</span>}
                         </div>
                       </div>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => handleDeleteWebhook(wh.id)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+                      <div className="flex items-center gap-2">
+                        <Switch checked={wh.ativo} onCheckedChange={(checked) => handleToggleWebhook(wh.id, checked)} />
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteWebhook(wh.id)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             )}
           </TabsContent>
         </Tabs>

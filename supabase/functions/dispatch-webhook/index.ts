@@ -6,8 +6,6 @@ const corsHeaders = {
   'Content-Type': 'application/json',
 };
 
-// Called internally when a signature event occurs
-// Dispatches webhooks to all registered endpoints for the document owner
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -25,7 +23,7 @@ Deno.serve(async (req) => {
     );
 
     // Get document owner
-    const { data: doc } = await supabase.from('documents').select('user_id, name, status').eq('id', document_id).single();
+    const { data: doc } = await supabase.from('documentos').select('usuario_id, nome, status').eq('id', document_id).single();
     if (!doc) {
       return new Response(JSON.stringify({ error: 'Document not found' }), { status: 404, headers: corsHeaders });
     }
@@ -33,11 +31,11 @@ Deno.serve(async (req) => {
     // Get active webhooks for this user & event
     const { data: webhooks } = await supabase.from('webhooks')
       .select('*')
-      .eq('user_id', doc.user_id)
-      .eq('active', true);
+      .eq('usuario_id', doc.usuario_id)
+      .eq('ativo', true);
 
     const matchingWebhooks = (webhooks || []).filter((wh: any) =>
-      wh.events.includes(event) || wh.events.includes('*')
+      wh.eventos.includes(event) || wh.eventos.includes('*')
     );
 
     if (matchingWebhooks.length === 0) {
@@ -48,7 +46,7 @@ Deno.serve(async (req) => {
     const webhookPayload = {
       event,
       document_id,
-      document_name: doc.name,
+      document_name: doc.nome,
       document_status: doc.status,
       signer_id: signer_id || null,
       data: payload || {},
@@ -62,35 +60,35 @@ Deno.serve(async (req) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Webhook-Secret': wh.secret || '',
+            'X-Webhook-Secret': wh.segredo || '',
             'X-Webhook-Event': event,
           },
           body: JSON.stringify(webhookPayload),
         });
 
-        await supabase.from('webhook_deliveries').insert({
+        await supabase.from('entregas_webhook').insert({
           webhook_id: wh.id,
-          event,
+          evento: event,
           payload: webhookPayload,
-          status_code: res.status,
-          success: res.ok,
-          response_body: await res.text().catch(() => ''),
+          codigo_status: res.status,
+          sucesso: res.ok,
+          corpo_resposta: await res.text().catch(() => ''),
         });
 
         await supabase.from('webhooks').update({
-          last_triggered_at: new Date().toISOString(),
-          failure_count: res.ok ? 0 : (wh.failure_count || 0) + 1,
+          ultimo_disparo_em: new Date().toISOString(),
+          contagem_falhas: res.ok ? 0 : (wh.contagem_falhas || 0) + 1,
         }).eq('id', wh.id);
 
         if (res.ok) dispatched++;
       } catch (err) {
-        await supabase.from('webhook_deliveries').insert({
+        await supabase.from('entregas_webhook').insert({
           webhook_id: wh.id,
-          event,
+          evento: event,
           payload: webhookPayload,
-          status_code: 0,
-          success: false,
-          response_body: err instanceof Error ? err.message : 'Connection error',
+          codigo_status: 0,
+          sucesso: false,
+          corpo_resposta: err instanceof Error ? err.message : 'Connection error',
         });
       }
     }
