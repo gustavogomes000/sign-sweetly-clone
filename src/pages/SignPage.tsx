@@ -47,6 +47,10 @@ export default function SignPage() {
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [signedFieldIds, setSignedFieldIds] = useState<Set<string>>(new Set());
 
+  // For the complete page - signed PDF URLs
+  const [signedPdfUrl, setSignedPdfUrl] = useState<string | null>(null);
+  const [dossiePdfUrl, setDossiePdfUrl] = useState<string | null>(null);
+
   const signaturePanelRef = useRef<HTMLDivElement>(null);
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
