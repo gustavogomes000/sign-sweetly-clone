@@ -113,7 +113,13 @@ export default function DocumentDetail() {
   };
 
   const handleDownload = () => {
-    if (publicUrl) window.open(publicUrl, '_blank');
+    // Always prefer signed PDF with hashes/validations; fallback to original
+    if (doc.caminho_pdf_final) {
+      const url = getDocumentPublicUrl(doc.caminho_pdf_final);
+      window.open(url, '_blank');
+    } else if (publicUrl) {
+      window.open(publicUrl, '_blank');
+    }
   };
 
   const handleDownloadFinal = () => {
@@ -152,17 +158,25 @@ export default function DocumentDetail() {
           <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(window.location.href).then(() => toast({ title: 'Link copiado ✓' }))}>
             <Copy className="w-4 h-4 mr-1" />Copiar link
           </Button>
-          <Button variant="outline" size="sm" onClick={handleDownload} disabled={!publicUrl}>
-            <Download className="w-4 h-4 mr-1" />Original
-          </Button>
-          {(doc.status === 'signed' || doc.status === 'FINALIZADO_COM_SUCESSO') && doc.caminho_pdf_final && (
+          {/* Main download: always prefer PDF with hashes */}
+          {doc.caminho_pdf_final ? (
             <Button size="sm" variant="default" onClick={handleDownloadFinal}>
               <Download className="w-4 h-4 mr-1" />PDF Assinado
             </Button>
+          ) : (
+            <Button variant="outline" size="sm" onClick={handleDownload} disabled={!publicUrl}>
+              <Download className="w-4 h-4 mr-1" />Baixar Original
+            </Button>
           )}
-          {(doc.status === 'signed' || doc.status === 'FINALIZADO_COM_SUCESSO') && doc.caminho_pdf_dossie && (
+          {doc.caminho_pdf_dossie && (
             <Button size="sm" variant="secondary" onClick={handleDownloadDossie}>
               <Shield className="w-4 h-4 mr-1" />Dossiê de Auditoria
+            </Button>
+          )}
+          {/* Show original download as secondary when signed version exists */}
+          {doc.caminho_pdf_final && publicUrl && (
+            <Button variant="ghost" size="sm" onClick={() => window.open(publicUrl, '_blank')}>
+              <FileText className="w-4 h-4 mr-1" />Original
             </Button>
           )}
           {(doc.status === 'signed' || doc.status === 'FINALIZADO_COM_SUCESSO') && !doc.caminho_pdf_final && (

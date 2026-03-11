@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatusBadge } from '@/components/documents/StatusBadge';
-import { FileText, Plus, Search, MoreHorizontal, Download, Send, Trash2, ArrowUpDown, Grid3X3, List, Loader2, Hexagon, Zap } from 'lucide-react';
+import { FileText, Plus, Search, MoreHorizontal, Download, Send, Trash2, ArrowUpDown, Grid3X3, List, Loader2, Hexagon, Zap, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -156,7 +156,17 @@ export default function Documents() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem asChild><Link to={`/documents/${doc.id}`}><FileText className="w-4 h-4 mr-2" />Visualizar</Link></DropdownMenuItem>
                       {doc.status === 'pending' && <DropdownMenuItem onClick={() => handleResend(doc)}><Send className="w-4 h-4 mr-2" />Reenviar</DropdownMenuItem>}
-                      <DropdownMenuItem onClick={() => handleDownload(doc.caminho_arquivo)}><Download className="w-4 h-4 mr-2" />Baixar</DropdownMenuItem>
+                      {/* Always prefer signed PDF with hashes; fallback to original */}
+                      {(doc as any).caminho_pdf_final ? (
+                        <DropdownMenuItem onClick={() => handleDownload((doc as any).caminho_pdf_final)}><Download className="w-4 h-4 mr-2" />Baixar PDF Assinado</DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem onClick={() => handleDownload(doc.caminho_arquivo)}><Download className="w-4 h-4 mr-2" />Baixar Original</DropdownMenuItem>
+                      )}
+                      {(doc as any).caminho_pdf_dossie && (
+                        <DropdownMenuItem onClick={() => handleDownload((doc as any).caminho_pdf_dossie)}>
+                          <Shield className="w-4 h-4 mr-2" />Dossiê de Auditoria
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuSeparator />
                       {(doc.status === 'pending' || doc.status === 'draft') && <DropdownMenuItem className="text-destructive" onClick={() => handleCancel(doc.id)}><Trash2 className="w-4 h-4 mr-2" />Cancelar</DropdownMenuItem>}
                     </DropdownMenuContent>
