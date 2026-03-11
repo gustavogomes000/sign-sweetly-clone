@@ -437,7 +437,7 @@ serve(async (req) => {
     const campos = fieldsRes.data || [];
     const assinaturas = sigsRes.data || [];
     const trilhaAuditoria = auditRes.data || [];
-    const participantes = participantsRes.data || [];
+    // participantes removido — usa signatarios unificado
 
     if (!doc.caminho_arquivo) {
       return new Response(JSON.stringify({ error: 'Sem arquivo PDF associado' }),
