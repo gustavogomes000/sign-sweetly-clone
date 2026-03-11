@@ -34,6 +34,7 @@ const notifIcon: Record<string, typeof CheckCircle2> = {
   created: Clock,
   sent: Clock,
   cancelled: XCircle,
+  signature: CheckCircle2,
 };
 
 const notifColor: Record<string, string> = {
@@ -46,6 +47,7 @@ const notifColor: Record<string, string> = {
   created: 'text-muted-foreground',
   sent: 'text-info',
   cancelled: 'text-destructive',
+  signature: 'text-success',
 };
 
 export function AppHeader({ title, subtitle, actions }: AppHeaderProps) {
@@ -58,17 +60,17 @@ export function AppHeader({ title, subtitle, actions }: AppHeaderProps) {
     queryFn: async () => {
       if (!user) return [];
       const { data } = await supabase
-        .from('audit_trail')
-        .select('id, action, actor, details, created_at, document_id')
-        .order('created_at', { ascending: false })
+        .from('trilha_auditoria')
+        .select('id, acao, ator, detalhes, criado_em, documento_id')
+        .order('criado_em', { ascending: false })
         .limit(10);
-      return (data || []).map(n => ({
+      return ((data || []) as any[]).map((n: any) => ({
         id: n.id,
-        type: n.action,
-        title: `${n.actor} — ${n.action}`,
-        description: n.details || '',
-        time: format(new Date(n.created_at), "dd/MM HH:mm", { locale: ptBR }),
-        read: true, // All read by default for now
+        type: n.acao,
+        title: `${n.ator} — ${n.acao}`,
+        description: n.detalhes || '',
+        time: format(new Date(n.criado_em), "dd/MM HH:mm", { locale: ptBR }),
+        read: true,
       }));
     },
     enabled: !!user,
