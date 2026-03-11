@@ -86,12 +86,12 @@ export default function Login() {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const { data: profile } = await supabase
-            .from('profiles')
-            .select('must_change_password')
+            .from('perfis')
+            .select('trocar_senha')
             .eq('id', user.id)
             .single();
           
-          if (profile?.must_change_password) {
+          if (profile?.trocar_senha) {
             setMustChangePassword(true);
             setLoading(false);
             return;
@@ -125,7 +125,7 @@ export default function Login() {
       // Clear the flag
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase.from('profiles').update({ must_change_password: false }).eq('id', user.id);
+        await supabase.from('perfis').update({ trocar_senha: false }).eq('id', user.id);
       }
 
       toast({ title: '✅ Senha alterada!', description: 'Sua nova senha foi salva com sucesso.' });
