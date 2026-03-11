@@ -159,14 +159,14 @@ export default function Documents() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem asChild><Link to={`/documents/${doc.id}`}><FileText className="w-4 h-4 mr-2" />Visualizar</Link></DropdownMenuItem>
                       {doc.status === 'pending' && <DropdownMenuItem onClick={() => handleResend(doc)}><Send className="w-4 h-4 mr-2" />Reenviar</DropdownMenuItem>}
-                      {/* Always prefer signed PDF with hashes; fallback to original */}
+                      {/* Download validado com verificação SHA-256 */}
                       {(doc as any).caminho_pdf_final ? (
-                        <DropdownMenuItem onClick={() => handleDownload((doc as any).caminho_pdf_final)}><Download className="w-4 h-4 mr-2" />Baixar PDF Assinado</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleValidatedDownload(doc.id, 'assinado')}><Download className="w-4 h-4 mr-2" />Baixar PDF Assinado</DropdownMenuItem>
                       ) : (
-                        <DropdownMenuItem onClick={() => handleDownload(doc.caminho_arquivo)}><Download className="w-4 h-4 mr-2" />Baixar Original</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleValidatedDownload(doc.id, 'original')}><Download className="w-4 h-4 mr-2" />Baixar Original</DropdownMenuItem>
                       )}
                       {(doc as any).caminho_pdf_dossie && (
-                        <DropdownMenuItem onClick={() => handleDownload((doc as any).caminho_pdf_dossie)}>
+                        <DropdownMenuItem onClick={() => handleValidatedDownload(doc.id, 'dossie')}>
                           <Shield className="w-4 h-4 mr-2" />Dossiê de Auditoria
                         </DropdownMenuItem>
                       )}
