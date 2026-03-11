@@ -419,13 +419,12 @@ serve(async (req) => {
     console.log(`[INICIO] Fechamento: ${documentoId}`);
 
     // Buscar dados
-    const [docRes, signersRes, fieldsRes, sigsRes, auditRes, participantsRes] = await Promise.all([
+    const [docRes, signersRes, fieldsRes, sigsRes, auditRes] = await Promise.all([
       supabase.from('documentos').select('*').eq('id', documentoId).single(),
       supabase.from('signatarios').select('*').eq('documento_id', documentoId).order('ordem_assinatura'),
       supabase.from('campos_documento').select('*').eq('documento_id', documentoId),
       supabase.from('assinaturas').select('*').eq('documento_id', documentoId),
-      supabase.from('trilha_auditoria_documentos').select('*').eq('documento_id', documentoId).order('criado_em'),
-      supabase.from('participantes_documento').select('*').eq('documento_id', documentoId).order('ordem_assinatura'),
+      supabase.from('trilha_auditoria').select('*').eq('documento_id', documentoId).order('criado_em'),
     ]);
 
     if (docRes.error || !docRes.data) {
