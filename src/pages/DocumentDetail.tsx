@@ -4,7 +4,7 @@ import { AppHeader } from '@/components/layout/AppHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/documents/StatusBadge';
-import { ArrowLeft, Download, Send, Clock, CheckCircle2, XCircle, FileText, Copy, Trash2, Mail, Phone, Shield, Eye, Loader2 } from 'lucide-react';
+import { ArrowLeft, Download, Send, Clock, CheckCircle2, XCircle, FileText, Copy, Trash2, Mail, Phone, Shield, Eye, Loader2, ShieldCheck, Fingerprint } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Separator } from '@/components/ui/separator';
@@ -232,6 +232,60 @@ export default function DocumentDetail() {
               </CardContent>
             </Card>
 
+            {/* Selo de Documento Verificado */}
+            {((doc as any).hash_pdf_original || (doc as any).hash_pdf_final) && (
+              <Card className="border-success/30 bg-success/5">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-success/15 flex items-center justify-center shrink-0">
+                      <ShieldCheck className="w-6 h-6 text-success" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-sm font-bold text-success">DOCUMENTO VERIFICADO</h3>
+                        <Badge variant="outline" className="text-[10px] border-success/40 text-success bg-success/10">SHA-256</Badge>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mb-3">
+                        Integridade garantida por hash criptográfico. Qualquer alteração invalida o documento.
+                      </p>
+                      <div className="space-y-2">
+                        {(doc as any).hash_pdf_original && (
+                          <div className="group">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <Fingerprint className="w-3 h-3 text-muted-foreground" />
+                              <span className="text-[10px] font-semibold text-muted-foreground tracking-wider">HASH ORIGINAL</span>
+                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => { navigator.clipboard.writeText((doc as any).hash_pdf_original); toast({ title: 'Hash copiado ✓' }); }}>
+                                <Copy className="w-3 h-3" />
+                              </Button>
+                            </div>
+                            <code className="text-[9px] text-foreground/70 font-mono break-all leading-relaxed block bg-secondary/50 rounded px-2 py-1">
+                              {(doc as any).hash_pdf_original}
+                            </code>
+                          </div>
+                        )}
+                        {(doc as any).hash_pdf_final && (
+                          <div className="group">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <Fingerprint className="w-3 h-3 text-muted-foreground" />
+                              <span className="text-[10px] font-semibold text-muted-foreground tracking-wider">HASH ASSINADO</span>
+                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => { navigator.clipboard.writeText((doc as any).hash_pdf_final); toast({ title: 'Hash copiado ✓' }); }}>
+                                <Copy className="w-3 h-3" />
+                              </Button>
+                            </div>
+                            <code className="text-[9px] text-foreground/70 font-mono break-all leading-relaxed block bg-secondary/50 rounded px-2 py-1">
+                              {(doc as any).hash_pdf_final}
+                            </code>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardContent className="p-4">
                 {isPdf && publicUrl ? (
@@ -266,6 +320,16 @@ export default function DocumentDetail() {
                           {field.valor ? '✓' : field.tipo_campo}
                         </div>
                       ))}
+                      {/* Selo visual de verificação sobre o PDF */}
+                      {(doc.status === 'signed' || doc.status === 'FINALIZADO_COM_SUCESSO') && (doc as any).hash_pdf_final && (
+                        <div className="absolute top-3 right-3 z-20 bg-success/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg border border-success/50 flex items-center gap-2">
+                          <ShieldCheck className="w-4 h-4 text-white" />
+                          <div>
+                            <p className="text-[10px] font-bold text-white tracking-wider leading-none">VERIFICADO</p>
+                            <p className="text-[8px] text-white/80 font-mono mt-0.5">{((doc as any).hash_pdf_final as string).substring(0, 16)}...</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : publicUrl ? (
