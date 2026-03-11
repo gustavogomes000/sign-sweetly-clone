@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useGeolocalizacao, type DadosGeolocalizacao } from '@/hooks/useGeolocalizacao';
-import { VLSelfie } from '@/components/valeris/VLSelfie';
+import { VLCameraBlindada } from '@/components/valeris/VLCameraBlindada';
 import { VLDocumento } from '@/components/valeris/VLDocumento';
 import { bluepointService } from '@/services/bluepointService';
 import { useToast } from '@/hooks/use-toast';
@@ -101,19 +101,21 @@ export function StepperAssinatura({
     }
   };
 
-  // ── Passo 3: Selfie / Biometria ──
-  const handleSelfieCapturada = async (resultado: { status: string; imageBase64?: string }) => {
-    if (tipoAutenticacao === 'INTERNA_BLUEPOINT' && bluepointColaboradorId && resultado.imageBase64) {
-      // Validar biometria via BluePoint
+  // ── Passo 3: Selfie / Biometria via Câmera Blindada ──
+  const handleSelfieCapturada = async (dados: {
+    imagemBase64: string;
+    validacoes: { livenessAprovado?: boolean; gpsValido: boolean; cameraFisica: boolean };
+  }) => {
+    if (tipoAutenticacao === 'INTERNA_BLUEPOINT' && bluepointColaboradorId) {
       setProcessandoBiometria(true);
       try {
         const bio = await bluepointService.validarBiometriaFacial({
           colaboradorId: bluepointColaboradorId,
-          imagemBase64: resultado.imageBase64,
+          imagemBase64: dados.imagemBase64,
         });
         setEvidencias((prev) => ({
           ...prev,
-          selfieBase64: resultado.imageBase64,
+          selfieBase64: dados.imagemBase64,
           biometriaAprovada: bio.sucesso,
         }));
         if (bio.sucesso) {
@@ -128,9 +130,8 @@ export function StepperAssinatura({
         setProcessandoBiometria(false);
       }
     } else {
-      // KYC externo: apenas salvar selfie
-      setEvidencias((prev) => ({ ...prev, selfieBase64: resultado.imageBase64 }));
-      toast({ title: '📸 Selfie capturada!' });
+      setEvidencias((prev) => ({ ...prev, selfieBase64: dados.imagemBase64 }));
+      toast({ title: '📸 Selfie capturada com prova de vida!' });
       setTimeout(avancar, 500);
     }
   };
@@ -323,11 +324,10 @@ export function StepperAssinatura({
                     <p className="text-sm text-muted-foreground">Validando biometria...</p>
                   </div>
                 ) : (
-                  <VLSelfie
-                    signatoryId={participanteId}
-                    documentId={documentoId}
+                  <VLCameraBlindada
+                    modo="selfie"
                     aoCompletar={handleSelfieCapturada}
-                    onError={(err) => toast({ title: 'Erro', description: String(err), variant: 'destructive' })}
+                    aoErrar={(err) => toast({ title: 'Erro', description: err, variant: 'destructive' })}
                   />
                 )}
               </CardContent>

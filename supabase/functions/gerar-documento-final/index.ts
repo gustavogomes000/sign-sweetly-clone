@@ -122,12 +122,13 @@ interface DadosManifesto {
  * Adiciona a(s) página(s) de Manifesto/Dossiê de Auditoria ao final do PDF.
  * Escreve todas as evidências coletadas em formato legível.
  */
-function adicionarPaginaManifesto(
+async function adicionarPaginaManifesto(
   pdfDoc: PDFDocument,
   fonteNormal: any,
   fonteNegrito: any,
-  dados: DadosManifesto
-): void {
+  dados: DadosManifesto,
+  supabase: any,
+): Promise<void> {
   let pagina = pdfDoc.addPage([PAGINA_LARGURA, PAGINA_ALTURA]);
   let yPos = PAGINA_ALTURA - MARGEM;
   let numeroPagManifesto = 1;
@@ -351,20 +352,71 @@ function adicionarPaginaManifesto(
       });
     }
 
-    // Evidências KYC
+    // Evidências KYC — Embutir fotos diretamente no PDF do dossiê
     if (evento.caminho_foto_selfie) {
-      escreverTexto(`[Selfie KYC armazenada em bucket privado: ${evento.caminho_foto_selfie}]`, {
+      escreverTexto(`Selfie KYC (bucket privado): ${evento.caminho_foto_selfie}`, {
         recuo: 20,
         tamanho: 7,
         cor: { r: 0.1, g: 0.4, b: 0.1 },
       });
+      // Tentar embutir imagem da selfie no PDF
+      try {
+        const { data: selfieData } = await supabase.storage
+          .from('evidencias_kyc')
+          .download(evento.caminho_foto_selfie);
+        if (selfieData) {
+          const selfieBytes = new Uint8Array(await selfieData.arrayBuffer());
+          let imagemEmbutida;
+          // Detectar formato via magic numbers
+          if (selfieBytes[0] === 0x89 && selfieBytes[1] === 0x50) {
+            imagemEmbutida = await pdfDoc.embedPng(selfieBytes);
+          } else {
+            imagemEmbutida = await pdfDoc.embedJpg(selfieBytes);
+          }
+          verificarQuebraPagina(110);
+          pagina.drawImage(imagemEmbutida, {
+            x: MARGEM + 20,
+            y: yPos - 90,
+            width: 80,
+            height: 90,
+          });
+          yPos -= 95;
+        }
+      } catch (erroImg) {
+        console.warn('[AVISO] Falha ao embutir selfie no dossiê:', erroImg);
+      }
     }
     if (evento.caminho_foto_documento_oficial) {
-      escreverTexto(`[Documento oficial armazenado em bucket privado: ${evento.caminho_foto_documento_oficial}]`, {
+      escreverTexto(`Documento oficial (bucket privado): ${evento.caminho_foto_documento_oficial}`, {
         recuo: 20,
         tamanho: 7,
         cor: { r: 0.1, g: 0.4, b: 0.1 },
       });
+      // Tentar embutir imagem do documento no PDF
+      try {
+        const { data: docImgData } = await supabase.storage
+          .from('evidencias_kyc')
+          .download(evento.caminho_foto_documento_oficial);
+        if (docImgData) {
+          const docImgBytes = new Uint8Array(await docImgData.arrayBuffer());
+          let imagemEmbutida;
+          if (docImgBytes[0] === 0x89 && docImgBytes[1] === 0x50) {
+            imagemEmbutida = await pdfDoc.embedPng(docImgBytes);
+          } else {
+            imagemEmbutida = await pdfDoc.embedJpg(docImgBytes);
+          }
+          verificarQuebraPagina(80);
+          pagina.drawImage(imagemEmbutida, {
+            x: MARGEM + 20,
+            y: yPos - 60,
+            width: 100,
+            height: 60,
+          });
+          yPos -= 65;
+        }
+      } catch (erroImg) {
+        console.warn('[AVISO] Falha ao embutir documento no dossiê:', erroImg);
+      }
     }
 
     // Metadados extras (biometria, tipo de documento)
@@ -707,7 +759,7 @@ serve(async (req) => {
         );
 
         // ── 6. Adicionar página(s) de Manifesto/Dossiê ──
-        adicionarPaginaManifesto(pdfDoc, fonteNormal, fonteNegrito, {
+        await adicionarPaginaManifesto(pdfDoc, fonteNormal, fonteNegrito, {
           hashOriginal,
           nomeDocumento: doc.nome,
           documentoId: doc.id,
@@ -716,7 +768,7 @@ serve(async (req) => {
           signatarios,
           participantes,
           assinaturas,
-        });
+        }, supabase);
 
         // ── 7. Salvar PDF montado como Uint8Array ──
         const bufferGerado = await pdfDoc.save();
