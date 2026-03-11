@@ -1,71 +1,21 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, ArrowRight, Hexagon, Zap, Lock, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Lock, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
-import signproofLogo from '@/assets/signproof-logo.png';
-import { AnimatedBackground } from '@/components/layout/AnimatedBackground';
 import { supabase } from '@/integrations/supabase/client';
-
-function HexParticles() {
-  const particles = useMemo(() =>
-    Array.from({ length: 18 }, (_, i) => ({
-      id: i,
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: 20 + Math.random() * 40,
-      duration: 8 + Math.random() * 12,
-      delay: Math.random() * 5,
-      opacity: 0.03 + Math.random() * 0.06,
-    })), []);
-
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {particles.map((p) => (
-        <motion.div
-          key={p.id}
-          className="absolute"
-          style={{ left: `${p.x}%`, top: `${p.y}%` }}
-          animate={{ y: [0, -30, 0], x: [0, 10, -10, 0], rotate: [0, 60, 0], opacity: [p.opacity, p.opacity * 2, p.opacity] }}
-          transition={{ duration: p.duration, repeat: Infinity, delay: p.delay, ease: 'easeInOut' }}
-        >
-          <Hexagon className="text-primary" style={{ width: p.size, height: p.size, opacity: p.opacity }} strokeWidth={1} />
-        </motion.div>
-      ))}
-    </div>
-  );
-}
-
-function GridOverlay() {
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      <motion.div
-        className="absolute left-0 right-0 h-px"
-        style={{ background: 'linear-gradient(90deg, transparent, hsl(var(--primary) / 0.15), transparent)' }}
-        animate={{ top: ['0%', '100%'] }}
-        transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
-      />
-      <div className="absolute top-6 left-6 w-12 h-12 border-l-2 border-t-2 border-primary/20 rounded-tl-lg" />
-      <div className="absolute top-6 right-6 w-12 h-12 border-r-2 border-t-2 border-primary/20 rounded-tr-lg" />
-      <div className="absolute bottom-6 left-6 w-12 h-12 border-l-2 border-b-2 border-primary/20 rounded-bl-lg" />
-      <div className="absolute bottom-6 right-6 w-12 h-12 border-r-2 border-b-2 border-primary/20 rounded-br-lg" />
-    </div>
-  );
-}
+import signproofLogo from '@/assets/signproof-logo.png';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  
-  // First-login password change state
+
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -82,7 +32,6 @@ export default function Login() {
     try {
       const success = await login(email, password);
       if (success) {
-        // Check if user must change password
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const { data: profile } = await supabase
@@ -90,7 +39,7 @@ export default function Login() {
             .select('trocar_senha')
             .eq('id', user.id)
             .single();
-          
+
           if (profile?.trocar_senha) {
             setMustChangePassword(true);
             setLoading(false);
@@ -121,13 +70,10 @@ export default function Login() {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-
-      // Clear the flag
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from('perfis').update({ trocar_senha: false }).eq('id', user.id);
       }
-
       toast({ title: '✅ Senha alterada!', description: 'Sua nova senha foi salva com sucesso.' });
       setMustChangePassword(false);
       navigate('/dashboard');
@@ -139,41 +85,60 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-background relative flex items-center justify-center p-6 overflow-hidden">
-      <AnimatedBackground />
-      <HexParticles />
-      <GridOverlay />
-      <motion.div initial={{ opacity: 0, y: 30, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.6, ease: 'easeOut' }} className="w-full max-w-md space-y-6 relative z-10">
-        {/* Logo */}
-        <motion.div className="text-center space-y-2" initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.5 }}>
-          <motion.div className="relative mx-auto w-16 h-16" animate={{ rotateY: [0, 10, -10, 0] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }} style={{ perspective: 600 }}>
-            <div className="w-16 h-16 rounded-xl flex items-center justify-center overflow-hidden glow-primary shadow-xl" style={{ background: 'linear-gradient(145deg, hsl(var(--primary) / 0.15), hsl(var(--card)))', border: '1px solid hsl(var(--primary) / 0.3)' }}>
+    <div className="min-h-screen bg-background flex">
+      {/* Lado esquerdo — branding */}
+      <div className="hidden lg:flex lg:w-1/2 relative items-center justify-center overflow-hidden"
+        style={{ background: 'linear-gradient(145deg, hsl(var(--primary)) 0%, hsl(180 30% 12%) 100%)' }}>
+        <div className="absolute inset-0 opacity-10"
+          style={{ backgroundImage: 'radial-gradient(circle at 25% 25%, hsl(var(--accent) / 0.3) 0%, transparent 50%), radial-gradient(circle at 75% 75%, hsl(var(--primary) / 0.2) 0%, transparent 50%)' }} />
+        <div className="relative z-10 text-center space-y-6 px-12 max-w-lg">
+          <div className="w-20 h-20 rounded-2xl mx-auto overflow-hidden shadow-2xl border border-white/10">
+            <img src={signproofLogo} alt="SignProof" className="w-full h-full object-cover" />
+          </div>
+          <h1 className="text-3xl font-bold text-white tracking-tight">SignProof</h1>
+          <p className="text-sm text-white/50">by Valeris</p>
+          <div className="space-y-4 pt-4">
+            <p className="text-white/80 text-sm leading-relaxed">
+              Plataforma de assinatura eletrônica avançada com validade jurídica, 
+              verificação biométrica e trilha de auditoria completa.
+            </p>
+            <div className="flex items-center justify-center gap-6 text-white/50 text-xs">
+              <span>🔐 ICP-Brasil</span>
+              <span>📍 Geolocalização</span>
+              <span>🪪 KYC</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Lado direito — formulário */}
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="w-full max-w-sm space-y-6">
+          {/* Logo mobile */}
+          <div className="lg:hidden text-center space-y-2">
+            <div className="w-14 h-14 rounded-xl mx-auto overflow-hidden shadow-lg border border-border">
               <img src={signproofLogo} alt="SignProof" className="w-full h-full object-cover" />
             </div>
-            <div className="absolute -inset-1 rounded-xl bg-primary/10 blur-md -z-10" />
-          </motion.div>
-          <h1 className="text-2xl font-game font-bold tracking-wider"><span className="stat-number">SIGNPROOF</span></h1>
-          <p className="text-[10px] text-muted-foreground/50 uppercase tracking-[0.3em] font-game">by Valeris</p>
-        </motion.div>
+            <h1 className="text-xl font-bold text-foreground">SignProof</h1>
+            <p className="text-[10px] text-muted-foreground">by Valeris</p>
+          </div>
 
-        {/* Card */}
-        <motion.div initial={{ opacity: 0, y: 20, rotateX: -5 }} animate={{ opacity: 1, y: 0, rotateX: 0 }} transition={{ delay: 0.4, duration: 0.5 }} style={{ perspective: 1000 }}>
-          <Card className="game-card overflow-hidden" style={{ boxShadow: '0 0 0 1px hsl(var(--border)), 0 10px 40px -10px hsl(var(--primary) / 0.15), 0 20px 60px -15px hsl(0 0% 0% / 0.15)' }}>
+          <Card className="shadow-sm border-border">
             <CardContent className="p-6">
               {mustChangePassword ? (
-                <>
-                  <div className="flex items-center gap-2 mb-5">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-accent/15">
+                <div className="space-y-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-accent/15">
                       <Lock className="w-4 h-4 text-accent" />
                     </div>
                     <div>
-                      <h2 className="text-sm font-game font-semibold text-foreground tracking-wide">PRIMEIRO ACESSO</h2>
+                      <h2 className="text-sm font-semibold text-foreground">Primeiro acesso</h2>
                       <p className="text-xs text-muted-foreground">Defina sua nova senha</p>
                     </div>
                   </div>
                   <form onSubmit={handleChangePassword} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label className="text-xs font-game text-muted-foreground tracking-wider">NOVA SENHA</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Nova senha</Label>
                       <div className="relative">
                         <Input
                           type={showNewPassword ? 'text' : 'password'}
@@ -182,15 +147,15 @@ export default function Login() {
                           placeholder="Mínimo 6 caracteres"
                           required
                           minLength={6}
-                          className="bg-secondary/50 border-border/50 focus:border-primary transition-all pr-10"
+                          className="pr-10"
                         />
                         <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                           {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs font-game text-muted-foreground tracking-wider">CONFIRMAR SENHA</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Confirmar senha</Label>
                       <Input
                         type="password"
                         value={confirmPassword}
@@ -198,68 +163,77 @@ export default function Login() {
                         placeholder="Repita a nova senha"
                         required
                         minLength={6}
-                        className="bg-secondary/50 border-border/50 focus:border-primary transition-all"
                       />
                     </div>
                     {newPassword && confirmPassword && newPassword !== confirmPassword && (
                       <p className="text-xs text-destructive">As senhas não conferem</p>
                     )}
-                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                      <Button type="submit" className="w-full font-game font-bold tracking-wider text-sm h-11 gradient-teal-gold text-primary-foreground glow-primary" disabled={changingPassword}>
-                        {changingPassword ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <>SALVAR NOVA SENHA <ArrowRight className="w-4 h-4 ml-2" /></>
-                        )}
-                      </Button>
-                    </motion.div>
+                    <Button type="submit" className="w-full" disabled={changingPassword}>
+                      {changingPassword ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>Salvar nova senha <ArrowRight className="w-4 h-4 ml-2" /></>
+                      )}
+                    </Button>
                   </form>
-                </>
+                </div>
               ) : (
-                <>
-                  <div className="flex items-center gap-2 mb-5">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary/15">
-                      <Zap className="w-4 h-4 text-primary" />
-                    </div>
-                    <h2 className="text-sm font-game font-semibold text-foreground tracking-wide">LOGIN</h2>
+                <div className="space-y-5">
+                  <div>
+                    <h2 className="text-lg font-semibold text-foreground">Entrar</h2>
+                    <p className="text-xs text-muted-foreground mt-1">Acesse sua conta SignProof</p>
                   </div>
                   <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label className="text-xs font-game text-muted-foreground tracking-wider">EMAIL</Label>
-                      <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="usuario@empresa.com" required className="bg-secondary/50 border-border/50 focus:border-primary transition-all" />
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Email</Label>
+                      <Input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="seu@email.com"
+                        required
+                      />
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <Label className="text-xs font-game text-muted-foreground tracking-wider">SENHA</Label>
-                        <button type="button" className="text-[10px] font-game text-primary hover:underline tracking-wider">RECUPERAR</button>
+                        <Label className="text-xs text-muted-foreground">Senha</Label>
+                        <button type="button" className="text-xs text-primary hover:underline">
+                          Esqueceu a senha?
+                        </button>
                       </div>
                       <div className="relative">
-                        <Input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} className="bg-secondary/50 border-border/50 focus:border-primary transition-all pr-10" />
+                        <Input
+                          type={showPassword ? 'text' : 'password'}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••"
+                          required
+                          minLength={6}
+                          className="pr-10"
+                        />
                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
                     </div>
-                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                      <Button type="submit" className="w-full font-game font-bold tracking-wider text-sm h-11 gradient-teal-gold text-primary-foreground glow-primary" disabled={loading}>
-                        {loading ? (
-                          <motion.span animate={{ opacity: [1, 0.5, 1] }} transition={{ duration: 1, repeat: Infinity }}>CONECTANDO...</motion.span>
-                        ) : (
-                          <>ENTRAR <ArrowRight className="w-4 h-4 ml-2" /></>
-                        )}
-                      </Button>
-                    </motion.div>
+                    <Button type="submit" className="w-full" disabled={loading}>
+                      {loading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>Entrar <ArrowRight className="w-4 h-4 ml-2" /></>
+                      )}
+                    </Button>
                   </form>
-                </>
+                </div>
               )}
             </CardContent>
           </Card>
-        </motion.div>
 
-        <p className="text-center text-[10px] text-muted-foreground/50 font-game tracking-wider">
-          Acesso restrito a usuários autorizados
-        </p>
-      </motion.div>
+          <p className="text-center text-[10px] text-muted-foreground">
+            Acesso restrito a usuários autorizados
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
