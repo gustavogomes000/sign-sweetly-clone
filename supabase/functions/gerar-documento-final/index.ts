@@ -671,6 +671,22 @@ serve(async (req) => {
       );
     }
 
+    // ── Verificação de idempotência ──
+    // Previne geração duplicada se dois assinantes completam simultaneamente
+    const { data: docCheck } = await supabase
+      .from('documentos')
+      .select('status')
+      .eq('id', documentoId)
+      .single();
+
+    if (docCheck?.status === 'FINALIZADO_COM_SUCESSO') {
+      console.log(`[IDEMPOTENTE] Documento ${documentoId} já finalizado. Ignorando.`);
+      return new Response(
+        JSON.stringify({ sucesso: true, mensagem: 'Documento já finalizado anteriormente (idempotente)' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     console.log(`[INICIO] Fechamento do documento: ${documentoId}`);
 
     // ── 1. Buscar documento e dados relacionados em paralelo ──
@@ -798,9 +814,9 @@ serve(async (req) => {
         if (tentativa >= MAX_TENTATIVAS) {
           throw new Error(`Falha ao montar PDF apos ${MAX_TENTATIVAS} tentativas: ${erroMontagem instanceof Error ? erroMontagem.message : 'erro desconhecido'}`);
         }
-        console.log('[RETRY] Aguardando antes de reiniciar...');
-        // Pequeno delay antes do retry para evitar race conditions
-        await new Promise(r => setTimeout(r, 500));
+        console.log('[RETRY] Aguardando antes de reiniciar (backoff exponencial)...');
+        // Backoff exponencial: 500ms, 1000ms, 2000ms
+        await new Promise(r => setTimeout(r, 500 * Math.pow(2, tentativa - 1)));
       }
     }
 
