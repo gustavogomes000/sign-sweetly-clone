@@ -241,7 +241,7 @@ export default function SignPage() {
     setTimeout(() => setPageStep('complete'), 800);
   };
 
-
+  const handleComplete = async () => {
     if (!signerData) return;
     setSaving(true);
     try {
