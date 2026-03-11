@@ -20,7 +20,7 @@ export const StatusBadge = React.forwardRef<
     <span
       ref={ref}
       className={cn(
-        'game-badge',
+        'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold',
         config.className
       )}
     >

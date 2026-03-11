@@ -191,7 +191,7 @@ export function ConfiguracaoEnvio({ participantes, onParticipantesChange }: Conf
       {/* Lista de participantes */}
       <div className="space-y-3">
         {participantes.map((participante, indice) => (
-          <Card key={participante.id} className="game-card">
+          <Card key={participante.id} className="border rounded-xl bg-card">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
                 {/* Drag handle */}

@@ -64,7 +64,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {statCards.map((stat, i) => (
             <motion.div key={stat.label} custom={i} initial="hidden" animate="visible" variants={cardVariants} whileHover={{ y: -4, scale: 1.03 }} style={{ perspective: 800 }}>
-              <Card className="game-card group cursor-default h-full">
+              <Card className="border rounded-xl bg-card group cursor-default h-full">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-3">
                     <motion.div className={cn('p-2 rounded-lg', stat.bgColor)} whileHover={{ rotate: 12, scale: 1.15 }} transition={{ type: 'spring', stiffness: 300 }}>
@@ -72,8 +72,8 @@ export default function Dashboard() {
                     </motion.div>
                     <Hexagon className="w-4 h-4 text-primary/10 group-hover:text-primary/25 transition-colors" strokeWidth={1} />
                   </div>
-                  <p className="text-2xl font-game font-bold stat-number">{stat.value}</p>
-                  <p className="text-[11px] text-muted-foreground mt-1 font-body font-semibold">{stat.label}</p>
+                  <p className="text-2xl font-bold text-primary font-bold">{stat.value}</p>
+                  <p className="text-[11px] text-muted-foreground mt-1 font-semibold">{stat.label}</p>
                 </CardContent>
               </Card>
             </motion.div>
@@ -83,38 +83,38 @@ export default function Dashboard() {
         {/* KPIs Row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
-            <Card className="game-card overflow-hidden">
+            <Card className="border rounded-xl bg-card overflow-hidden">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <p className="text-[10px] font-game text-muted-foreground tracking-wider uppercase">Taxa de conclusão</p>
-                    <p className="text-3xl font-game font-bold stat-number mt-1">{stats?.completionRate ?? 0}%</p>
+                    <p className="text-[10px] text-muted-foreground tracking-wider uppercase">Taxa de conclusão</p>
+                    <p className="text-3xl font-bold text-primary font-bold mt-1">{stats?.completionRate ?? 0}%</p>
                   </div>
                   <motion.div className="p-3 rounded-xl bg-success/10" animate={{ rotate: [0, 5, -5, 0] }} transition={{ duration: 3, repeat: Infinity }}>
                     <TrendingUp className="w-5 h-5 text-success" />
                   </motion.div>
                 </div>
-                <div className="game-progress">
-                  <motion.div className="game-progress-bar" initial={{ width: 0 }} animate={{ width: `${stats?.completionRate ?? 0}%` }} transition={{ delay: 0.5, duration: 1.2 }} />
+                <div className="relative h-3 w-full overflow-hidden rounded-full bg-secondary">
+                  <motion.div className="h-full rounded-full bg-primary" initial={{ width: 0 }} animate={{ width: `${stats?.completionRate ?? 0}%` }} transition={{ delay: 0.5, duration: 1.2 }} />
                 </div>
-                <p className="text-xs text-muted-foreground mt-2 font-body">Documentos completados com sucesso</p>
+                <p className="text-xs text-muted-foreground mt-2">Documentos completados com sucesso</p>
               </CardContent>
             </Card>
           </motion.div>
 
           <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
-            <Card className="game-card overflow-hidden">
+            <Card className="border rounded-xl bg-card overflow-hidden">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <p className="text-[10px] font-game text-muted-foreground tracking-wider uppercase">Tempo médio</p>
-                    <p className="text-3xl font-game font-bold stat-number mt-1">{stats?.avgSignTime ?? '—'}</p>
+                    <p className="text-[10px] text-muted-foreground tracking-wider uppercase">Tempo médio</p>
+                    <p className="text-3xl font-bold text-primary font-bold mt-1">{stats?.avgSignTime ?? '—'}</p>
                   </div>
                   <motion.div className="p-3 rounded-xl bg-info/10" animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: Infinity }}>
                     <Timer className="w-5 h-5 text-info" />
                   </motion.div>
                 </div>
-                <p className="text-xs text-muted-foreground font-body">Desde o envio até todas assinaturas coletadas</p>
+                <p className="text-xs text-muted-foreground">Desde o envio até todas assinaturas coletadas</p>
               </CardContent>
             </Card>
           </motion.div>
@@ -123,11 +123,11 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Chart */}
           <motion.div className="lg:col-span-2" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
-            <Card className="game-card">
+            <Card className="border rounded-xl bg-card">
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
                   <Zap className="w-4 h-4 text-accent" />
-                  <CardTitle className="text-sm font-game tracking-wider">DOCUMENTOS POR MÊS</CardTitle>
+                  <CardTitle className="text-sm tracking-wider">DOCUMENTOS POR MÊS</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
@@ -162,25 +162,25 @@ export default function Dashboard() {
 
           {/* Quick actions */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
-            <Card className="game-card">
+            <Card className="border rounded-xl bg-card">
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
                   <Hexagon className="w-4 h-4 text-primary/40" strokeWidth={1.5} />
-                  <CardTitle className="text-sm font-game tracking-wider">AÇÕES RÁPIDAS</CardTitle>
+                  <CardTitle className="text-sm tracking-wider">AÇÕES RÁPIDAS</CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="space-y-2">
                 <Link to="/documents/new" className="flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 transition-all">
                   <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center"><Plus className="w-4 h-4 text-primary" /></div>
-                  <div><p className="text-sm font-body font-semibold text-foreground">Novo documento</p><p className="text-[10px] text-muted-foreground">Enviar para assinatura</p></div>
+                  <div><p className="text-sm font-semibold text-foreground">Novo documento</p><p className="text-[10px] text-muted-foreground">Enviar para assinatura</p></div>
                 </Link>
                 <Link to="/documents" className="flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 transition-all">
                   <div className="w-8 h-8 rounded-lg bg-warning/10 flex items-center justify-center"><Clock className="w-4 h-4 text-warning" /></div>
-                  <div><p className="text-sm font-body font-semibold text-foreground">Pendentes</p><p className="text-[10px] text-muted-foreground">{stats?.pendingSignatures ?? 0} aguardando assinatura</p></div>
+                  <div><p className="text-sm font-semibold text-foreground">Pendentes</p><p className="text-[10px] text-muted-foreground">{stats?.pendingSignatures ?? 0} aguardando assinatura</p></div>
                 </Link>
                 <Link to="/contacts" className="flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 transition-all">
                   <div className="w-8 h-8 rounded-lg bg-info/10 flex items-center justify-center"><FileText className="w-4 h-4 text-info" /></div>
-                  <div><p className="text-sm font-body font-semibold text-foreground">Contatos</p><p className="text-[10px] text-muted-foreground">Gerenciar signatários</p></div>
+                  <div><p className="text-sm font-semibold text-foreground">Contatos</p><p className="text-[10px] text-muted-foreground">Gerenciar signatários</p></div>
                 </Link>
               </CardContent>
             </Card>
@@ -189,13 +189,13 @@ export default function Dashboard() {
 
         {/* Recent Documents */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }}>
-          <Card className="game-card">
+          <Card className="border rounded-xl bg-card">
             <div className="p-5 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-primary/50" />
-                <h2 className="text-sm font-game font-semibold text-foreground tracking-wider">DOCUMENTOS RECENTES</h2>
+                <h2 className="text-sm font-semibold text-foreground tracking-wider">DOCUMENTOS RECENTES</h2>
               </div>
-              <Link to="/documents" className="text-[10px] font-game text-primary hover:underline flex items-center gap-1 tracking-wider">
+              <Link to="/documents" className="text-[10px] text-primary hover:underline flex items-center gap-1 tracking-wider">
                 VER TODOS <ArrowUpRight className="w-3 h-3" />
               </Link>
             </div>
@@ -215,8 +215,8 @@ export default function Dashboard() {
                         <FileText className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                       </motion.div>
                       <div className="min-w-0">
-                        <p className="text-sm font-body font-semibold text-foreground truncate group-hover:text-primary transition-colors">{doc.nome}</p>
-                        <p className="text-xs text-muted-foreground font-body">
+                        <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">{doc.nome}</p>
+                        <p className="text-xs text-muted-foreground">
                           {format(new Date(doc.criado_em), "dd 'de' MMM, yyyy", { locale: ptBR })}
                           {doc.signers.length > 0 && ` · ${doc.signers.filter(s => s.status === 'signed').length}/${doc.signers.length} assinaturas`}
                         </p>

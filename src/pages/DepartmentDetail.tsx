@@ -189,7 +189,7 @@ export default function DepartmentDetail() {
         subtitle={`${colaboradores.length} colaboradores`}
       />
       <div className="flex-1 overflow-auto p-6 space-y-4">
-        <Link to="/departments" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-body">
+        <Link to="/departments" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4" /> Voltar para departamentos
         </Link>
 
@@ -218,13 +218,13 @@ export default function DepartmentDetail() {
             { label: 'STATUS', value: departamento?.status?.toUpperCase() || '—', icon: Building2, color: 'text-primary', bgColor: 'bg-primary/10' },
           ].map((stat, i) => (
             <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }} whileHover={{ y: -2, scale: 1.02 }}>
-              <Card className="game-card">
+              <Card className="border rounded-xl bg-card">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className={`p-2 rounded-lg ${stat.bgColor}`}><stat.icon className={`w-4 h-4 ${stat.color}`} /></div>
                   </div>
-                  <p className="text-2xl font-game font-bold stat-number">{stat.value}</p>
-                  <p className="text-[10px] text-muted-foreground font-game tracking-wider">{stat.label}</p>
+                  <p className="text-2xl font-bold text-primary font-bold">{stat.value}</p>
+                  <p className="text-[10px] text-muted-foreground tracking-wider">{stat.label}</p>
                 </CardContent>
               </Card>
             </motion.div>
@@ -232,9 +232,9 @@ export default function DepartmentDetail() {
         </div>
 
         {departamento?.descricao && (
-          <Card className="game-card">
+          <Card className="border rounded-xl bg-card">
             <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground font-body">{departamento.descricao}</p>
+              <p className="text-sm text-muted-foreground">{departamento.descricao}</p>
             </CardContent>
           </Card>
         )}
@@ -248,17 +248,17 @@ export default function DepartmentDetail() {
           <Button
             variant={statusFilter === 'ativo' ? 'default' : 'outline'}
             size="sm"
-            className="font-game text-xs tracking-wider"
+            className="text-xs tracking-wider"
             onClick={() => setStatusFilter(statusFilter === 'ativo' ? 'all' : 'ativo')}
           >
             {statusFilter === 'ativo' ? 'SOMENTE ATIVOS' : 'TODOS'}
           </Button>
           <div className="ml-auto flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching} className="font-game text-xs tracking-wider">
+            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching} className="text-xs tracking-wider">
               <RefreshCw className={`w-4 h-4 mr-1 ${isFetching ? 'animate-spin' : ''}`} /> ATUALIZAR
             </Button>
             {filtered.filter(c => c && !importedBpIds.has(c.id)).length > 0 && (
-              <Button size="sm" onClick={() => { selectAllNotImported(); setShowBatchImport(true); }} className="font-game text-xs tracking-wider">
+              <Button size="sm" onClick={() => { selectAllNotImported(); setShowBatchImport(true); }} className="text-xs tracking-wider">
                 <Send className="w-4 h-4 mr-1" /> IMPORTAR EM LOTE
               </Button>
             )}
@@ -267,26 +267,26 @@ export default function DepartmentDetail() {
 
         {/* Collaborators table */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <Card className="game-card">
+          <Card className="border rounded-xl bg-card">
             <CardContent className="p-0">
               {isLoading ? (
                 <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
               ) : filtered.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                   <Users className="w-10 h-10 mb-2 opacity-30" />
-                  <p className="font-body">{colaboradores.length === 0 ? 'Nenhum colaborador neste departamento' : 'Nenhum colaborador encontrado com os filtros atuais'}</p>
+                  <p className="">{colaboradores.length === 0 ? 'Nenhum colaborador neste departamento' : 'Nenhum colaborador encontrado com os filtros atuais'}</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow className="border-border/50">
-                        <TableHead className="font-game text-[10px] tracking-wider">COLABORADOR</TableHead>
-                        <TableHead className="font-game text-[10px] tracking-wider hidden md:table-cell">CARGO</TableHead>
-                        <TableHead className="font-game text-[10px] tracking-wider hidden lg:table-cell">MATRÍCULA</TableHead>
-                        <TableHead className="font-game text-[10px] tracking-wider">STATUS</TableHead>
-                        <TableHead className="font-game text-[10px] tracking-wider">SISTEMA</TableHead>
-                        <TableHead className="font-game text-[10px] tracking-wider text-right">AÇÕES</TableHead>
+                        <TableHead className="text-[10px] tracking-wider">COLABORADOR</TableHead>
+                        <TableHead className="text-[10px] tracking-wider hidden md:table-cell">CARGO</TableHead>
+                        <TableHead className="text-[10px] tracking-wider hidden lg:table-cell">MATRÍCULA</TableHead>
+                        <TableHead className="text-[10px] tracking-wider">STATUS</TableHead>
+                        <TableHead className="text-[10px] tracking-wider">SISTEMA</TableHead>
+                        <TableHead className="text-[10px] tracking-wider text-right">AÇÕES</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -301,12 +301,12 @@ export default function DepartmentDetail() {
                               <div className="flex items-center gap-3">
                                 <Avatar className="w-9 h-9 border border-border/30">
                                   {c.foto && <AvatarImage src={c.foto} alt={c.nome} />}
-                                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-game font-bold">
+                                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
                                     {initials}
                                   </AvatarFallback>
                                 </Avatar>
                                 <div>
-                                  <p className="text-sm font-body font-semibold">{c.nome || '—'}</p>
+                                  <p className="text-sm font-semibold">{c.nome || '—'}</p>
                                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                                     <Mail className="w-3 h-3" /> {c.email || '—'}
                                   </div>
@@ -314,25 +314,25 @@ export default function DepartmentDetail() {
                               </div>
                             </TableCell>
                             <TableCell className="hidden md:table-cell">
-                              <div className="flex items-center gap-1.5 text-sm font-body">
+                              <div className="flex items-center gap-1.5 text-sm">
                                 <Briefcase className="w-3.5 h-3.5 text-muted-foreground" />
                                 {c.cargo?.nome || '—'}
                               </div>
                             </TableCell>
-                            <TableCell className="text-sm font-body font-mono hidden lg:table-cell">{c.matricula || '—'}</TableCell>
+                            <TableCell className="text-sm font-mono hidden lg:table-cell">{c.matricula || '—'}</TableCell>
                             <TableCell>
-                              <Badge variant={c.status === 'ativo' ? 'default' : 'secondary'} className="text-[10px] font-game tracking-wider">
+                              <Badge variant={c.status === 'ativo' ? 'default' : 'secondary'} className="text-[10px] tracking-wider">
                                 {(c.status || 'N/A').toUpperCase()}
                               </Badge>
                             </TableCell>
                             <TableCell>
                               {isImported ? (
-                                <Badge variant="outline" className={`text-[10px] font-game tracking-wider ${hierarchyConfig[profile?.hierarquia || 'user']?.color || ''}`}>
+                                <Badge variant="outline" className={`text-[10px] tracking-wider ${hierarchyConfig[profile?.hierarquia || 'user']?.color || ''}`}>
                                   <CheckCircle2 className="w-3 h-3 mr-1" />
                                   {hierarchyConfig[profile?.hierarquia || 'user']?.label || 'USUÁRIO'}
                                 </Badge>
                               ) : (
-                                <span className="text-xs text-muted-foreground font-body">Não importado</span>
+                                <span className="text-xs text-muted-foreground">Não importado</span>
                               )}
                             </TableCell>
                             <TableCell className="text-right">
@@ -340,13 +340,13 @@ export default function DepartmentDetail() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="font-game text-xs tracking-wider"
+                                  className="text-xs tracking-wider"
                                   onClick={() => { setImportingColab(c); setImportHierarchy(c.tipo === 'admin' ? 'gestor' : 'user'); }}
                                 >
                                   <UserPlus className="w-3.5 h-3.5 mr-1" /> IMPORTAR
                                 </Button>
                               ) : isImported ? (
-                                <span className="text-xs text-success font-game">✓ ATIVO</span>
+                                <span className="text-xs text-success">✓ ATIVO</span>
                               ) : (
                                 <span className="text-xs text-muted-foreground">Sem email</span>
                               )}
@@ -367,7 +367,7 @@ export default function DepartmentDetail() {
       <Dialog open={!!importingColab} onOpenChange={(open) => { if (!open) setImportingColab(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-game tracking-wider">Importar Colaborador</DialogTitle>
+            <DialogTitle className="tracking-wider">Importar Colaborador</DialogTitle>
             <DialogDescription>
               O colaborador receberá um email com credenciais de acesso ao SignProof.
             </DialogDescription>
@@ -377,7 +377,7 @@ export default function DepartmentDetail() {
               <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
                 <Avatar className="w-10 h-10">
                   {importingColab.foto && <AvatarImage src={importingColab.foto} />}
-                  <AvatarFallback className="bg-primary/10 text-primary font-game font-bold text-sm">
+                  <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
                     {(importingColab.nome || '').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
@@ -387,7 +387,7 @@ export default function DepartmentDetail() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-game tracking-wider">NÍVEL DE ACESSO</Label>
+                <Label className="text-xs tracking-wider">NÍVEL DE ACESSO</Label>
                 <Select value={importHierarchy} onValueChange={setImportHierarchy}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -413,14 +413,14 @@ export default function DepartmentDetail() {
       <Dialog open={showBatchImport} onOpenChange={setShowBatchImport}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-game tracking-wider">Importação em Lote</DialogTitle>
+            <DialogTitle className="tracking-wider">Importação em Lote</DialogTitle>
             <DialogDescription>
               Selecione os colaboradores e o nível de acesso padrão.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-xs font-game tracking-wider">NÍVEL DE ACESSO PADRÃO</Label>
+              <Label className="text-xs tracking-wider">NÍVEL DE ACESSO PADRÃO</Label>
               <Select value={batchHierarchy} onValueChange={setBatchHierarchy}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>

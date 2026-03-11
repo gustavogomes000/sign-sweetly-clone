@@ -215,7 +215,7 @@ export default function Templates() {
       <AppHeader title="Modelos" subtitle={`${templates.length} modelos`} />
       <div className="flex-1 overflow-auto p-6 space-y-4">
         <div className="flex justify-end">
-          <Button size="sm" onClick={() => setCreateOpen(true)} className="font-game text-xs tracking-wider">
+          <Button size="sm" onClick={() => setCreateOpen(true)} className="text-xs tracking-wider">
             <Plus className="w-4 h-4 mr-1" /> NOVO MODELO
           </Button>
         </div>
@@ -225,14 +225,14 @@ export default function Templates() {
         ) : templates.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
             <FileText className="w-12 h-12 mb-3 opacity-30" />
-            <p className="text-sm font-body">Nenhum modelo cadastrado</p>
+            <p className="text-sm">Nenhum modelo cadastrado</p>
             <Button variant="outline" size="sm" className="mt-3" onClick={() => setCreateOpen(true)}>Criar primeiro modelo</Button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {templates.map((template, i) => (
               <motion.div key={template.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} whileHover={{ y: -4, scale: 1.02 }}>
-                <Card className="game-card h-full">
+                <Card className="border rounded-xl bg-card h-full">
                   <CardContent className="p-5">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
@@ -240,8 +240,8 @@ export default function Templates() {
                           {template.caminho_arquivo ? <File className="w-5 h-5 text-primary" /> : <FolderOpen className="w-5 h-5 text-muted-foreground" />}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-game tracking-wider truncate">{template.nome.toUpperCase()}</p>
-                          {template.categoria && <Badge variant="outline" className="text-[10px] font-game tracking-wider mt-0.5">{template.categoria}</Badge>}
+                          <p className="text-sm tracking-wider truncate">{template.nome.toUpperCase()}</p>
+                          {template.categoria && <Badge variant="outline" className="text-[10px] tracking-wider mt-0.5">{template.categoria}</Badge>}
                           {template.caminho_arquivo && <p className="text-xs text-muted-foreground mt-0.5">📎 Documento anexado</p>}
                         </div>
                       </div>
@@ -256,10 +256,10 @@ export default function Templates() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                    {template.descricao && <p className="text-xs text-muted-foreground mt-3 line-clamp-2 font-body">{template.descricao}</p>}
+                    {template.descricao && <p className="text-xs text-muted-foreground mt-3 line-clamp-2">{template.descricao}</p>}
                     <div className="mt-4 flex items-center justify-between">
                       <span className="text-xs text-muted-foreground">{format(new Date(template.criado_em), 'dd/MM/yyyy', { locale: ptBR })}</span>
-                      <Button variant="outline" size="sm" className="text-xs h-7 font-game tracking-wider" onClick={() => openEditor(template)}>EDITAR</Button>
+                      <Button variant="outline" size="sm" className="text-xs h-7 tracking-wider" onClick={() => openEditor(template)}>EDITAR</Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -273,7 +273,7 @@ export default function Templates() {
       <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) resetForm(); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-game tracking-wider">Novo Modelo</DialogTitle>
+            <DialogTitle className="tracking-wider">Novo Modelo</DialogTitle>
             <DialogDescription>Crie um modelo reutilizável.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -315,7 +315,7 @@ export default function Templates() {
           <div className="flex items-center justify-between px-6 py-3 border-b border-border shrink-0">
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <FileText className="w-5 h-5 text-primary shrink-0" />
-              <Input value={editorName} onChange={(e) => setEditorName(e.target.value)} className="h-8 text-sm font-game tracking-wider border-none bg-transparent focus-visible:ring-0 p-0 max-w-xs" placeholder="Nome do modelo" />
+              <Input value={editorName} onChange={(e) => setEditorName(e.target.value)} className="h-8 text-sm tracking-wider border-none bg-transparent focus-visible:ring-0 p-0 max-w-xs" placeholder="Nome do modelo" />
               <Input value={editorCategory} onChange={(e) => setEditorCategory(e.target.value)} className="h-8 text-xs border-none bg-transparent focus-visible:ring-0 p-0 max-w-[120px] text-muted-foreground" placeholder="Categoria" />
             </div>
             <div className="flex items-center gap-2">
@@ -324,7 +324,7 @@ export default function Templates() {
                 {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Upload className="w-3.5 h-3.5 mr-1" />}
                 {documentUrl ? 'Trocar PDF' : 'Anexar PDF'}
               </Button>
-              <Button size="sm" className="text-xs h-8 font-game tracking-wider" onClick={handleSaveTemplate} disabled={saving}>
+              <Button size="sm" className="text-xs h-8 tracking-wider" onClick={handleSaveTemplate} disabled={saving}>
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Save className="w-3.5 h-3.5 mr-1" />}
                 SALVAR
               </Button>

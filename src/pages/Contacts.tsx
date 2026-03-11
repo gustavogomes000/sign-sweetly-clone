@@ -128,7 +128,7 @@ export default function Contacts() {
             <Input placeholder="Buscar contatos..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 w-64 bg-secondary/50 border-border/50" />
           </div>
           <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-            <Button size="sm" className="gradient-teal-gold text-primary-foreground glow-primary font-game text-xs tracking-wider" onClick={openCreate}>
+            <Button size="sm" className="bg-primary text-primary-foreground  text-xs tracking-wider" onClick={openCreate}>
               <Plus className="w-4 h-4 mr-1" /> NOVO CONTATO
             </Button>
           </motion.div>
@@ -139,23 +139,23 @@ export default function Contacts() {
         ) : filtered.length === 0 ? (
           <div className="py-20 text-center text-muted-foreground">
             <Mail className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p className="text-sm font-game tracking-wider">NENHUM CONTATO</p>
-            <p className="text-xs mt-1 font-body">Adicione contatos para importá-los como signatários</p>
+            <p className="text-sm tracking-wider">NENHUM CONTATO</p>
+            <p className="text-xs mt-1">Adicione contatos para importá-los como signatários</p>
           </div>
         ) : (
-          <Card className="game-card">
+          <Card className="border rounded-xl bg-card">
             <div className="divide-y divide-border/50">
               {filtered.map((contact, i) => (
                 <motion.div key={contact.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}
                   className="flex items-center justify-between p-4 hover:bg-primary/5 transition-colors group">
                   <div className="flex items-center gap-3">
                     <Avatar className="w-10 h-10 border border-border/50">
-                      <AvatarFallback className="bg-primary/10 text-primary text-sm font-game font-bold">
+                      <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
                         {contact.nome.split(' ').map(n => n[0]).join('').slice(0, 2)}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="text-sm font-body font-semibold text-foreground group-hover:text-primary transition-colors">{contact.nome}</p>
+                      <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{contact.nome}</p>
                       <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{contact.email}</span>
                         {contact.telefone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{contact.telefone}</span>}
@@ -165,7 +165,7 @@ export default function Contacts() {
                         <div className="flex gap-1 mt-1">
                           {contact.validacoes_padrao.map(v => {
                             const opt = VALIDATION_OPTIONS.find(o => o.value === v);
-                            return opt ? <Badge key={v} variant="secondary" className="text-[10px] px-1.5 py-0 font-game tracking-wider">{opt.label}</Badge> : null;
+                            return opt ? <Badge key={v} variant="secondary" className="text-[10px] px-1.5 py-0 tracking-wider">{opt.label}</Badge> : null;
                           })}
                         </div>
                       )}
@@ -188,36 +188,36 @@ export default function Contacts() {
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary/15"><Zap className="w-4 h-4 text-primary" /></div>
               <div>
-                <DialogTitle className="font-game text-sm tracking-wider">{editingContact ? 'EDITAR CONTATO' : 'NOVO CONTATO'}</DialogTitle>
-                <DialogDescription className="text-xs font-body">Salve contatos frequentes para importar como signatários.</DialogDescription>
+                <DialogTitle className="text-sm tracking-wider">{editingContact ? 'EDITAR CONTATO' : 'NOVO CONTATO'}</DialogTitle>
+                <DialogDescription className="text-xs">Salve contatos frequentes para importar como signatários.</DialogDescription>
               </div>
             </div>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label className="text-xs font-game text-muted-foreground tracking-wider">NOME COMPLETO *</Label>
+              <Label className="text-xs text-muted-foreground tracking-wider">NOME COMPLETO *</Label>
               <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Nome do contato" className="bg-secondary/50 border-border/50" />
             </div>
             <div>
-              <Label className="text-xs font-game text-muted-foreground tracking-wider">E-MAIL *</Label>
+              <Label className="text-xs text-muted-foreground tracking-wider">E-MAIL *</Label>
               <Input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="email@exemplo.com" className="bg-secondary/50 border-border/50" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs font-game text-muted-foreground tracking-wider">TELEFONE</Label>
+                <Label className="text-xs text-muted-foreground tracking-wider">TELEFONE</Label>
                 <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="(11) 99999-9999" className="bg-secondary/50 border-border/50" />
               </div>
               <div>
-                <Label className="text-xs font-game text-muted-foreground tracking-wider">EMPRESA</Label>
+                <Label className="text-xs text-muted-foreground tracking-wider">EMPRESA</Label>
                 <Input value={formCompany} onChange={(e) => setFormCompany(e.target.value)} placeholder="Nome da empresa" className="bg-secondary/50 border-border/50" />
               </div>
             </div>
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <Hexagon className="w-4 h-4 text-accent" strokeWidth={1.5} />
-                <Label className="text-xs font-game text-muted-foreground tracking-wider">VALIDAÇÕES PÓS-ASSINATURA</Label>
+                <Label className="text-xs text-muted-foreground tracking-wider">VALIDAÇÕES PÓS-ASSINATURA</Label>
               </div>
-              <p className="text-[11px] text-muted-foreground font-body mb-3">Microsserviços de verificação aplicados quando este contato assinar.</p>
+              <p className="text-[11px] text-muted-foreground mb-3">Microsserviços de verificação aplicados quando este contato assinar.</p>
               <div className="space-y-2">
                 {VALIDATION_OPTIONS.map(opt => {
                   const isSelected = formValidations.includes(opt.value);
@@ -228,7 +228,7 @@ export default function Contacts() {
                         <opt.icon className={`w-4 h-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-body font-semibold ${isSelected ? 'text-foreground' : 'text-muted-foreground'}`}>{opt.label}</p>
+                        <p className={`text-sm font-semibold ${isSelected ? 'text-foreground' : 'text-muted-foreground'}`}>{opt.label}</p>
                         <p className="text-[10px] text-muted-foreground">{opt.description}</p>
                       </div>
                       <Checkbox checked={isSelected} onCheckedChange={() => toggleValidation(opt.value)} className="shrink-0" />
@@ -240,7 +240,7 @@ export default function Contacts() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={!formName.trim() || !formEmail.trim() || create.isPending || update.isPending} className="gradient-teal-gold text-primary-foreground glow-primary font-game text-xs tracking-wider">
+            <Button onClick={handleSave} disabled={!formName.trim() || !formEmail.trim() || create.isPending || update.isPending} className="bg-primary text-primary-foreground  text-xs tracking-wider">
               {(create.isPending || update.isPending) && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
               {editingContact ? 'SALVAR' : 'CRIAR CONTATO'}
             </Button>
