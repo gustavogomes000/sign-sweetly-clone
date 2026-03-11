@@ -237,9 +237,31 @@ export default function SignPage() {
   // FIELD VALUE UPDATE
   // ═══════════════════════════════════════════════════════════════
 
+  const saveFieldToDb = useCallback(async (fieldId: string, value: string) => {
+    try {
+      await supabase.from('campos_documento').update({ valor: value }).eq('id', fieldId);
+    } catch (e) {
+      console.warn('Erro ao salvar campo:', e);
+    }
+  }, []);
+
   const updateFieldValue = useCallback((fieldId: string, value: string) => {
     setFieldValues(prev => ({ ...prev, [fieldId]: value }));
   }, []);
+
+  // Debounced save: persist to DB when user stops typing
+  const saveTimerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const debouncedSaveField = useCallback((fieldId: string, value: string) => {
+    if (saveTimerRef.current[fieldId]) clearTimeout(saveTimerRef.current[fieldId]);
+    saveTimerRef.current[fieldId] = setTimeout(() => {
+      saveFieldToDb(fieldId, value);
+    }, 500);
+  }, [saveFieldToDb]);
+
+  const handleFieldChange = useCallback((fieldId: string, value: string) => {
+    updateFieldValue(fieldId, value);
+    debouncedSaveField(fieldId, value);
+  }, [updateFieldValue, debouncedSaveField]);
 
   // ═══════════════════════════════════════════════════════════════
   // SIGNATURE HANDLING
@@ -788,7 +810,8 @@ export default function SignPage() {
                     autoFocus
                     required={currentField.required}
                     value={fieldValues[currentField.id] || ''}
-                    onChange={(e) => updateFieldValue(currentField.id, e.target.value)}
+                    onChange={(e) => handleFieldChange(currentField.id, e.target.value)}
+                    onBlur={() => { if (fieldValues[currentField.id]) saveFieldToDb(currentField.id, fieldValues[currentField.id]); }}
                     placeholder="Digite aqui..."
                     className="w-full text-xl sm:text-2xl border border-border rounded-lg px-4 py-3 bg-background text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                     onFocus={() => scrollIntoField(currentField)}
