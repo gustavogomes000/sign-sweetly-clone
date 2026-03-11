@@ -12,8 +12,8 @@ export interface VLDocumentoProps {
 
 /**
  * Componente de captura de documento 100% interno.
- * Valida qualidade da imagem via Variância de Luminosidade e
- * estabilidade via Frame Differencing antes de permitir captura.
+ * Valida qualidade e estabilidade antes de permitir captura.
+ * Tolerâncias ajustadas para ambientes reais.
  */
 export function VLDocumento({ aoCompletar, onError }: VLDocumentoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -27,14 +27,13 @@ export function VLDocumento({ aoCompletar, onError }: VLDocumentoProps) {
   const prevFrameRef = useRef<ImageData | null>(null);
   const animFrameRef = useRef<number>(0);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const stabilityRef = useRef(0);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  const REQUIRED_STABLE_FRAMES = 6;
+  const REQUIRED_STABLE_FRAMES = 4;
 
-  useEffect(() => {
-    let stream: MediaStream | null = null;
+  const startCamera = useCallback(() => {
     canvasRef.current = document.createElement('canvas');
-
-    // Prefer back camera, fallback to front
     navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
       audio: false
@@ -45,22 +44,28 @@ export function VLDocumento({ aoCompletar, onError }: VLDocumentoProps) {
       }))
       .then(s => {
         if (!s) return;
-        stream = s;
+        streamRef.current = s;
         if (videoRef.current) {
           videoRef.current.srcObject = s;
-          videoRef.current.onloadedmetadata = () => setStreaming(true);
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current?.play().catch(() => {});
+            setStreaming(true);
+          };
         }
       })
       .catch((err) => {
         console.error('[VLDocumento] Camera error:', err);
         setCamError('Câmera não disponível. Verifique as permissões do navegador.');
       });
+  }, []);
 
+  useEffect(() => {
+    startCamera();
     return () => {
-      stream?.getTracks().forEach(t => t.stop());
+      streamRef.current?.getTracks().forEach(t => t.stop());
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
-  }, []);
+  }, [startCamera]);
 
   const analyzeFrame = useCallback(() => {
     const video = videoRef.current;
@@ -70,43 +75,42 @@ export function VLDocumento({ aoCompletar, onError }: VLDocumentoProps) {
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
 
-    canvas.width = 160;
-    canvas.height = 120;
-    ctx.drawImage(video, 0, 0, 160, 120);
-    const frame = ctx.getImageData(0, 0, 160, 120);
-    const pixels = frame.data.length / 4;
+    canvas.width = 120;
+    canvas.height = 90;
+    ctx.drawImage(video, 0, 0, 120, 90);
+    const frame = ctx.getImageData(0, 0, 120, 90);
 
-    // Luminosity variance check
-    let lumSum = 0, lumSqSum = 0;
-    for (let i = 0; i < frame.data.length; i += 4) {
-      const lum = 0.299 * frame.data[i] + 0.587 * frame.data[i + 1] + 0.114 * frame.data[i + 2];
-      lumSum += lum;
-      lumSqSum += lum * lum;
+    // Luminosity check (sampled)
+    let lumSum = 0;
+    const sampleStep = 16;
+    let sampleCount = 0;
+    for (let i = 0; i < frame.data.length; i += sampleStep) {
+      lumSum += 0.299 * frame.data[i] + 0.587 * frame.data[i + 1] + 0.114 * frame.data[i + 2];
+      sampleCount++;
     }
-    const meanLum = lumSum / pixels;
-    const variance = (lumSqSum / pixels) - (meanLum * meanLum);
+    const meanLum = lumSum / sampleCount;
 
-    // Frame differencing for stability
+    // Stability check
     let isStable = true;
     if (prevFrameRef.current) {
       let diffSum = 0;
-      for (let i = 0; i < frame.data.length; i += 4) {
+      let diffCount = 0;
+      for (let i = 0; i < frame.data.length; i += sampleStep) {
         diffSum += Math.abs(frame.data[i] - prevFrameRef.current.data[i]);
+        diffCount++;
       }
-      const avgDiff = diffSum / pixels;
-      // Document should be relatively still (avgDiff < 5)
-      isStable = avgDiff < 6;
+      const avgDiff = diffSum / diffCount;
+      isStable = avgDiff < 8;
     }
 
-    const goodQuality = variance > 600 && meanLum > 40 && meanLum < 220 && isStable;
+    const goodQuality = meanLum > 25 && meanLum < 235 && isStable;
 
     if (goodQuality) {
-      setStabilityCount(prev => {
-        const next = prev + 1;
-        if (next >= REQUIRED_STABLE_FRAMES) setQuality('good');
-        return next;
-      });
+      stabilityRef.current += 1;
+      setStabilityCount(stabilityRef.current);
+      if (stabilityRef.current >= REQUIRED_STABLE_FRAMES) setQuality('good');
     } else {
+      stabilityRef.current = 0;
       setStabilityCount(0);
       setQuality('poor');
     }
@@ -134,6 +138,7 @@ export function VLDocumento({ aoCompletar, onError }: VLDocumentoProps) {
     if (ctx) {
       ctx.drawImage(video, 0, 0);
       setCaptured(canvas.toDataURL('image/jpeg', 0.9));
+      streamRef.current?.getTracks().forEach(t => t.stop());
     }
   };
 
@@ -152,9 +157,11 @@ export function VLDocumento({ aoCompletar, onError }: VLDocumentoProps) {
 
   const retake = () => {
     setCaptured(null);
+    stabilityRef.current = 0;
     setStabilityCount(0);
     setQuality('waiting');
     prevFrameRef.current = null;
+    startCamera();
   };
 
   if (camError) {
@@ -192,8 +199,8 @@ export function VLDocumento({ aoCompletar, onError }: VLDocumentoProps) {
           <>
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className={`w-72 h-44 border-2 rounded-lg transition-colors duration-300 ${
-                quality === 'good' ? 'border-success' :
-                quality === 'poor' ? 'border-warning/60' :
+                quality === 'good' ? 'border-green-400' :
+                quality === 'poor' ? 'border-yellow-400/60' :
                 'border-white/60'
               }`} />
               <CreditCard className="absolute w-8 h-8 text-white/60" />
@@ -202,7 +209,7 @@ export function VLDocumento({ aoCompletar, onError }: VLDocumentoProps) {
               <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-300 ${
-                    quality === 'good' ? 'bg-success' : 'bg-warning'
+                    quality === 'good' ? 'bg-green-400' : 'bg-yellow-400'
                   }`}
                   style={{ width: `${qualityProgress}%` }}
                 />
