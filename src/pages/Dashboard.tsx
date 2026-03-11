@@ -11,6 +11,14 @@ import { cn } from '@/lib/utils';
 import { useDocuments, useDashboardStats } from '@/hooks/useDocuments';
 import { Button } from '@/components/ui/button';
 
+interface StatCard {
+  label: string;
+  value: number;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  color: string;
+  bgColor: string;
+}
+
 const cardVariants = {
   hidden: { opacity: 0, y: 20, rotateX: -8 },
   visible: (i: number) => ({
@@ -55,23 +63,11 @@ export default function Dashboard() {
         {/* Stats Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {statCards.map((stat, i) => (
-            <motion.div
-              key={stat.label}
-              custom={i}
-              initial="hidden"
-              animate="visible"
-              variants={cardVariants}
-              whileHover={{ y: -4, scale: 1.03 }}
-              style={{ perspective: 800 }}
-            >
+            <motion.div key={stat.label} custom={i} initial="hidden" animate="visible" variants={cardVariants} whileHover={{ y: -4, scale: 1.03 }} style={{ perspective: 800 }}>
               <Card className="game-card group cursor-default h-full">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <motion.div
-                      className={cn('p-2 rounded-lg', stat.bgColor)}
-                      whileHover={{ rotate: 12, scale: 1.15 }}
-                      transition={{ type: 'spring', stiffness: 300 }}
-                    >
+                    <motion.div className={cn('p-2 rounded-lg', stat.bgColor)} whileHover={{ rotate: 12, scale: 1.15 }} transition={{ type: 'spring', stiffness: 300 }}>
                       <stat.icon className={cn('w-4 h-4', stat.color)} />
                     </motion.div>
                     <Hexagon className="w-4 h-4 text-primary/10 group-hover:text-primary/25 transition-colors" strokeWidth={1} />
@@ -164,7 +160,7 @@ export default function Dashboard() {
             </Card>
           </motion.div>
 
-          {/* Quick actions instead of mock folders */}
+          {/* Quick actions */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
             <Card className="game-card">
               <CardHeader className="pb-2">
@@ -175,31 +171,16 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent className="space-y-2">
                 <Link to="/documents/new" className="flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 transition-all">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Plus className="w-4 h-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-body font-semibold text-foreground">Novo documento</p>
-                    <p className="text-[10px] text-muted-foreground">Enviar para assinatura</p>
-                  </div>
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center"><Plus className="w-4 h-4 text-primary" /></div>
+                  <div><p className="text-sm font-body font-semibold text-foreground">Novo documento</p><p className="text-[10px] text-muted-foreground">Enviar para assinatura</p></div>
                 </Link>
                 <Link to="/documents" className="flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 transition-all">
-                  <div className="w-8 h-8 rounded-lg bg-warning/10 flex items-center justify-center">
-                    <Clock className="w-4 h-4 text-warning" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-body font-semibold text-foreground">Pendentes</p>
-                    <p className="text-[10px] text-muted-foreground">{stats?.pendingSignatures ?? 0} aguardando assinatura</p>
-                  </div>
+                  <div className="w-8 h-8 rounded-lg bg-warning/10 flex items-center justify-center"><Clock className="w-4 h-4 text-warning" /></div>
+                  <div><p className="text-sm font-body font-semibold text-foreground">Pendentes</p><p className="text-[10px] text-muted-foreground">{stats?.pendingSignatures ?? 0} aguardando assinatura</p></div>
                 </Link>
                 <Link to="/contacts" className="flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 transition-all">
-                  <div className="w-8 h-8 rounded-lg bg-info/10 flex items-center justify-center">
-                    <FileText className="w-4 h-4 text-info" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-body font-semibold text-foreground">Contatos</p>
-                    <p className="text-[10px] text-muted-foreground">Gerenciar signatários</p>
-                  </div>
+                  <div className="w-8 h-8 rounded-lg bg-info/10 flex items-center justify-center"><FileText className="w-4 h-4 text-info" /></div>
+                  <div><p className="text-sm font-body font-semibold text-foreground">Contatos</p><p className="text-[10px] text-muted-foreground">Gerenciar signatários</p></div>
                 </Link>
               </CardContent>
             </Card>
@@ -223,33 +204,20 @@ export default function Dashboard() {
                 <div className="p-12 text-center text-muted-foreground">
                   <FileText className="w-10 h-10 mx-auto mb-2 opacity-30" />
                   <p className="text-sm">Nenhum documento criado ainda</p>
-                  <Link to="/documents/new">
-                    <Button size="sm" variant="outline" className="mt-3">Criar primeiro documento</Button>
-                  </Link>
+                  <Link to="/documents/new"><Button size="sm" variant="outline" className="mt-3">Criar primeiro documento</Button></Link>
                 </div>
               )}
               {recentDocs.map((doc, i) => (
-                <motion.div
-                  key={doc.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.8 + i * 0.05 }}
-                >
-                  <Link
-                    to={`/documents/${doc.id}`}
-                    className="flex items-center justify-between p-4 hover:bg-primary/5 transition-all duration-200 group"
-                  >
+                <motion.div key={doc.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.8 + i * 0.05 }}>
+                  <Link to={`/documents/${doc.id}`} className="flex items-center justify-between p-4 hover:bg-primary/5 transition-all duration-200 group">
                     <div className="flex items-center gap-3 min-w-0">
-                      <motion.div
-                        className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center shrink-0 border border-border/50"
-                        whileHover={{ rotate: 5, scale: 1.1 }}
-                      >
+                      <motion.div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center shrink-0 border border-border/50" whileHover={{ rotate: 5, scale: 1.1 }}>
                         <FileText className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                       </motion.div>
                       <div className="min-w-0">
-                        <p className="text-sm font-body font-semibold text-foreground truncate group-hover:text-primary transition-colors">{doc.name}</p>
+                        <p className="text-sm font-body font-semibold text-foreground truncate group-hover:text-primary transition-colors">{doc.nome}</p>
                         <p className="text-xs text-muted-foreground font-body">
-                          {format(new Date(doc.created_at), "dd 'de' MMM, yyyy", { locale: ptBR })}
+                          {format(new Date(doc.criado_em), "dd 'de' MMM, yyyy", { locale: ptBR })}
                           {doc.signers.length > 0 && ` · ${doc.signers.filter(s => s.status === 'signed').length}/${doc.signers.length} assinaturas`}
                         </p>
                       </div>

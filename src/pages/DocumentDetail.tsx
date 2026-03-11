@@ -44,17 +44,15 @@ export default function DocumentDetail() {
             <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
             <p className="text-lg font-medium text-foreground">Documento não encontrado</p>
             <p className="text-sm text-muted-foreground mt-1">O documento pode ter sido removido ou o link está incorreto.</p>
-            <Link to="/documents">
-              <Button variant="outline" className="mt-4">Voltar para documentos</Button>
-            </Link>
+            <Link to="/documents"><Button variant="outline" className="mt-4">Voltar para documentos</Button></Link>
           </div>
         </div>
       </>
     );
   }
 
-  const publicUrl = getDocumentPublicUrl(doc.file_path);
-  const isPdf = doc.file_path?.endsWith('.pdf');
+  const publicUrl = getDocumentPublicUrl(doc.caminho_arquivo);
+  const isPdf = doc.caminho_arquivo?.endsWith('.pdf');
 
   const signerStatusIcon: Record<string, React.ReactNode> = {
     signed: <CheckCircle2 className="w-4 h-4 text-success" />,
@@ -96,7 +94,7 @@ export default function DocumentDetail() {
 
   const handleResend = async () => {
     try {
-      const count = await resendEmails.mutateAsync({ documentId: doc.id, documentName: doc.name });
+      const count = await resendEmails.mutateAsync({ documentId: doc.id, documentName: doc.nome });
       toast({ title: `Lembrete enviado para ${count} signatário(s) ✓` });
     } catch (err) {
       toast({ title: 'Erro ao reenviar', description: err instanceof Error ? err.message : '', variant: 'destructive' });
@@ -119,7 +117,7 @@ export default function DocumentDetail() {
 
   return (
     <>
-      <AppHeader title={doc.name} actions={
+      <AppHeader title={doc.nome} actions={
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(window.location.href).then(() => toast({ title: 'Link copiado ✓' }))}>
             <Copy className="w-4 h-4 mr-1" />Copiar link
@@ -141,14 +139,11 @@ export default function DocumentDetail() {
       } />
       <div className="flex-1 overflow-auto p-6 space-y-6">
         <Link to="/documents" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="w-4 h-4" />
-          Voltar para documentos
+          <ArrowLeft className="w-4 h-4" />Voltar para documentos
         </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Info card */}
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -160,21 +155,21 @@ export default function DocumentDetail() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground text-xs">Criado em</p>
-                    <p className="font-medium">{format(new Date(doc.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
+                    <p className="font-medium">{format(new Date(doc.criado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs">Atualizado em</p>
-                    <p className="font-medium">{format(new Date(doc.updated_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
+                    <p className="font-medium">{format(new Date(doc.atualizado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
                   </div>
-                  {doc.deadline && (
+                  {doc.prazo && (
                     <div>
                       <p className="text-muted-foreground text-xs">Prazo</p>
-                      <p className="font-medium">{format(new Date(doc.deadline), "dd/MM/yyyy", { locale: ptBR })}</p>
+                      <p className="font-medium">{format(new Date(doc.prazo), "dd/MM/yyyy", { locale: ptBR })}</p>
                     </div>
                   )}
                   <div>
                     <p className="text-muted-foreground text-xs">Tipo de assinatura</p>
-                    <p className="font-medium">{doc.signature_type === 'electronic' ? 'Eletrônica' : 'Digital (ICP-Brasil)'}</p>
+                    <p className="font-medium">{doc.tipo_assinatura === 'electronic' ? 'Eletrônica' : 'Digital (ICP-Brasil)'}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs">Signatários</p>
@@ -184,7 +179,6 @@ export default function DocumentDetail() {
               </CardContent>
             </Card>
 
-            {/* Document preview */}
             <Card>
               <CardContent className="p-4">
                 {isPdf && publicUrl ? (
@@ -200,13 +194,12 @@ export default function DocumentDetail() {
                     </div>
                     <div className="relative w-full" style={{ aspectRatio: '595/842' }}>
                       <PdfPagePreview documentUrl={publicUrl} page={previewPage} className="rounded-lg" />
-                      {/* Render field overlays */}
-                      {doc.document_fields.filter(f => f.page === previewPage).map((field) => (
+                      {doc.document_fields.filter(f => f.pagina === previewPage).map((field) => (
                         <div
                           key={field.id}
                           className={cn(
                             'absolute border-2 rounded flex items-center justify-center text-[10px] font-medium z-10',
-                            field.value
+                            field.valor
                               ? 'border-success/50 bg-success/10 text-success'
                               : 'border-primary/50 bg-primary/5 text-primary border-dashed'
                           )}
@@ -217,7 +210,7 @@ export default function DocumentDetail() {
                             height: `${(field.height / 842) * 100}%`,
                           }}
                         >
-                          {field.value ? '✓' : field.field_type}
+                          {field.valor ? '✓' : field.tipo_campo}
                         </div>
                       ))}
                     </div>
@@ -226,9 +219,7 @@ export default function DocumentDetail() {
                   <div className="text-center py-8">
                     <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
                     <p className="text-sm text-muted-foreground">Pré-visualização não disponível para este formato</p>
-                    <Button variant="outline" size="sm" className="mt-4" onClick={handleDownload}>
-                      <Download className="w-4 h-4 mr-1" />Baixar arquivo
-                    </Button>
+                    <Button variant="outline" size="sm" className="mt-4" onClick={handleDownload}><Download className="w-4 h-4 mr-1" />Baixar arquivo</Button>
                   </div>
                 ) : (
                   <div className="text-center py-8">
@@ -240,9 +231,7 @@ export default function DocumentDetail() {
             </Card>
           </div>
 
-          {/* Sidebar */}
           <div className="space-y-6">
-            {/* Signers */}
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -267,23 +256,23 @@ export default function DocumentDetail() {
                         signer.status === 'refused' ? 'bg-destructive/15 text-destructive' :
                         'bg-warning/15 text-warning'
                       )}>
-                        {signer.sign_order}
+                        {signer.ordem_assinatura}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-foreground truncate">{signer.name}</p>
+                          <p className="text-sm font-medium text-foreground truncate">{signer.nome}</p>
                           {signerStatusIcon[signer.status]}
                         </div>
                         <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                           <Mail className="w-3 h-3" />{signer.email}
                         </p>
-                        {signer.phone && (
+                        {signer.telefone && (
                           <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Phone className="w-3 h-3" />{signer.phone}
+                            <Phone className="w-3 h-3" />{signer.telefone}
                           </p>
                         )}
                         <div className="flex items-center gap-2 mt-1.5">
-                          <Badge variant="outline" className="text-[10px] h-5">{signer.role}</Badge>
+                          <Badge variant="outline" className="text-[10px] h-5">{signer.funcao}</Badge>
                         </div>
                         <p className={cn("text-xs mt-1.5 font-medium",
                           signer.status === 'signed' && 'text-success',
@@ -291,7 +280,7 @@ export default function DocumentDetail() {
                           signer.status === 'refused' && 'text-destructive'
                         )}>
                           {signerStatusLabel[signer.status] || signer.status}
-                          {signer.signed_at && ` · ${format(new Date(signer.signed_at), "dd/MM 'às' HH:mm", { locale: ptBR })}`}
+                          {signer.assinado_em && ` · ${format(new Date(signer.assinado_em), "dd/MM 'às' HH:mm", { locale: ptBR })}`}
                         </p>
                       </div>
                     </div>
@@ -300,7 +289,6 @@ export default function DocumentDetail() {
               </CardContent>
             </Card>
 
-            {/* Audit Trail */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Trilha de auditoria</CardTitle>
@@ -315,17 +303,17 @@ export default function DocumentDetail() {
                       <div key={entry.id} className="flex gap-3 py-2 relative">
                         <div className={cn(
                           'w-7 h-7 rounded-full flex items-center justify-center shrink-0 z-10',
-                          auditActionColor[entry.action] || 'bg-muted text-muted-foreground'
+                          auditActionColor[entry.acao] || 'bg-muted text-muted-foreground'
                         )}>
-                          {auditActionIcon[entry.action] || <FileText className="w-3 h-3" />}
+                          {auditActionIcon[entry.acao] || <FileText className="w-3 h-3" />}
                         </div>
                         <div className="min-w-0 pt-0.5">
-                          <p className="text-xs font-medium text-foreground">{entry.details || entry.action}</p>
+                          <p className="text-xs font-medium text-foreground">{entry.detalhes || entry.acao}</p>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="text-[10px] text-muted-foreground">{entry.actor}</span>
+                            <span className="text-[10px] text-muted-foreground">{entry.ator}</span>
                             <span className="text-[10px] text-muted-foreground">·</span>
                             <span className="text-[10px] text-muted-foreground">
-                              {format(new Date(entry.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                              {format(new Date(entry.criado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                             </span>
                           </div>
                         </div>

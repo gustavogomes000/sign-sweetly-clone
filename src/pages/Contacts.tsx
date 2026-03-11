@@ -25,13 +25,13 @@ const VALIDATION_OPTIONS = [
 
 interface DbContact {
   id: string;
-  name: string;
+  nome: string;
   email: string;
-  phone: string | null;
-  company: string | null;
-  role: string | null;
-  notes: string | null;
-  default_validations: string[];
+  telefone: string | null;
+  empresa: string | null;
+  funcao: string | null;
+  observacoes: string | null;
+  validacoes_padrao: string[];
 }
 
 function useContactsCRUD() {
@@ -43,35 +43,49 @@ function useContactsCRUD() {
     queryFn: async () => {
       if (!user) return [];
       const { data, error } = await supabase
-        .from('contacts')
+        .from('contatos')
         .select('*')
-        .eq('user_id', user.id)
-        .order('name');
+        .eq('usuario_id', user.id)
+        .order('nome');
       if (error) throw error;
-      return (data || []).map(c => ({ ...c, default_validations: (c as any).default_validations || [] })) as DbContact[];
+      return (data || []) as DbContact[];
     },
     enabled: !!user,
   });
 
   const create = useMutation({
-    mutationFn: async (contact: { name: string; email: string; phone?: string; company?: string; default_validations?: string[] }) => {
+    mutationFn: async (contact: { nome: string; email: string; telefone?: string; empresa?: string; validacoes_padrao?: string[] }) => {
       if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase.from('contacts').insert({ user_id: user.id, name: contact.name, email: contact.email, phone: contact.phone || null, company: contact.company || null, role: 'signer', default_validations: contact.default_validations || [] } as any);
+      const { error } = await supabase.from('contatos').insert({
+        usuario_id: user.id,
+        nome: contact.nome,
+        email: contact.email,
+        telefone: contact.telefone || null,
+        empresa: contact.empresa || null,
+        funcao: 'signer',
+        validacoes_padrao: contact.validacoes_padrao || [],
+      });
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contacts'] }),
   });
 
   const update = useMutation({
-    mutationFn: async ({ id, ...contact }: { id: string; name: string; email: string; phone?: string; company?: string; default_validations?: string[] }) => {
-      const { error } = await supabase.from('contacts').update({ name: contact.name, email: contact.email, phone: contact.phone || null, company: contact.company || null, default_validations: contact.default_validations || [] } as any).eq('id', id);
+    mutationFn: async ({ id, ...contact }: { id: string; nome: string; email: string; telefone?: string; empresa?: string; validacoes_padrao?: string[] }) => {
+      const { error } = await supabase.from('contatos').update({
+        nome: contact.nome,
+        email: contact.email,
+        telefone: contact.telefone || null,
+        empresa: contact.empresa || null,
+        validacoes_padrao: contact.validacoes_padrao || [],
+      }).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contacts'] }),
   });
 
   const remove = useMutation({
-    mutationFn: async (id: string) => { const { error } = await supabase.from('contacts').delete().eq('id', id); if (error) throw error; },
+    mutationFn: async (id: string) => { const { error } = await supabase.from('contatos').delete().eq('id', id); if (error) throw error; },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contacts'] }),
   });
 
@@ -89,17 +103,17 @@ export default function Contacts() {
   const [formValidations, setFormValidations] = useState<string[]>([]);
   const { contacts, create, update, remove } = useContactsCRUD();
 
-  const filtered = (contacts.data || []).filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || c.email.toLowerCase().includes(search.toLowerCase()));
+  const filtered = (contacts.data || []).filter(c => c.nome.toLowerCase().includes(search.toLowerCase()) || c.email.toLowerCase().includes(search.toLowerCase()));
 
   const openCreate = () => { setEditingContact(null); setFormName(''); setFormEmail(''); setFormPhone(''); setFormCompany(''); setFormValidations([]); setDialogOpen(true); };
-  const openEdit = (contact: DbContact) => { setEditingContact(contact); setFormName(contact.name); setFormEmail(contact.email); setFormPhone(contact.phone || ''); setFormCompany(contact.company || ''); setFormValidations(contact.default_validations || []); setDialogOpen(true); };
+  const openEdit = (contact: DbContact) => { setEditingContact(contact); setFormName(contact.nome); setFormEmail(contact.email); setFormPhone(contact.telefone || ''); setFormCompany(contact.empresa || ''); setFormValidations(contact.validacoes_padrao || []); setDialogOpen(true); };
   const toggleValidation = (val: string) => setFormValidations(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]);
 
   const handleSave = async () => {
     if (!formName.trim() || !formEmail.trim()) return;
     try {
-      if (editingContact) { await update.mutateAsync({ id: editingContact.id, name: formName, email: formEmail, phone: formPhone, company: formCompany, default_validations: formValidations }); toast.success('Contato atualizado'); }
-      else { await create.mutateAsync({ name: formName, email: formEmail, phone: formPhone, company: formCompany, default_validations: formValidations }); toast.success('Contato criado'); }
+      if (editingContact) { await update.mutateAsync({ id: editingContact.id, nome: formName, email: formEmail, telefone: formPhone, empresa: formCompany, validacoes_padrao: formValidations }); toast.success('Contato atualizado'); }
+      else { await create.mutateAsync({ nome: formName, email: formEmail, telefone: formPhone, empresa: formCompany, validacoes_padrao: formValidations }); toast.success('Contato criado'); }
       setDialogOpen(false);
     } catch (err: any) { toast.error(err?.message?.includes('duplicate') ? 'Este e-mail já está cadastrado' : 'Erro ao salvar contato'); }
   };
@@ -137,19 +151,19 @@ export default function Contacts() {
                   <div className="flex items-center gap-3">
                     <Avatar className="w-10 h-10 border border-border/50">
                       <AvatarFallback className="bg-primary/10 text-primary text-sm font-game font-bold">
-                        {contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        {contact.nome.split(' ').map(n => n[0]).join('').slice(0, 2)}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="text-sm font-body font-semibold text-foreground group-hover:text-primary transition-colors">{contact.name}</p>
+                      <p className="text-sm font-body font-semibold text-foreground group-hover:text-primary transition-colors">{contact.nome}</p>
                       <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{contact.email}</span>
-                        {contact.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{contact.phone}</span>}
-                        {contact.company && <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{contact.company}</span>}
+                        {contact.telefone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{contact.telefone}</span>}
+                        {contact.empresa && <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{contact.empresa}</span>}
                       </div>
-                      {contact.default_validations.length > 0 && (
+                      {contact.validacoes_padrao.length > 0 && (
                         <div className="flex gap-1 mt-1">
-                          {contact.default_validations.map(v => {
+                          {contact.validacoes_padrao.map(v => {
                             const opt = VALIDATION_OPTIONS.find(o => o.value === v);
                             return opt ? <Badge key={v} variant="secondary" className="text-[10px] px-1.5 py-0 font-game tracking-wider">{opt.label}</Badge> : null;
                           })}
