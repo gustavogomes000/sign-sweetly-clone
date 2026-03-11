@@ -6,6 +6,7 @@ const statusConfig: Record<DocumentStatus, { label: string; className: string; d
   draft: { label: 'Rascunho', className: 'bg-muted text-muted-foreground border-muted-foreground/20', dot: 'bg-muted-foreground' },
   pending: { label: 'Aguardando', className: 'bg-warning/15 text-warning border-warning/30', dot: 'bg-warning' },
   signed: { label: 'Assinado', className: 'bg-success/15 text-success border-success/30', dot: 'bg-success' },
+  'FINALIZADO_COM_SUCESSO': { label: 'Finalizado', className: 'bg-primary/15 text-primary border-primary/30', dot: 'bg-primary' },
   cancelled: { label: 'Cancelado', className: 'bg-destructive/15 text-destructive border-destructive/30', dot: 'bg-destructive' },
   expired: { label: 'Expirado', className: 'bg-muted text-muted-foreground border-muted-foreground/20', dot: 'bg-muted-foreground' },
 };
