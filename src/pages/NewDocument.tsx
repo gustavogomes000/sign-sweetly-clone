@@ -554,42 +554,119 @@ export default function NewDocument() {
 
             {/* Review step */}
             {currentStep === 'review' && (
-              <Card>
-                <CardContent className="p-6 space-y-6">
-                  <h2 className="text-lg font-semibold text-foreground">Revisar e enviar</h2>
-                  <div className="space-y-4">
-                    <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
-                      <p className="text-xs font-semibold text-muted-foreground">DOCUMENTO</p>
-                      <p className="text-sm font-medium">{docName || fileName || 'Sem nome'}</p>
-                      {file && <p className="text-xs text-muted-foreground">{fileName} — {(file.size / 1024).toFixed(0)} KB</p>}
-                      {placedFields.length > 0 && <p className="text-xs text-muted-foreground">{placedFields.length} campo(s) posicionado(s)</p>}
+              <div className="space-y-5">
+                <h2 className="text-lg font-semibold text-foreground">Revisar e enviar</h2>
+
+                {/* Documento */}
+                <Card className="overflow-hidden">
+                  <div className="flex items-start gap-4 p-5">
+                    <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <FileText className="w-5 h-5 text-primary" />
                     </div>
-                    <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
-                      <p className="text-xs font-semibold text-muted-foreground">SIGNATÁRIOS ({signers.length})</p>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Documento</p>
+                      <p className="text-sm font-semibold text-foreground truncate">{docName || fileName || 'Sem nome'}</p>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        {file && <span>{fileName} — {(file.size / 1024).toFixed(0)} KB</span>}
+                        {placedFields.length > 0 && (
+                          <Badge variant="secondary" className="text-[10px] font-medium">
+                            {placedFields.length} campo(s)
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Signatários */}
+                <Card className="overflow-hidden">
+                  <div className="p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                          <Users className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Signatários</p>
+                          <p className="text-sm font-semibold text-foreground">{signers.length} participante(s)</p>
+                        </div>
+                      </div>
+                      {orderMatters && (
+                        <Badge variant="outline" className="text-[10px] gap-1">
+                          <ArrowRight className="w-3 h-3" /> Sequencial
+                        </Badge>
+                      )}
+                    </div>
+                    <Separator />
+                    <div className="space-y-3">
                       {signers.map((s, i) => (
-                        <div key={s.id} className="flex items-center gap-2 text-sm">
-                          <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ backgroundColor: getSignerColor(i) }}>{i + 1}</div>
-                          <span>{s.name}</span>
-                          <span className="text-muted-foreground text-xs">({s.email})</span>
-                          {s.cpf && <span className="text-muted-foreground text-xs">CPF: {s.cpf}</span>}
-                          {s.validationSteps.length > 0 && <Badge variant="outline" className="text-[10px]">{s.validationSteps.length} verificação(ões)</Badge>}
+                        <div key={s.id} className="flex items-start gap-3 p-3 rounded-lg bg-secondary/40">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 mt-0.5" style={{ backgroundColor: getSignerColor(i) }}>
+                            {i + 1}
+                          </div>
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <p className="text-sm font-medium text-foreground truncate">{s.name}</p>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                              <span>{s.email}</span>
+                              {s.cpf && <span>· CPF: {s.cpf}</span>}
+                              {s.phone && <span>· {s.phone}</span>}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                              <Badge variant="secondary" className="text-[10px]">{s.role}</Badge>
+                              {s.validationSteps.length > 0 && (
+                                <Badge variant="outline" className="text-[10px] gap-1">
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  {s.validationSteps.length} verificação(ões)
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
-                    {hasDeadline && deadline && (
-                      <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-1">
-                        <p className="text-xs font-semibold text-muted-foreground">PRAZO</p>
-                        <p className="text-sm">{new Date(deadline).toLocaleString('pt-BR')}</p>
-                      </div>
-                    )}
-                    <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-1">
-                      <p className="text-xs font-semibold text-muted-foreground">CONFIGURAÇÕES</p>
-                      <p className="text-sm">Ordem de assinatura: {orderMatters ? 'Sequencial' : 'Livre'}</p>
-                      {message && <p className="text-sm text-muted-foreground">Mensagem: {message}</p>}
-                    </div>
                   </div>
-                </CardContent>
-              </Card>
+                </Card>
+
+                {/* Configurações */}
+                <Card className="overflow-hidden">
+                  <div className="p-5 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                        <Settings2 className="w-5 h-5 text-primary" />
+                      </div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Configurações</p>
+                    </div>
+                    <Separator />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {hasDeadline && deadline && (
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Prazo</p>
+                          <p className="text-sm font-medium text-foreground">{new Date(deadline).toLocaleString('pt-BR')}</p>
+                        </div>
+                      )}
+                      <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground">Ordem de assinatura</p>
+                        <p className="text-sm font-medium text-foreground">{orderMatters ? 'Sequencial (respeita a ordem)' : 'Livre (qualquer ordem)'}</p>
+                      </div>
+                      {!hasDeadline && (
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Prazo</p>
+                          <p className="text-sm text-muted-foreground italic">Sem prazo definido</p>
+                        </div>
+                      )}
+                    </div>
+                    {message && (
+                      <>
+                        <Separator />
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Mensagem para os signatários</p>
+                          <p className="text-sm text-foreground bg-secondary/40 rounded-lg p-3 italic">"{message}"</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </Card>
+              </div>
             )}
 
             {/* Navigation */}
