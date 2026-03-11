@@ -26,9 +26,9 @@ export default function Analytics() {
   const dayBuckets = Array.from({ length: 7 }, () => ({ count: 0, totalHours: 0 }));
   documents.forEach(doc => {
     if (doc.status === 'signed' && doc.signers.length > 0) {
-      const createdDate = new Date(doc.created_at);
+      const createdDate = new Date(doc.criado_em);
       const dayOfWeek = createdDate.getDay();
-      const lastSigned = doc.signers.filter(s => s.signed_at).map(s => new Date(s.signed_at!).getTime()).sort((a, b) => b - a)[0];
+      const lastSigned = doc.signers.filter(s => s.assinado_em).map(s => new Date(s.assinado_em!).getTime()).sort((a, b) => b - a)[0];
       if (lastSigned) {
         dayBuckets[dayOfWeek].count++;
         dayBuckets[dayOfWeek].totalHours += (lastSigned - createdDate.getTime()) / (1000 * 60 * 60);
