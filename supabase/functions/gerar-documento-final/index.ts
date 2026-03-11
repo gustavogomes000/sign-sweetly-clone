@@ -122,12 +122,13 @@ interface DadosManifesto {
  * Adiciona a(s) página(s) de Manifesto/Dossiê de Auditoria ao final do PDF.
  * Escreve todas as evidências coletadas em formato legível.
  */
-function adicionarPaginaManifesto(
+async function adicionarPaginaManifesto(
   pdfDoc: PDFDocument,
   fonteNormal: any,
   fonteNegrito: any,
-  dados: DadosManifesto
-): void {
+  dados: DadosManifesto,
+  supabase: any,
+): Promise<void> {
   let pagina = pdfDoc.addPage([PAGINA_LARGURA, PAGINA_ALTURA]);
   let yPos = PAGINA_ALTURA - MARGEM;
   let numeroPagManifesto = 1;
