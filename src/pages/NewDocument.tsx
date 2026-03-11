@@ -582,6 +582,11 @@ export default function NewDocument() {
                         <p className="text-sm">{new Date(deadline).toLocaleString('pt-BR')}</p>
                       </div>
                     )}
+                    <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-1">
+                      <p className="text-xs font-semibold text-muted-foreground">CONFIGURAÇÕES</p>
+                      <p className="text-sm">Ordem de assinatura: {orderMatters ? 'Sequencial' : 'Livre'}</p>
+                      {message && <p className="text-sm text-muted-foreground">Mensagem: {message}</p>}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
