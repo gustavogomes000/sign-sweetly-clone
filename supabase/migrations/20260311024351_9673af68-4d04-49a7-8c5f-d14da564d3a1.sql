@@ -1,0 +1,1 @@
+ALTER TABLE public.documentos ADD COLUMN ordem_importa boolean NOT NULL DEFAULT false;

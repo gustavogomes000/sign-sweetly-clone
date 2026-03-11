@@ -266,6 +266,7 @@ export type Database = {
           hash_pdf_original: string | null
           id: string
           nome: string
+          ordem_importa: boolean
           origem: string
           prazo: string | null
           referencia_externa: string | null
@@ -284,6 +285,7 @@ export type Database = {
           hash_pdf_original?: string | null
           id?: string
           nome: string
+          ordem_importa?: boolean
           origem?: string
           prazo?: string | null
           referencia_externa?: string | null
@@ -302,6 +304,7 @@ export type Database = {
           hash_pdf_original?: string | null
           id?: string
           nome?: string
+          ordem_importa?: boolean
           origem?: string
           prazo?: string | null
           referencia_externa?: string | null
