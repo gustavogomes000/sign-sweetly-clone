@@ -320,6 +320,16 @@ export default function DocumentDetail() {
                           {field.valor ? '✓' : field.tipo_campo}
                         </div>
                       ))}
+                      {/* Selo visual de verificação sobre o PDF */}
+                      {(doc.status === 'signed' || doc.status === 'FINALIZADO_COM_SUCESSO') && (doc as any).hash_pdf_final && (
+                        <div className="absolute top-3 right-3 z-20 bg-success/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg border border-success/50 flex items-center gap-2">
+                          <ShieldCheck className="w-4 h-4 text-white" />
+                          <div>
+                            <p className="text-[10px] font-bold text-white tracking-wider leading-none">VERIFICADO</p>
+                            <p className="text-[8px] text-white/80 font-mono mt-0.5">{((doc as any).hash_pdf_final as string).substring(0, 16)}...</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : publicUrl ? (
