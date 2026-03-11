@@ -382,8 +382,14 @@ export default function NewDocument() {
               onFieldsChange={setPlacedFields}
               totalPages={editorTotalPages}
               documentUrl={filePreviewUrl}
-              
             />
+            {/* Navigation for editor step */}
+            <div className="flex justify-between pt-3 pb-2">
+              <Button variant="outline" onClick={handleBack}><ArrowLeft className="w-4 h-4 mr-1" />Voltar</Button>
+              <Button onClick={handleNext}>
+                Próximo <ArrowRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
           </div>
         )}
 
