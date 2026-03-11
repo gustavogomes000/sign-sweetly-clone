@@ -76,7 +76,7 @@ export default function Documents() {
               </div>
               <Link to="/documents/new">
                 <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                  <Button size="sm" className="gradient-teal-gold text-primary-foreground glow-primary font-game text-xs tracking-wider"><Plus className="w-4 h-4 mr-1" /> NOVO</Button>
+                  <Button size="sm" className="bg-primary text-primary-foreground  text-xs tracking-wider"><Plus className="w-4 h-4 mr-1" /> NOVO</Button>
                 </motion.div>
               </Link>
             </div>
@@ -85,8 +85,8 @@ export default function Documents() {
           <div className="flex items-center gap-1.5 flex-wrap">
             {statusFilters.map((filter) => (
               <button key={filter.value} onClick={() => setStatusFilter(filter.value)}
-                className={cn('px-3 py-1.5 rounded-full text-xs font-game tracking-wider transition-all',
-                  statusFilter === filter.value ? 'bg-primary text-primary-foreground shadow-sm glow-primary' : 'bg-secondary/70 text-muted-foreground hover:text-foreground hover:bg-secondary')}>
+                className={cn('px-3 py-1.5 rounded-full text-xs tracking-wider transition-all',
+                  statusFilter === filter.value ? 'bg-primary text-primary-foreground shadow-sm ' : 'bg-secondary/70 text-muted-foreground hover:text-foreground hover:bg-secondary')}>
                 {filter.label}
                 {filter.value !== 'all' && <span className="ml-1 opacity-70">({documents.filter((d) => d.status === filter.value).length})</span>}
               </button>
@@ -95,7 +95,7 @@ export default function Documents() {
 
           {selectedDocs.length > 0 && (
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
-              <span className="text-sm font-game text-primary tracking-wider">{selectedDocs.length} SELECIONADOS</span>
+              <span className="text-sm text-primary tracking-wider">{selectedDocs.length} SELECIONADOS</span>
               <div className="flex items-center gap-1 ml-auto">
                 <Button variant="outline" size="sm" onClick={() => { selectedDocs.forEach((docId) => { const doc = documents.find((d) => d.id === docId); if (doc?.status === 'pending') handleResend(doc); }); }}><Send className="w-3 h-3 mr-1" />Reenviar</Button>
                 <Button variant="outline" size="sm" className="text-destructive" onClick={() => { selectedDocs.forEach((docId) => handleCancel(docId)); setSelectedDocs([]); }}><Trash2 className="w-3 h-3 mr-1" />Cancelar</Button>
@@ -107,21 +107,21 @@ export default function Documents() {
         {isLoading && <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}
 
         {!isLoading && viewMode === 'list' ? (
-          <Card className="game-card">
+          <Card className="border rounded-xl bg-card">
             <div className="flex items-center gap-3 px-4 py-3 border-b border-border/50 bg-secondary/20">
               <Checkbox checked={selectedDocs.length === filteredDocs.length && filteredDocs.length > 0} onCheckedChange={toggleSelectAll} />
-              <span className="text-[10px] font-game text-muted-foreground flex-1 tracking-wider">DOCUMENTO</span>
-              <span className="text-[10px] font-game text-muted-foreground w-32 text-center hidden md:block tracking-wider">STATUS</span>
-              <span className="text-[10px] font-game text-muted-foreground w-32 text-center hidden lg:block tracking-wider">SIGNATÁRIOS</span>
-              <span className="text-[10px] font-game text-muted-foreground w-28 text-right hidden md:block tracking-wider">DATA</span>
+              <span className="text-[10px] text-muted-foreground flex-1 tracking-wider">DOCUMENTO</span>
+              <span className="text-[10px] text-muted-foreground w-32 text-center hidden md:block tracking-wider">STATUS</span>
+              <span className="text-[10px] text-muted-foreground w-32 text-center hidden lg:block tracking-wider">SIGNATÁRIOS</span>
+              <span className="text-[10px] text-muted-foreground w-28 text-right hidden md:block tracking-wider">DATA</span>
               <span className="w-8" />
             </div>
             <div className="divide-y divide-border/30">
               {filteredDocs.length === 0 && (
                 <div className="p-12 text-center text-muted-foreground">
                   <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm font-game tracking-wider">NENHUM DOCUMENTO ENCONTRADO</p>
-                  <p className="text-xs mt-1 font-body">Tente ajustar os filtros ou crie um novo documento</p>
+                  <p className="text-sm tracking-wider">NENHUM DOCUMENTO ENCONTRADO</p>
+                  <p className="text-xs mt-1">Tente ajustar os filtros ou crie um novo documento</p>
                 </div>
               )}
               {filteredDocs.map((doc, i) => (
@@ -132,7 +132,7 @@ export default function Documents() {
                     <motion.div className="w-9 h-9 rounded-lg bg-secondary/60 flex items-center justify-center shrink-0 border border-border/30" whileHover={{ rotate: 5, scale: 1.1 }}>
                       <FileText className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                     </motion.div>
-                    <p className="text-sm font-body font-semibold text-foreground truncate group-hover:text-primary transition-colors">{doc.nome}</p>
+                    <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">{doc.nome}</p>
                   </Link>
                   <div className="w-32 flex justify-center hidden md:flex"><StatusBadge status={doc.status as any} /></div>
                   <div className="w-32 text-center hidden lg:block">
@@ -146,11 +146,11 @@ export default function Documents() {
                             </div>
                           ))}
                         </div>
-                        <span className="text-xs text-muted-foreground ml-1 font-game">{doc.signers.filter((s) => s.status === 'signed').length}/{doc.signers.length}</span>
+                        <span className="text-xs text-muted-foreground ml-1">{doc.signers.filter((s) => s.status === 'signed').length}/{doc.signers.length}</span>
                       </div>
                     ) : <span className="text-xs text-muted-foreground">—</span>}
                   </div>
-                  <span className="text-xs text-muted-foreground w-28 text-right hidden md:block font-body">{format(new Date(doc.criado_em), 'dd/MM/yyyy', { locale: ptBR })}</span>
+                  <span className="text-xs text-muted-foreground w-28 text-right hidden md:block">{format(new Date(doc.criado_em), 'dd/MM/yyyy', { locale: ptBR })}</span>
                   <DropdownMenu>
                     <DropdownMenuTrigger className="h-8 w-8 shrink-0 inline-flex items-center justify-center rounded-md hover:bg-secondary transition-colors"><MoreHorizontal className="w-4 h-4" /></DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -170,16 +170,16 @@ export default function Documents() {
             {filteredDocs.map((doc, i) => (
               <motion.div key={doc.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} whileHover={{ y: -4, scale: 1.02 }}>
                 <Link to={`/documents/${doc.id}`}>
-                  <Card className="game-card h-full">
+                  <Card className="border rounded-xl bg-card h-full">
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between mb-3">
                         <div className="w-10 h-10 rounded-lg bg-secondary/60 flex items-center justify-center border border-border/30"><FileText className="w-5 h-5 text-muted-foreground" /></div>
                         <StatusBadge status={doc.status as any} />
                       </div>
-                      <p className="text-sm font-body font-semibold text-foreground line-clamp-2 mb-2">{doc.nome}</p>
+                      <p className="text-sm font-semibold text-foreground line-clamp-2 mb-2">{doc.nome}</p>
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span className="font-body">{format(new Date(doc.criado_em), 'dd/MM/yyyy', { locale: ptBR })}</span>
-                        {doc.signers.length > 0 && <span className="font-game">{doc.signers.filter(s => s.status === 'signed').length}/{doc.signers.length}</span>}
+                        <span className="">{format(new Date(doc.criado_em), 'dd/MM/yyyy', { locale: ptBR })}</span>
+                        {doc.signers.length > 0 && <span className="">{doc.signers.filter(s => s.status === 'signed').length}/{doc.signers.length}</span>}
                       </div>
                     </CardContent>
                   </Card>

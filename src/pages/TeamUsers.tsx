@@ -293,14 +293,14 @@ export default function TeamUsers() {
             { label: 'OWNERS', value: ownerCount, icon: Building2, color: 'text-primary', bgColor: 'bg-primary/10' },
           ].map((stat, i) => (
             <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }} whileHover={{ y: -2, scale: 1.02 }}>
-              <Card className="game-card">
+              <Card className="border rounded-xl bg-card">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className={`p-2 rounded-lg ${stat.bgColor}`}><stat.icon className={`w-4 h-4 ${stat.color}`} /></div>
                     <Hexagon className="w-4 h-4 text-primary/10" strokeWidth={1} />
                   </div>
-                  <p className="text-2xl font-game font-bold stat-number">{stat.value}</p>
-                  <p className="text-[10px] text-muted-foreground font-game tracking-wider">{stat.label}</p>
+                  <p className="text-2xl font-bold text-primary font-bold">{stat.value}</p>
+                  <p className="text-[10px] text-muted-foreground tracking-wider">{stat.label}</p>
                 </CardContent>
               </Card>
             </motion.div>
@@ -311,8 +311,8 @@ export default function TeamUsers() {
         <div className="flex gap-3 flex-wrap">
           {Object.entries(hierarchyConfig).map(([key, cfg]) => (
             <div key={key} className="flex items-center gap-2 text-xs">
-              <Badge className={`${cfg.color} text-[10px] font-game tracking-wider`}>{cfg.label}</Badge>
-              <span className="text-muted-foreground font-body">{cfg.description.split('—')[0]}</span>
+              <Badge className={`${cfg.color} text-[10px] tracking-wider`}>{cfg.label}</Badge>
+              <span className="text-muted-foreground">{cfg.description.split('—')[0]}</span>
             </div>
           ))}
         </div>
@@ -332,17 +332,17 @@ export default function TeamUsers() {
               <SelectItem value="user">Usuário</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching} className="font-game text-xs tracking-wider">
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching} className="text-xs tracking-wider">
             <RefreshCw className={`w-4 h-4 mr-1 ${isFetching ? 'animate-spin' : ''}`} /> ATUALIZAR
           </Button>
-          <Button size="sm" onClick={() => setShowInvite(true)} className="font-game text-xs tracking-wider ml-auto">
+          <Button size="sm" onClick={() => setShowInvite(true)} className="text-xs tracking-wider ml-auto">
             <Plus className="w-4 h-4 mr-1" /> CONVIDAR MEMBRO
           </Button>
         </div>
 
         {/* Table */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <Card className="game-card">
+          <Card className="border rounded-xl bg-card">
             <CardContent className="p-0">
               {isLoading ? (
                 <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
@@ -350,12 +350,12 @@ export default function TeamUsers() {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-border/50">
-                      <TableHead className="font-game text-[10px] tracking-wider">MEMBRO</TableHead>
-                      <TableHead className="font-game text-[10px] tracking-wider">NÍVEL</TableHead>
-                      <TableHead className="font-game text-[10px] tracking-wider">STATUS</TableHead>
-                      <TableHead className="font-game text-[10px] tracking-wider">DEPARTAMENTO</TableHead>
-                      <TableHead className="font-game text-[10px] tracking-wider">CADASTRO</TableHead>
-                      <TableHead className="font-game text-[10px] tracking-wider text-right">AÇÕES</TableHead>
+                      <TableHead className="text-[10px] tracking-wider">MEMBRO</TableHead>
+                      <TableHead className="text-[10px] tracking-wider">NÍVEL</TableHead>
+                      <TableHead className="text-[10px] tracking-wider">STATUS</TableHead>
+                      <TableHead className="text-[10px] tracking-wider">DEPARTAMENTO</TableHead>
+                      <TableHead className="text-[10px] tracking-wider">CADASTRO</TableHead>
+                      <TableHead className="text-[10px] tracking-wider text-right">AÇÕES</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -367,12 +367,12 @@ export default function TeamUsers() {
                           <TableCell>
                             <div className="flex items-center gap-3">
                               <Avatar className="w-9 h-9 border border-border/30">
-                                <AvatarFallback className="bg-primary/10 text-primary text-xs font-game font-bold">
+                                <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
                                   {p.nome_completo.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
                               <div>
-                                <p className="text-sm font-body font-semibold">{p.nome_completo}</p>
+                                <p className="text-sm font-semibold">{p.nome_completo}</p>
                                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
                                   <Mail className="w-3 h-3" />{p.email}
                                 </div>
@@ -380,17 +380,17 @@ export default function TeamUsers() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge className={`${h.color} text-[10px] font-game tracking-wider`}>{h.label}</Badge>
+                            <Badge className={`${h.color} text-[10px] tracking-wider`}>{h.label}</Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={p.ativo ? 'default' : 'secondary'} className="text-[10px] font-game tracking-wider">
+                            <Badge variant={p.ativo ? 'default' : 'secondary'} className="text-[10px] tracking-wider">
                               {p.ativo ? 'ATIVO' : 'INATIVO'}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-sm font-body">{dept?.nome || '—'}</TableCell>
+                          <TableCell className="text-sm">{dept?.nome || '—'}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">{new Date(p.criado_em).toLocaleDateString('pt-BR')}</TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" className="font-game text-xs tracking-wider" onClick={() => openEditDialog(p)}>
+                            <Button variant="ghost" size="sm" className="text-xs tracking-wider" onClick={() => openEditDialog(p)}>
                               <Pencil className="w-3.5 h-3.5 mr-1" /> EDITAR
                             </Button>
                           </TableCell>
@@ -409,7 +409,7 @@ export default function TeamUsers() {
       <Dialog open={!!editingProfile} onOpenChange={(open) => { if (!open) { setEditingProfile(null); setEditPermissions({}); } }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-auto">
           <DialogHeader>
-            <DialogTitle className="font-game tracking-wider">EDITAR MEMBRO</DialogTitle>
+            <DialogTitle className="tracking-wider">EDITAR MEMBRO</DialogTitle>
           </DialogHeader>
           {editingProfile && (
             <Tabs value={editTab} onValueChange={setEditTab}>
@@ -528,7 +528,7 @@ export default function TeamUsers() {
       <Dialog open={showInvite} onOpenChange={setShowInvite}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-game tracking-wider">CONVIDAR MEMBRO</DialogTitle>
+            <DialogTitle className="tracking-wider">CONVIDAR MEMBRO</DialogTitle>
             <DialogDescription>O membro receberá um email com credenciais de acesso.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">

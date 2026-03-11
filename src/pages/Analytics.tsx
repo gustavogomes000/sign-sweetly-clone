@@ -71,11 +71,11 @@ export default function Analytics() {
       <div className="flex-1 overflow-auto p-6 space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            <Card className="game-card">
+            <Card className="border rounded-xl bg-card">
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
                   <Zap className="w-4 h-4 text-accent" />
-                  <CardTitle className="text-sm font-game tracking-wider">DOCUMENTOS POR MÊS</CardTitle>
+                  <CardTitle className="text-sm tracking-wider">DOCUMENTOS POR MÊS</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
@@ -93,7 +93,7 @@ export default function Analytics() {
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="h-full flex items-center justify-center text-muted-foreground text-sm font-game">Nenhum dado</div>
+                    <div className="h-full flex items-center justify-center text-muted-foreground text-sm">Nenhum dado</div>
                   )}
                 </div>
               </CardContent>
@@ -101,11 +101,11 @@ export default function Analytics() {
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-            <Card className="game-card">
+            <Card className="border rounded-xl bg-card">
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
                   <Hexagon className="w-4 h-4 text-primary/40" strokeWidth={1.5} />
-                  <CardTitle className="text-sm font-game tracking-wider">STATUS DOS DOCUMENTOS</CardTitle>
+                  <CardTitle className="text-sm tracking-wider">STATUS DOS DOCUMENTOS</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
@@ -121,7 +121,7 @@ export default function Analytics() {
                       </PieChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="text-muted-foreground text-sm font-game">Nenhum documento</div>
+                    <div className="text-muted-foreground text-sm">Nenhum documento</div>
                   )}
                 </div>
               </CardContent>
@@ -129,11 +129,11 @@ export default function Analytics() {
           </motion.div>
 
           <motion.div className="lg:col-span-2" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-            <Card className="game-card">
+            <Card className="border rounded-xl bg-card">
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-success" />
-                  <CardTitle className="text-sm font-game tracking-wider">TEMPO MÉDIO DE ASSINATURA (HORAS)</CardTitle>
+                  <CardTitle className="text-sm tracking-wider">TEMPO MÉDIO DE ASSINATURA (HORAS)</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
