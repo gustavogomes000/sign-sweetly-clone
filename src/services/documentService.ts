@@ -50,6 +50,7 @@ export async function createSigners(documentId: string, signers: Array<{
   name: string;
   email: string;
   phone?: string;
+  cpf?: string;
   role: string;
   order: number;
 }>) {
@@ -61,6 +62,7 @@ export async function createSigners(documentId: string, signers: Array<{
         nome: s.name,
         email: s.email,
         telefone: s.phone || null,
+        cpf: s.cpf || null,
         funcao: s.role,
         ordem_assinatura: s.order,
         status: 'pending' as const,
