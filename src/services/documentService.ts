@@ -198,22 +198,30 @@ export async function saveSignature(data: {
       resposta_externa: (data.bluetechResponse as any) || null,
     }]);
   
-  if (sigError) throw sigError;
+  if (sigError) {
+    console.error('[documentService] Erro ao gravar assinatura:', sigError.message);
+    throw sigError;
+  }
+  console.log('[documentService] Assinatura gravada na tabela assinaturas');
   
   if (data.fieldId) {
-    await supabase
+    const { error: fieldError } = await supabase
       .from('campos_documento')
       .update({ valor: data.signatureType === 'drawn' ? '[assinatura]' : data.typedText })
       .eq('id', data.fieldId);
+    if (fieldError) console.error('[documentService] Erro ao atualizar campo:', fieldError.message);
+    else console.log('[documentService] Campo atualizado:', data.fieldId);
   }
   
-  await supabase.from('trilha_auditoria').insert({
+  const { error: auditError } = await supabase.from('trilha_auditoria').insert({
     documento_id: data.documentId,
     signatario_id: data.signerId,
     acao: 'signature',
     ator: data.signerId,
     detalhes: `Assinatura ${data.signatureType === 'drawn' ? 'desenhada' : 'tipográfica'} realizada`,
   });
+  if (auditError) console.error('[documentService] Erro ao gravar auditoria:', auditError.message);
+  else console.log('[documentService] Trilha de auditoria registrada');
 }
 
 // Complete a validation step
