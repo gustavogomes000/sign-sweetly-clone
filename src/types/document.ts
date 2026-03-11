@@ -1,4 +1,4 @@
-export type DocumentStatus = 'draft' | 'pending' | 'signed' | 'cancelled' | 'expired';
+export type DocumentStatus = 'draft' | 'pending' | 'signed' | 'cancelled' | 'expired' | 'FINALIZADO_COM_SUCESSO';
 
 export type SignerStatus = 'pending' | 'signed' | 'refused';
 

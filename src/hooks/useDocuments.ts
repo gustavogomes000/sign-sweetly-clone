@@ -164,7 +164,7 @@ export function useDashboardStats() {
 
       const total = allDocs.length;
       const pending = allDocs.filter((d) => d.status === 'pending').length;
-      const signed = allDocs.filter((d) => d.status === 'signed').length;
+      const signed = allDocs.filter((d) => d.status === 'signed' || d.status === 'FINALIZADO_COM_SUCESSO').length;
       const expired = allDocs.filter((d) => d.status === 'expired').length;
       const cancelled = allDocs.filter((d) => d.status === 'cancelled').length;
       const drafts = allDocs.filter((d) => d.status === 'draft').length;
