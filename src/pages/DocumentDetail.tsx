@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useDocument, useCancelDocument, useResendEmails, getDocumentPublicUrl } from '@/hooks/useDocuments';
+import { downloadComFeedback } from '@/services/downloadService';
 import PdfPagePreview from '@/components/documents/PdfPagePreview';
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
