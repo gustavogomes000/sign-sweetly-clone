@@ -101,19 +101,21 @@ export function StepperAssinatura({
     }
   };
 
-  // ── Passo 3: Selfie / Biometria ──
-  const handleSelfieCapturada = async (resultado: { status: string; imageBase64?: string }) => {
-    if (tipoAutenticacao === 'INTERNA_BLUEPOINT' && bluepointColaboradorId && resultado.imageBase64) {
-      // Validar biometria via BluePoint
+  // ── Passo 3: Selfie / Biometria via Câmera Blindada ──
+  const handleSelfieCapturada = async (dados: {
+    imagemBase64: string;
+    validacoes: { livenessAprovado?: boolean; gpsValido: boolean; cameraFisica: boolean };
+  }) => {
+    if (tipoAutenticacao === 'INTERNA_BLUEPOINT' && bluepointColaboradorId) {
       setProcessandoBiometria(true);
       try {
         const bio = await bluepointService.validarBiometriaFacial({
           colaboradorId: bluepointColaboradorId,
-          imagemBase64: resultado.imageBase64,
+          imagemBase64: dados.imagemBase64,
         });
         setEvidencias((prev) => ({
           ...prev,
-          selfieBase64: resultado.imageBase64,
+          selfieBase64: dados.imagemBase64,
           biometriaAprovada: bio.sucesso,
         }));
         if (bio.sucesso) {
@@ -128,9 +130,8 @@ export function StepperAssinatura({
         setProcessandoBiometria(false);
       }
     } else {
-      // KYC externo: apenas salvar selfie
-      setEvidencias((prev) => ({ ...prev, selfieBase64: resultado.imageBase64 }));
-      toast({ title: '📸 Selfie capturada!' });
+      setEvidencias((prev) => ({ ...prev, selfieBase64: dados.imagemBase64 }));
+      toast({ title: '📸 Selfie capturada com prova de vida!' });
       setTimeout(avancar, 500);
     }
   };
