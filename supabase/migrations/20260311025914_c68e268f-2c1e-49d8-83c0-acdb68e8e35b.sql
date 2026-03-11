@@ -1,0 +1,2 @@
+ALTER TABLE public.documentos DROP CONSTRAINT documents_status_check;
+ALTER TABLE public.documentos ADD CONSTRAINT documents_status_check CHECK (status = ANY (ARRAY['draft'::text, 'pending'::text, 'signed'::text, 'cancelled'::text, 'expired'::text, 'FINALIZADO_COM_SUCESSO'::text]));
