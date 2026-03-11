@@ -355,8 +355,32 @@ export default function SignPage() {
   }
 
   // ── Complete ──
+  // Effect to check for generated PDFs (runs when pageStep becomes 'complete')
+  const docIdForPdf = (signerData?.document as { id: string })?.id;
+  useEffect(() => {
+    if (pageStep !== 'complete' || !docIdForPdf) return;
+    const checkPdfs = async () => {
+      const { data } = await supabase.from('documentos').select('caminho_pdf_final, caminho_pdf_dossie').eq('id', docIdForPdf).single();
+      if (data?.caminho_pdf_final) {
+        setSignedPdfUrl(`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/documents/${data.caminho_pdf_final}`);
+      }
+      if (data?.caminho_pdf_dossie) {
+        setDossiePdfUrl(`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/documents/${data.caminho_pdf_dossie}`);
+      }
+    };
+    checkPdfs();
+    const timer = setTimeout(checkPdfs, 5000);
+    const timer2 = setTimeout(checkPdfs, 12000);
+    return () => { clearTimeout(timer); clearTimeout(timer2); };
+  }, [pageStep, docIdForPdf]);
+
   if (pageStep === 'complete') {
-    const docId = (signerData?.document as { id: string })?.id;
+    return (
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center p-6">
+        <Card className="max-w-md w-full text-center">
+          <CardContent className="p-8 space-y-4">
+            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-10 h-10 text-primary" />
             </div>
             <h1 className="text-2xl font-bold text-foreground">Documento assinado!</h1>
             <p className="text-muted-foreground">Sua assinatura foi registrada com sucesso. Todas as evidências de segurança foram coletadas.</p>
@@ -375,6 +399,12 @@ export default function SignPage() {
                 <a href={publicUrl} target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" className="w-full"><Download className="w-4 h-4 mr-1" />Baixar documento original</Button>
                 </a>
+              )}
+              {!signedPdfUrl && (
+                <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-xs">Gerando PDFs com assinaturas...</span>
+                </div>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
