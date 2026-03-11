@@ -270,7 +270,7 @@ async function adicionarPaginaManifesto(
 
   for (const evento of dados.trilhaAuditoria) {
     verificarQuebraPagina(100);
-    escreverTexto(`Evento: ${evento.tipo_evento}`, { negrito: true, recuo: 10, tamanho: 9, cor: { r: 0.15, g: 0.3, b: 0.15 } });
+    escreverTexto(`Evento: ${evento.acao}`, { negrito: true, recuo: 10, tamanho: 9, cor: { r: 0.15, g: 0.3, b: 0.15 } });
     escreverTexto(`Data/Hora UTC: ${new Date(evento.criado_em).toISOString()}`, { recuo: 20, tamanho: 8 });
     if (evento.endereco_ip) escreverTexto(`IP: ${evento.endereco_ip}`, { recuo: 20, tamanho: 8 });
     if (evento.agente_usuario) escreverTexto(`UA: ${String(evento.agente_usuario).substring(0, 100)}`, { recuo: 20, tamanho: 7, cor: { r: 0.4, g: 0.4, b: 0.4 } });
