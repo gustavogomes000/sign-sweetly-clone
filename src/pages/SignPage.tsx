@@ -241,15 +241,15 @@ export default function SignPage() {
     if (!signerData) return;
     setSaving(true);
     try {
-      for (const field of signerData.fields) {
-        const currentValue = fieldValues[field.id];
-        if (currentValue !== undefined && currentValue !== field.value) {
-          await supabase.from('campos_documento').update({ valor: currentValue }).eq('id', field.id);
-        }
-      }
-
       const pendingSteps = (signerData.validationSteps || []).filter((s) => s.status !== 'completed');
       if (pendingSteps.length > 0) {
+        // Save field values before going to validation
+        for (const field of signerData.fields) {
+          const currentValue = fieldValues[field.id];
+          if (currentValue !== undefined && currentValue !== field.value) {
+            await supabase.from('campos_documento').update({ valor: currentValue }).eq('id', field.id);
+          }
+        }
         setValidationStepIdx(0);
         toast({ title: 'Campos salvos! Prosseguindo para verificação...' });
         setTimeout(() => setPageStep('validation'), 600);
