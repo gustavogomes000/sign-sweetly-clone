@@ -496,7 +496,6 @@ serve(async (req) => {
           dataCriacao: doc.criado_em,
           trilhaAuditoria,
           signatarios,
-          participantes,
           assinaturas,
         }, supabase);
 
