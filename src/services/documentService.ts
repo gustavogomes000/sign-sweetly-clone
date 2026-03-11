@@ -235,5 +235,9 @@ export async function completeValidationStep(stepId: string, result?: Record<str
     })
     .eq('id', stepId);
   
-  if (error) throw error;
+  if (error) {
+    console.error('[documentService] Erro ao completar etapa validação:', error.message);
+    throw error;
+  }
+  console.log('[documentService] Etapa validação concluída:', stepId);
 }
