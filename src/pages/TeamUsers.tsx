@@ -23,23 +23,23 @@ type Hierarchy = 'owner' | 'gestor' | 'user';
 
 interface Profile {
   id: string;
-  full_name: string;
+  nome_completo: string;
   email: string;
-  hierarchy: string;
-  active: boolean;
+  hierarquia: string;
+  ativo: boolean;
   avatar_url: string | null;
-  department_id: string | null;
-  created_at: string;
+  departamento_id: string | null;
+  criado_em: string;
 }
 
 interface Department {
   id: string;
-  name: string;
+  nome: string;
 }
 
 interface Permission {
-  permission: string;
-  granted: boolean;
+  permissao: string;
+  concedida: boolean;
 }
 
 const hierarchyConfig: Record<string, { label: string; description: string; color: string; icon: typeof Shield }> = {
@@ -48,11 +48,9 @@ const hierarchyConfig: Record<string, { label: string; description: string; colo
   user: { label: 'USUÁRIO', description: 'Acesso básico — visualiza e cria documentos conforme permissões', color: 'bg-secondary text-secondary-foreground', icon: Eye },
 };
 
-// All available permissions organized by category
 const permissionCategories = [
   {
-    label: 'Documentos',
-    icon: FileText,
+    label: 'Documentos', icon: FileText,
     permissions: [
       { key: 'documents:create', label: 'Criar documentos', description: 'Enviar novos documentos para assinatura' },
       { key: 'documents:read', label: 'Visualizar documentos', description: 'Ver documentos e seu status' },
@@ -63,8 +61,7 @@ const permissionCategories = [
     ],
   },
   {
-    label: 'Contatos',
-    icon: Users,
+    label: 'Contatos', icon: Users,
     permissions: [
       { key: 'contacts:create', label: 'Criar contatos', description: 'Adicionar novos contatos' },
       { key: 'contacts:read', label: 'Visualizar contatos', description: 'Ver lista de contatos' },
@@ -73,8 +70,7 @@ const permissionCategories = [
     ],
   },
   {
-    label: 'Templates',
-    icon: FileText,
+    label: 'Templates', icon: FileText,
     permissions: [
       { key: 'templates:create', label: 'Criar templates', description: 'Criar modelos de documento' },
       { key: 'templates:read', label: 'Visualizar templates', description: 'Ver templates disponíveis' },
@@ -83,8 +79,7 @@ const permissionCategories = [
     ],
   },
   {
-    label: 'Equipe',
-    icon: UserCog,
+    label: 'Equipe', icon: UserCog,
     permissions: [
       { key: 'team:read', label: 'Visualizar equipe', description: 'Ver membros da equipe' },
       { key: 'team:manage', label: 'Gerenciar equipe', description: 'Convidar e editar membros' },
@@ -92,8 +87,7 @@ const permissionCategories = [
     ],
   },
   {
-    label: 'Sistema',
-    icon: BarChart3,
+    label: 'Sistema', icon: BarChart3,
     permissions: [
       { key: 'analytics:read', label: 'Relatórios', description: 'Visualizar analytics e dashboards' },
       { key: 'settings:manage', label: 'Configurações', description: 'Alterar configurações do sistema' },
@@ -103,7 +97,6 @@ const permissionCategories = [
 
 const allPermissionKeys = permissionCategories.flatMap(c => c.permissions.map(p => p.key));
 
-// Default permissions by hierarchy
 const defaultPermissions: Record<string, string[]> = {
   owner: allPermissionKeys,
   gestor: allPermissionKeys.filter(k => !k.includes('settings:manage')),
@@ -117,7 +110,7 @@ export default function TeamUsers() {
   const [editTab, setEditTab] = useState('profile');
   const [editPermissions, setEditPermissions] = useState<Record<string, boolean>>({});
   const [showInvite, setShowInvite] = useState(false);
-  const [inviteData, setInviteData] = useState({ full_name: '', email: '', hierarchy: 'user' as Hierarchy, department_id: '' });
+  const [inviteData, setInviteData] = useState({ nome_completo: '', email: '', hierarquia: 'user' as Hierarchy, departamento_id: '' });
   const [inviting, setInviting] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -127,7 +120,7 @@ export default function TeamUsers() {
   const { data: profiles = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ['team-profiles'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('profiles').select('*').order('full_name');
+      const { data, error } = await supabase.from('perfis').select('*').order('nome_completo');
       if (error) throw error;
       return data as Profile[];
     },
@@ -137,57 +130,51 @@ export default function TeamUsers() {
   const { data: departments = [] } = useQuery({
     queryKey: ['departments-list'],
     queryFn: async () => {
-      const { data } = await supabase.from('departments').select('id, name').order('name');
+      const { data } = await supabase.from('departamentos').select('id, nome').order('nome');
       return (data || []) as Department[];
     },
   });
 
-  // Load permissions for the editing user
   const { data: userPermissions = [], isLoading: loadingPerms } = useQuery({
     queryKey: ['user-permissions', editingProfile?.id],
     queryFn: async () => {
       if (!editingProfile) return [];
-      const { data } = await supabase.from('user_permissions').select('permission, granted').eq('user_id', editingProfile.id);
+      const { data } = await supabase.from('permissoes_usuario').select('permissao, concedida').eq('usuario_id', editingProfile.id);
       return (data || []) as Permission[];
     },
     enabled: !!editingProfile,
   });
 
-  // When editing profile changes, sync permissions
   const openEditDialog = (profile: Profile) => {
     setEditingProfile({ ...profile });
     setEditTab('profile');
-    // Permissions will be loaded via the query above
   };
 
-  // Compute effective permissions (user_permissions overrides defaults)
   const getEffectivePermission = (permKey: string): boolean => {
-    // Check if there's an explicit override
     if (editPermissions[permKey] !== undefined) return editPermissions[permKey];
-    const explicit = userPermissions.find(p => p.permission === permKey);
-    if (explicit) return explicit.granted;
-    // Default based on hierarchy
-    const hierarchy = editingProfile?.hierarchy || 'user';
+    const explicit = userPermissions.find(p => p.permissao === permKey);
+    if (explicit) return explicit.concedida;
+    const hierarchy = editingProfile?.hierarquia || 'user';
     return (defaultPermissions[hierarchy] || defaultPermissions.user).includes(permKey);
   };
 
   const filtered = profiles.filter((p) => {
-    const matchSearch = !search || p.full_name.toLowerCase().includes(search.toLowerCase()) || p.email.toLowerCase().includes(search.toLowerCase());
-    const matchHierarchy = hierarchyFilter === 'all' || p.hierarchy === hierarchyFilter;
+    const matchSearch = !search || p.nome_completo.toLowerCase().includes(search.toLowerCase()) || p.email.toLowerCase().includes(search.toLowerCase());
+    const matchHierarchy = hierarchyFilter === 'all' || p.hierarquia === hierarchyFilter;
     return matchSearch && matchHierarchy;
   });
 
-  const activeCount = profiles.filter(p => p.active).length;
-  const gestorCount = profiles.filter(p => p.hierarchy === 'gestor').length;
-  const ownerCount = profiles.filter(p => p.hierarchy === 'owner').length;
+  const activeCount = profiles.filter(p => p.ativo).length;
+  const gestorCount = profiles.filter(p => p.hierarquia === 'gestor').length;
+  const ownerCount = profiles.filter(p => p.hierarquia === 'owner').length;
 
   const updateProfile = useMutation({
     mutationFn: async (profile: Profile) => {
-      const { error } = await supabase.from('profiles').update({
-        full_name: profile.full_name,
-        hierarchy: profile.hierarchy,
-        active: profile.active,
-        department_id: profile.department_id || null,
+      const { error } = await supabase.from('perfis').update({
+        nome_completo: profile.nome_completo,
+        hierarquia: profile.hierarquia,
+        ativo: profile.ativo,
+        departamento_id: profile.departamento_id || null,
       }).eq('id', profile.id);
       if (error) throw error;
     },
@@ -203,21 +190,18 @@ export default function TeamUsers() {
   const savePermissions = useMutation({
     mutationFn: async () => {
       if (!editingProfile) return;
-      // Get all changed permissions
       const permEntries = Object.entries(editPermissions);
       if (permEntries.length === 0) return;
 
       for (const [permission, granted] of permEntries) {
-        // Upsert each permission
-        const { error } = await supabase.from('user_permissions').upsert({
-          user_id: editingProfile.id,
-          permission,
-          granted,
-        }, { onConflict: 'user_id,permission' });
+        const { error } = await supabase.from('permissoes_usuario').upsert({
+          usuario_id: editingProfile.id,
+          permissao: permission,
+          concedida: granted,
+        }, { onConflict: 'usuario_id,permissao' });
         if (error) {
-          // If upsert fails (no unique constraint), try delete + insert
-          await supabase.from('user_permissions').delete().eq('user_id', editingProfile.id).eq('permission', permission);
-          await supabase.from('user_permissions').insert({ user_id: editingProfile.id, permission, granted });
+          await supabase.from('permissoes_usuario').delete().eq('usuario_id', editingProfile.id).eq('permissao', permission);
+          await supabase.from('permissoes_usuario').insert({ usuario_id: editingProfile.id, permissao: permission, concedida: granted });
         }
       }
     },
@@ -247,9 +231,9 @@ export default function TeamUsers() {
       const { data, error } = await supabase.functions.invoke('invite-user', {
         body: {
           email: editingProfile.email,
-          full_name: editingProfile.full_name,
-          hierarchy: editingProfile.hierarchy,
-          department_id: editingProfile.department_id,
+          full_name: editingProfile.nome_completo,
+          hierarchy: editingProfile.hierarquia,
+          department_id: editingProfile.departamento_id,
           reset_only: true,
         },
       });
@@ -264,15 +248,15 @@ export default function TeamUsers() {
   };
 
   const handleInvite = async () => {
-    if (!inviteData.full_name || !inviteData.email) return;
+    if (!inviteData.nome_completo || !inviteData.email) return;
     setInviting(true);
     try {
       const { data, error } = await supabase.functions.invoke('invite-user', {
         body: {
           email: inviteData.email,
-          full_name: inviteData.full_name,
-          hierarchy: inviteData.hierarchy,
-          department_id: inviteData.department_id || null,
+          full_name: inviteData.nome_completo,
+          hierarchy: inviteData.hierarquia,
+          department_id: inviteData.departamento_id || null,
         },
       });
       if (error) throw error;
@@ -280,7 +264,7 @@ export default function TeamUsers() {
 
       toast({ title: 'Convite enviado ✅', description: `Email enviado para ${inviteData.email}` });
       setShowInvite(false);
-      setInviteData({ full_name: '', email: '', hierarchy: 'user', department_id: '' });
+      setInviteData({ nome_completo: '', email: '', hierarquia: 'user', departamento_id: '' });
       queryClient.invalidateQueries({ queryKey: ['team-profiles'] });
     } catch (err) {
       toast({ title: 'Erro ao convidar', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
@@ -376,38 +360,38 @@ export default function TeamUsers() {
                   </TableHeader>
                   <TableBody>
                     {filtered.map((p) => {
-                      const dept = departments.find(d => d.id === p.department_id);
-                      const h = hierarchyConfig[p.hierarchy] || hierarchyConfig.user;
+                      const dept = departments.find(d => d.id === p.departamento_id);
+                      const h = hierarchyConfig[p.hierarquia] || hierarchyConfig.user;
                       return (
                         <TableRow key={p.id} className="border-border/30 hover:bg-primary/5">
                           <TableCell>
                             <div className="flex items-center gap-3">
                               <Avatar className="w-9 h-9 border border-border/30">
                                 <AvatarFallback className="bg-primary/10 text-primary text-xs font-game font-bold">
-                                  {p.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                                  {p.nome_completo.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
                               <div>
-                                <p className="text-sm font-body font-semibold">{p.full_name}</p>
-                                <p className="text-xs text-muted-foreground">{p.email}</p>
+                                <p className="text-sm font-body font-semibold">{p.nome_completo}</p>
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <Mail className="w-3 h-3" />{p.email}
+                                </div>
                               </div>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge className={`text-[10px] font-game tracking-wider ${h.color}`}>{h.label}</Badge>
+                            <Badge className={`${h.color} text-[10px] font-game tracking-wider`}>{h.label}</Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={p.active ? 'default' : 'secondary'} className="text-[10px] font-game tracking-wider">
-                              {p.active ? 'ATIVO' : 'INATIVO'}
+                            <Badge variant={p.ativo ? 'default' : 'secondary'} className="text-[10px] font-game tracking-wider">
+                              {p.ativo ? 'ATIVO' : 'INATIVO'}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-sm font-body">{dept?.name || '—'}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {new Date(p.created_at).toLocaleDateString('pt-BR')}
-                          </TableCell>
+                          <TableCell className="text-sm font-body">{dept?.nome || '—'}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{new Date(p.criado_em).toLocaleDateString('pt-BR')}</TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(p)}>
-                              <Pencil className="w-4 h-4" />
+                            <Button variant="ghost" size="sm" className="font-game text-xs tracking-wider" onClick={() => openEditDialog(p)}>
+                              <Pencil className="w-3.5 h-3.5 mr-1" /> EDITAR
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -421,219 +405,167 @@ export default function TeamUsers() {
         </motion.div>
       </div>
 
-      {/* ─── Full Edit Dialog ─── */}
+      {/* Edit Profile Dialog */}
       <Dialog open={!!editingProfile} onOpenChange={(open) => { if (!open) { setEditingProfile(null); setEditPermissions({}); } }}>
-        <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-auto">
           <DialogHeader>
-            <DialogTitle className="font-game tracking-wider flex items-center gap-2">
-              <UserCog className="w-5 h-5 text-primary" />
-              {editingProfile?.full_name}
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              Edite perfil, nível de acesso e permissões granulares
-            </DialogDescription>
+            <DialogTitle className="font-game tracking-wider">EDITAR MEMBRO</DialogTitle>
           </DialogHeader>
-
           {editingProfile && (
-            <Tabs value={editTab} onValueChange={setEditTab} className="mt-2">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="profile" className="font-game text-xs tracking-wider">Perfil</TabsTrigger>
-                <TabsTrigger value="access" className="font-game text-xs tracking-wider">Acesso</TabsTrigger>
-                <TabsTrigger value="permissions" className="font-game text-xs tracking-wider">Permissões</TabsTrigger>
+            <Tabs value={editTab} onValueChange={setEditTab}>
+              <TabsList className="w-full">
+                <TabsTrigger value="profile" className="flex-1">Perfil</TabsTrigger>
+                <TabsTrigger value="permissions" className="flex-1">Permissões</TabsTrigger>
+                <TabsTrigger value="security" className="flex-1">Segurança</TabsTrigger>
               </TabsList>
 
-              {/* Profile tab */}
               <TabsContent value="profile" className="space-y-4 mt-4">
                 <div className="space-y-2">
                   <Label>Nome completo</Label>
-                  <Input value={editingProfile.full_name} onChange={(e) => setEditingProfile({ ...editingProfile, full_name: e.target.value })} />
+                  <Input value={editingProfile.nome_completo} onChange={(e) => setEditingProfile({ ...editingProfile, nome_completo: e.target.value })} />
                 </div>
                 <div className="space-y-2">
                   <Label>Email</Label>
                   <Input value={editingProfile.email} disabled className="opacity-60" />
                 </div>
                 <div className="space-y-2">
+                  <Label>Hierarquia</Label>
+                  <Select value={editingProfile.hierarquia} onValueChange={(v) => setEditingProfile({ ...editingProfile, hierarquia: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="user">Usuário</SelectItem>
+                      <SelectItem value="gestor">Gestor</SelectItem>
+                      <SelectItem value="owner">Owner</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
                   <Label>Departamento</Label>
-                  <Select value={editingProfile.department_id || 'none'} onValueChange={(v) => setEditingProfile({ ...editingProfile, department_id: v === 'none' ? null : v })}>
+                  <Select value={editingProfile.departamento_id || 'none'} onValueChange={(v) => setEditingProfile({ ...editingProfile, departamento_id: v === 'none' ? null : v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Nenhum</SelectItem>
-                      {departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                      {departments.map(d => <SelectItem key={d.id} value={d.id}>{d.nome}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="flex items-center justify-between">
                   <Label>Ativo</Label>
-                  <Switch checked={editingProfile.active} onCheckedChange={(v) => setEditingProfile({ ...editingProfile, active: v })} />
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2"><Key className="w-4 h-4 text-muted-foreground" /> Senha</Label>
-                  <p className="text-xs text-muted-foreground">Envie um link para o usuário redefinir a senha</p>
-                  <Button variant="outline" size="sm" onClick={() => setShowResetConfirm(true)} className="font-game text-xs tracking-wider">
-                    <Lock className="w-4 h-4 mr-1" /> Enviar link de redefinição
-                  </Button>
+                  <Switch checked={editingProfile.ativo} onCheckedChange={(v) => setEditingProfile({ ...editingProfile, ativo: v })} />
                 </div>
               </TabsContent>
 
-              {/* Access level tab */}
-              <TabsContent value="access" className="space-y-4 mt-4">
-                <p className="text-sm text-muted-foreground font-body">
-                  A hierarquia define o nível base de acesso. Permissões individuais podem ser ajustadas na aba "Permissões".
-                </p>
-                <div className="space-y-3">
-                  {Object.entries(hierarchyConfig).map(([key, cfg]) => {
-                    const HIcon = cfg.icon;
-                    const isSelected = editingProfile.hierarchy === key;
-                    return (
-                      <Card
-                        key={key}
-                        className={`cursor-pointer transition-all ${isSelected ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-secondary/50'}`}
-                        onClick={() => setEditingProfile({ ...editingProfile, hierarchy: key })}
-                      >
-                        <CardContent className="p-4 flex items-start gap-3">
-                          <div className={`p-2 rounded-lg ${isSelected ? 'bg-primary/20' : 'bg-muted'}`}>
-                            <HIcon className={`w-5 h-5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <Badge className={`${cfg.color} text-[10px] font-game tracking-wider`}>{cfg.label}</Badge>
-                              {isSelected && <Badge variant="outline" className="text-[10px] font-game tracking-wider text-primary border-primary">ATUAL</Badge>}
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1 font-body">{cfg.description}</p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </TabsContent>
-
-              {/* Permissions tab */}
               <TabsContent value="permissions" className="space-y-4 mt-4">
-                <p className="text-xs text-muted-foreground font-body">
-                  Permissões marcadas em <span className="text-primary font-semibold">verde</span> estão ativas. As padrão vêm da hierarquia ({hierarchyConfig[editingProfile.hierarchy]?.label || 'USUÁRIO'}), mas podem ser personalizadas.
-                </p>
                 {loadingPerms ? (
-                  <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+                  <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
                 ) : (
-                  permissionCategories.map((cat) => {
-                    const CatIcon = cat.icon;
-                    return (
-                      <div key={cat.label}>
-                        <div className="flex items-center gap-2 mb-2">
-                          <CatIcon className="w-4 h-4 text-primary" />
-                          <h3 className="text-sm font-game tracking-wider font-bold">{cat.label.toUpperCase()}</h3>
-                        </div>
-                        <div className="space-y-1 pl-6">
-                          {cat.permissions.map((perm) => {
-                            const isGranted = getEffectivePermission(perm.key);
-                            return (
-                              <div key={perm.key} className="flex items-center gap-3 py-1.5 px-2 rounded hover:bg-secondary/50">
-                                <Checkbox
-                                  checked={isGranted}
-                                  onCheckedChange={() => togglePermission(perm.key)}
-                                  className={isGranted ? 'border-primary data-[state=checked]:bg-primary' : ''}
-                                />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-body font-medium">{perm.label}</p>
-                                  <p className="text-[11px] text-muted-foreground">{perm.description}</p>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <Separator className="my-3" />
+                  permissionCategories.map((cat) => (
+                    <div key={cat.label} className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <cat.icon className="w-4 h-4 text-primary" />
+                        <p className="text-sm font-semibold">{cat.label}</p>
                       </div>
-                    );
-                  })
+                      <div className="space-y-1 pl-6">
+                        {cat.permissions.map((perm) => (
+                          <div key={perm.key} className="flex items-center justify-between py-1">
+                            <div>
+                              <p className="text-sm">{perm.label}</p>
+                              <p className="text-[10px] text-muted-foreground">{perm.description}</p>
+                            </div>
+                            <Checkbox checked={getEffectivePermission(perm.key)} onCheckedChange={() => togglePermission(perm.key)} />
+                          </div>
+                        ))}
+                      </div>
+                      <Separator />
+                    </div>
+                  ))
                 )}
               </TabsContent>
+
+              <TabsContent value="security" className="space-y-4 mt-4">
+                <Card>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-warning" />
+                      <p className="text-sm font-semibold">Redefinir senha</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Envia um email com link para redefinição de senha.</p>
+                    <Button variant="outline" size="sm" onClick={() => setShowResetConfirm(true)}>
+                      <Key className="w-4 h-4 mr-1" />Enviar email de redefinição
+                    </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <DialogFooter className="mt-4">
+                <Button variant="outline" onClick={() => { setEditingProfile(null); setEditPermissions({}); }}>Cancelar</Button>
+                <Button onClick={handleSaveAll} disabled={isSaving}>
+                  {isSaving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null} Salvar alterações
+                </Button>
+              </DialogFooter>
             </Tabs>
           )}
-
-          <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => { setEditingProfile(null); setEditPermissions({}); }}>Cancelar</Button>
-            <Button onClick={handleSaveAll} disabled={isSaving}>
-              {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-              Salvar tudo
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Reset password confirmation */}
       <Dialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="font-game tracking-wider">Redefinir senha</DialogTitle>
-            <DialogDescription>
-              Enviar email de redefinição de senha para <strong>{editingProfile?.email}</strong>?
-            </DialogDescription>
+            <DialogTitle>Confirmar redefinição</DialogTitle>
+            <DialogDescription>Um email será enviado para {editingProfile?.email} com um link de redefinição.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowResetConfirm(false)}>Cancelar</Button>
             <Button onClick={handleResetPassword} disabled={resetting}>
-              {resetting ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Mail className="w-4 h-4 mr-1" />}
-              Enviar
+              {resetting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null} Confirmar
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Invite dialog */}
+      {/* Invite Dialog */}
       <Dialog open={showInvite} onOpenChange={setShowInvite}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-game tracking-wider flex items-center gap-2">
-              <Mail className="w-5 h-5 text-primary" /> Convidar membro
-            </DialogTitle>
+            <DialogTitle className="font-game tracking-wider">CONVIDAR MEMBRO</DialogTitle>
+            <DialogDescription>O membro receberá um email com credenciais de acesso.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label>Nome completo</Label>
-              <Input value={inviteData.full_name} onChange={(e) => setInviteData({ ...inviteData, full_name: e.target.value })} placeholder="João Silva" />
+              <Input value={inviteData.nome_completo} onChange={(e) => setInviteData({ ...inviteData, nome_completo: e.target.value })} placeholder="João Silva" />
             </div>
             <div className="space-y-2">
               <Label>Email</Label>
               <Input type="email" value={inviteData.email} onChange={(e) => setInviteData({ ...inviteData, email: e.target.value })} placeholder="joao@empresa.com" />
             </div>
             <div className="space-y-2">
-              <Label>Nível de acesso</Label>
-              <div className="space-y-2">
-                {Object.entries(hierarchyConfig).map(([key, cfg]) => {
-                  const isSelected = inviteData.hierarchy === key;
-                  return (
-                    <div
-                      key={key}
-                      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer border transition-all ${isSelected ? 'border-primary bg-primary/5' : 'border-border hover:bg-secondary/50'}`}
-                      onClick={() => setInviteData({ ...inviteData, hierarchy: key as Hierarchy })}
-                    >
-                      <Badge className={`${cfg.color} text-[10px] font-game tracking-wider`}>{cfg.label}</Badge>
-                      <span className="text-xs text-muted-foreground font-body flex-1">{cfg.description.split('—')[0]}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Departamento</Label>
-              <Select value={inviteData.department_id || 'none'} onValueChange={(v) => setInviteData({ ...inviteData, department_id: v === 'none' ? '' : v })}>
+              <Label>Hierarquia</Label>
+              <Select value={inviteData.hierarquia} onValueChange={(v: Hierarchy) => setInviteData({ ...inviteData, hierarquia: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Nenhum</SelectItem>
-                  {departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                  <SelectItem value="user">Usuário</SelectItem>
+                  <SelectItem value="gestor">Gestor</SelectItem>
+                  <SelectItem value="owner">Owner</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <p className="text-xs text-muted-foreground font-body">O membro receberá um email com link para definir a senha e acessar o sistema.</p>
+            <div className="space-y-2">
+              <Label>Departamento</Label>
+              <Select value={inviteData.departamento_id || 'none'} onValueChange={(v) => setInviteData({ ...inviteData, departamento_id: v === 'none' ? '' : v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {departments.map(d => <SelectItem key={d.id} value={d.id}>{d.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowInvite(false)}>Cancelar</Button>
-            <Button onClick={handleInvite} disabled={inviting || !inviteData.full_name || !inviteData.email}>
-              {inviting ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Mail className="w-4 h-4 mr-1" />}
+            <Button onClick={handleInvite} disabled={inviting || !inviteData.nome_completo || !inviteData.email}>
+              {inviting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Mail className="w-4 h-4 mr-1" />}
               Enviar convite
             </Button>
           </DialogFooter>

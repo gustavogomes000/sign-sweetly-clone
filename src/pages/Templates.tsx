@@ -24,14 +24,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface TemplateRow {
   id: string;
-  name: string;
-  description: string | null;
-  content: string;
-  category: string | null;
-  created_at: string;
-  updated_at: string;
-  user_id: string;
-  file_path: string | null;
+  nome: string;
+  descricao: string | null;
+  conteudo: string;
+  categoria: string | null;
+  criado_em: string;
+  atualizado_em: string;
+  usuario_id: string;
+  caminho_arquivo: string | null;
 }
 
 export default function Templates() {
@@ -62,9 +62,9 @@ export default function Templates() {
   const fetchTemplates = async () => {
     setLoading(true);
     const { data, error } = await supabase
-      .from('templates')
+      .from('modelos')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('criado_em', { ascending: false });
     if (!error && data) setTemplates(data as TemplateRow[]);
     setLoading(false);
   };
@@ -98,13 +98,13 @@ export default function Templates() {
       filePath = await uploadFile(formFile);
       if (!filePath) { setSaving(false); setUploading(false); return; }
     }
-    const { error } = await supabase.from('templates').insert({
-      name: formName.trim(),
-      description: formDescription.trim() || null,
-      category: formCategory.trim() || null,
-      content: '',
-      user_id: user.id,
-      file_path: filePath,
+    const { error } = await supabase.from('modelos').insert({
+      nome: formName.trim(),
+      descricao: formDescription.trim() || null,
+      categoria: formCategory.trim() || null,
+      conteudo: '',
+      usuario_id: user.id,
+      caminho_arquivo: filePath,
     });
     setSaving(false); setUploading(false);
     if (error) { toast.error('Erro ao criar modelo'); return; }
@@ -120,9 +120,9 @@ export default function Templates() {
 
   const handleDuplicate = async (t: TemplateRow) => {
     if (!user) return;
-    const { error } = await supabase.from('templates').insert({
-      name: `${t.name} (cópia)`, description: t.description, category: t.category,
-      content: t.content, user_id: user.id, file_path: t.file_path,
+    const { error } = await supabase.from('modelos').insert({
+      nome: `${t.nome} (cópia)`, descricao: t.descricao, categoria: t.categoria,
+      conteudo: t.conteudo, usuario_id: user.id, caminho_arquivo: t.caminho_arquivo,
     });
     if (error) { toast.error('Erro ao duplicar'); return; }
     toast.success('Modelo duplicado');
@@ -130,7 +130,7 @@ export default function Templates() {
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from('templates').delete().eq('id', id);
+    const { error } = await supabase.from('modelos').delete().eq('id', id);
     if (error) { toast.error('Erro ao excluir'); return; }
     toast.success('Modelo excluído');
     fetchTemplates();
@@ -138,24 +138,24 @@ export default function Templates() {
 
   const openEditor = (t: TemplateRow) => {
     setEditingTemplate(t);
-    setEditorContent(t.content);
-    setEditorName(t.name);
-    setEditorDescription(t.description || '');
-    setEditorCategory(t.category || '');
+    setEditorContent(t.conteudo);
+    setEditorName(t.nome);
+    setEditorDescription(t.descricao || '');
+    setEditorCategory(t.categoria || '');
     setEditorPage(1);
     setEditorTab('edit');
-    setDocumentUrl(t.file_path ? getPublicUrl(t.file_path) : null);
+    setDocumentUrl(t.caminho_arquivo ? getPublicUrl(t.caminho_arquivo) : null);
     setEditorOpen(true);
   };
 
   const handleSaveTemplate = async () => {
     if (!editingTemplate) return;
     setSaving(true);
-    const { error } = await supabase.from('templates').update({
-      content: editorContent,
-      name: editorName.trim() || editingTemplate.name,
-      description: editorDescription.trim() || null,
-      category: editorCategory.trim() || null,
+    const { error } = await supabase.from('modelos').update({
+      conteudo: editorContent,
+      nome: editorName.trim() || editingTemplate.nome,
+      descricao: editorDescription.trim() || null,
+      categoria: editorCategory.trim() || null,
     }).eq('id', editingTemplate.id);
     setSaving(false);
     if (error) { toast.error('Erro ao salvar'); return; }
@@ -173,11 +173,11 @@ export default function Templates() {
     setUploading(true);
     const filePath = await uploadFile(file);
     if (!filePath) { setUploading(false); return; }
-    const { error } = await supabase.from('templates').update({ file_path: filePath }).eq('id', editingTemplate.id);
+    const { error } = await supabase.from('modelos').update({ caminho_arquivo: filePath }).eq('id', editingTemplate.id);
     setUploading(false);
     if (error) { toast.error('Erro ao vincular arquivo'); return; }
     setDocumentUrl(getPublicUrl(filePath));
-    setEditingTemplate({ ...editingTemplate, file_path: filePath });
+    setEditingTemplate({ ...editingTemplate, caminho_arquivo: filePath });
     toast.success('Documento atualizado');
     fetchTemplates();
   };
@@ -196,7 +196,6 @@ export default function Templates() {
     }, 0);
   };
 
-  // Render markdown-like preview
   const renderPreview = (content: string) => {
     return content
       .replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold mb-2">$1</h1>')
@@ -238,12 +237,12 @@ export default function Templates() {
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                          {template.file_path ? <File className="w-5 h-5 text-primary" /> : <FolderOpen className="w-5 h-5 text-muted-foreground" />}
+                          {template.caminho_arquivo ? <File className="w-5 h-5 text-primary" /> : <FolderOpen className="w-5 h-5 text-muted-foreground" />}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-game tracking-wider truncate">{template.name.toUpperCase()}</p>
-                          {template.category && <Badge variant="outline" className="text-[10px] font-game tracking-wider mt-0.5">{template.category}</Badge>}
-                          {template.file_path && <p className="text-xs text-muted-foreground mt-0.5">📎 Documento anexado</p>}
+                          <p className="text-sm font-game tracking-wider truncate">{template.nome.toUpperCase()}</p>
+                          {template.categoria && <Badge variant="outline" className="text-[10px] font-game tracking-wider mt-0.5">{template.categoria}</Badge>}
+                          {template.caminho_arquivo && <p className="text-xs text-muted-foreground mt-0.5">📎 Documento anexado</p>}
                         </div>
                       </div>
                       <DropdownMenu>
@@ -257,9 +256,9 @@ export default function Templates() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                    {template.description && <p className="text-xs text-muted-foreground mt-3 line-clamp-2 font-body">{template.description}</p>}
+                    {template.descricao && <p className="text-xs text-muted-foreground mt-3 line-clamp-2 font-body">{template.descricao}</p>}
                     <div className="mt-4 flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">{format(new Date(template.created_at), 'dd/MM/yyyy', { locale: ptBR })}</span>
+                      <span className="text-xs text-muted-foreground">{format(new Date(template.criado_em), 'dd/MM/yyyy', { locale: ptBR })}</span>
                       <Button variant="outline" size="sm" className="text-xs h-7 font-game tracking-wider" onClick={() => openEditor(template)}>EDITAR</Button>
                     </div>
                   </CardContent>
@@ -313,29 +312,14 @@ export default function Templates() {
       {/* Full Editor Dialog */}
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
         <DialogContent className="sm:max-w-[95vw] max-h-[92vh] flex flex-col p-0">
-          {/* Editor Header */}
           <div className="flex items-center justify-between px-6 py-3 border-b border-border shrink-0">
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <FileText className="w-5 h-5 text-primary shrink-0" />
-              <Input
-                value={editorName}
-                onChange={(e) => setEditorName(e.target.value)}
-                className="h-8 text-sm font-game tracking-wider border-none bg-transparent focus-visible:ring-0 p-0 max-w-xs"
-                placeholder="Nome do modelo"
-              />
-              <Input
-                value={editorCategory}
-                onChange={(e) => setEditorCategory(e.target.value)}
-                className="h-8 text-xs border-none bg-transparent focus-visible:ring-0 p-0 max-w-[120px] text-muted-foreground"
-                placeholder="Categoria"
-              />
+              <Input value={editorName} onChange={(e) => setEditorName(e.target.value)} className="h-8 text-sm font-game tracking-wider border-none bg-transparent focus-visible:ring-0 p-0 max-w-xs" placeholder="Nome do modelo" />
+              <Input value={editorCategory} onChange={(e) => setEditorCategory(e.target.value)} className="h-8 text-xs border-none bg-transparent focus-visible:ring-0 p-0 max-w-[120px] text-muted-foreground" placeholder="Categoria" />
             </div>
             <div className="flex items-center gap-2">
-              {/* Upload/Replace file */}
-              <input ref={editorFileRef} type="file" accept=".pdf,.png,.doc,.docx" className="hidden" onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleReplaceFile(file);
-              }} />
+              <input ref={editorFileRef} type="file" accept=".pdf,.png,.doc,.docx" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleReplaceFile(file); }} />
               <Button variant="outline" size="sm" className="text-xs h-8" onClick={() => editorFileRef.current?.click()} disabled={uploading}>
                 {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Upload className="w-3.5 h-3.5 mr-1" />}
                 {documentUrl ? 'Trocar PDF' : 'Anexar PDF'}
@@ -347,7 +331,6 @@ export default function Templates() {
             </div>
           </div>
 
-          {/* Toolbar */}
           <div className="flex flex-wrap gap-1 px-6 py-1.5 border-b border-border bg-muted/20 shrink-0">
             <Button variant="ghost" size="sm" className="h-7 text-xs font-bold" onClick={() => insertAtCursor('**', '**')}>N</Button>
             <Button variant="ghost" size="sm" className="h-7 text-xs italic" onClick={() => insertAtCursor('_', '_')}>I</Button>
@@ -359,68 +342,40 @@ export default function Templates() {
             <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => insertAtCursor('\n- ')}>• Lista</Button>
             <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => insertAtCursor('\n1. ')}>1. Num</Button>
             <div className="w-px bg-border mx-1" />
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => insertAtCursor('\n---\n')}>— Linha</Button>
-            <Button variant="ghost" size="sm" className="h-7 text-xs font-mono bg-accent/10 text-accent-foreground" onClick={() => insertAtCursor('{{', '}}')}>{'{{Campo}}'}</Button>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => insertAtCursor('{{', '}}')}>{'{{var}}'}</Button>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => insertAtCursor('\n---\n')}>Linha</Button>
+            <div className="flex-1" />
+            <Tabs value={editorTab} onValueChange={(v) => setEditorTab(v as 'edit' | 'preview')} className="h-7">
+              <TabsList className="h-7 p-0.5">
+                <TabsTrigger value="edit" className="h-6 text-[10px] px-2"><Code className="w-3 h-3 mr-1" />Editar</TabsTrigger>
+                <TabsTrigger value="preview" className="h-6 text-[10px] px-2"><Eye className="w-3 h-3 mr-1" />Prévia</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
 
-          {/* Editor body */}
-          <div className="flex-1 min-h-0 flex">
-            {/* PDF Preview panel */}
+          <div className="flex-1 flex min-h-0 overflow-hidden">
+            <div className="flex-1 flex flex-col min-h-0">
+              {editorTab === 'edit' ? (
+                <Textarea id="template-editor" value={editorContent} onChange={(e) => setEditorContent(e.target.value)} className="flex-1 resize-none border-none rounded-none focus-visible:ring-0 font-mono text-sm p-6" placeholder="Digite o conteúdo do modelo aqui..." />
+              ) : (
+                <div className="flex-1 overflow-auto p-6 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: renderPreview(editorContent) }} />
+              )}
+            </div>
             {documentUrl && (
-              <div className="w-1/2 flex flex-col border-r border-border">
-                <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30 shrink-0">
-                  <span className="text-xs font-game tracking-wider text-muted-foreground">DOCUMENTO</span>
+              <div className="w-[400px] border-l border-border bg-muted/10 flex flex-col">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-border">
+                  <span className="text-xs font-medium text-muted-foreground">Documento</span>
                   <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-6 w-6" disabled={editorPage <= 1} onClick={() => setEditorPage(p => Math.max(1, p - 1))}>
-                      <ChevronLeft className="w-3.5 h-3.5" />
-                    </Button>
-                    <span className="text-xs text-muted-foreground tabular-nums">Pág. {editorPage}</span>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditorPage(p => p + 1)}>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </Button>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditorPage(p => Math.max(1, p - 1))}><ChevronLeft className="w-3 h-3" /></Button>
+                    <span className="text-[10px] text-muted-foreground">Pág {editorPage}</span>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditorPage(p => p + 1)}><ChevronRight className="w-3 h-3" /></Button>
                   </div>
                 </div>
-                <div className="flex-1 overflow-auto p-2 bg-muted/10">
-                  <PdfPagePreview documentUrl={documentUrl} page={editorPage} />
+                <div className="flex-1 overflow-auto p-2">
+                  <PdfPagePreview documentUrl={documentUrl} page={editorPage} className="w-full" />
                 </div>
               </div>
             )}
-
-            {/* Text editor / Preview */}
-            <div className={documentUrl ? 'w-1/2 flex flex-col' : 'w-full flex flex-col'}>
-              <div className="flex items-center px-3 py-1.5 border-b bg-muted/20 shrink-0">
-                <Tabs value={editorTab} onValueChange={(v) => setEditorTab(v as 'edit' | 'preview')} className="w-full">
-                  <TabsList className="h-7">
-                    <TabsTrigger value="edit" className="text-xs h-6 px-3 gap-1"><Code className="w-3 h-3" /> Editar</TabsTrigger>
-                    <TabsTrigger value="preview" className="text-xs h-6 px-3 gap-1"><Eye className="w-3 h-3" /> Visualizar</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-              <div className="flex-1 overflow-auto">
-                {editorTab === 'edit' ? (
-                  <textarea
-                    id="template-editor"
-                    className="w-full h-full rounded-none border-none bg-background px-4 py-3 text-sm font-mono leading-relaxed ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none resize-none"
-                    value={editorContent}
-                    onChange={(e) => setEditorContent(e.target.value)}
-                    placeholder={`Escreva o conteúdo do modelo aqui...
-
-# CONTRATO DE PRESTAÇÃO DE SERVIÇOS
-
-**CONTRATANTE**: {{nome_contratante}}
-**CONTRATADA**: {{nome_contratada}}
-
-## CLÁUSULA 1 - DO OBJETO
-
-O presente contrato tem como objeto...
-
-Use {{campo}} para variáveis dinâmicas.`}
-                  />
-                ) : (
-                  <div className="p-6 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: renderPreview(editorContent) }} />
-                )}
-              </div>
-            </div>
           </div>
         </DialogContent>
       </Dialog>

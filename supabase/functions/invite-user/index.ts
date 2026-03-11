@@ -19,7 +19,6 @@ serve(async (req) => {
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
-    // Check caller permissions
     const callerClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -27,12 +26,12 @@ serve(async (req) => {
     if (!caller) throw new Error('Não autenticado');
 
     const { data: callerProfile } = await callerClient
-      .from('profiles')
-      .select('hierarchy')
+      .from('perfis')
+      .select('hierarquia')
       .eq('id', caller.id)
       .single();
 
-    if (!callerProfile || !['owner', 'gestor'].includes(callerProfile.hierarchy)) {
+    if (!callerProfile || !['owner', 'gestor'].includes(callerProfile.hierarquia)) {
       throw new Error('Sem permissão para gerenciar membros');
     }
 
@@ -68,7 +67,6 @@ serve(async (req) => {
     // ── Create new user ──
     if (!full_name) throw new Error('Nome é obrigatório');
 
-    // Generate a readable temporary password
     const tempPassword = generateTempPassword();
     
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
@@ -85,19 +83,17 @@ serve(async (req) => {
       throw createError;
     }
 
-    // Update profile with hierarchy and must_change_password flag
     if (newUser?.user) {
-      await adminClient.from('profiles').update({
-        hierarchy: hierarchy || 'user',
-        department_id: department_id || null,
-        must_change_password: true,
+      await adminClient.from('perfis').update({
+        hierarquia: hierarchy || 'user',
+        departamento_id: department_id || null,
+        trocar_senha: true,
       }).eq('id', newUser.user.id);
     }
 
     const hierarchyLabel = hierarchy === 'owner' ? 'Owner' : hierarchy === 'gestor' ? 'Gestor' : 'Usuário';
     const loginUrl = `${siteUrl}/login`;
 
-    // Send email with credentials
     if (resendApiKey) {
       await sendCredentialsEmail(resendApiKey, email, full_name, tempPassword, hierarchyLabel, loginUrl);
       console.log(`✅ Credentials email sent to ${email}`);
@@ -119,7 +115,7 @@ function generateTempPassword(): string {
   for (let i = 0; i < 8; i++) {
     password += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  return password + 'Aa1!'; // Ensure it meets complexity requirements
+  return password + 'Aa1!';
 }
 
 function jsonResponse(data: unknown, status = 200) {

@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.98.0';
-import { createHash } from 'https://deno.land/std@0.208.0/crypto/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,7 +14,6 @@ function error(msg: string, status = 400) {
   return json({ error: msg }, status);
 }
 
-// Hash API key for lookup
 async function hashKey(key: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(key);
@@ -23,7 +21,6 @@ async function hashKey(key: string): Promise<string> {
   return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Authenticate via API key header
 async function authenticate(req: Request): Promise<{ userId: string; scopes: string[] } | null> {
   const apiKey = req.headers.get('x-api-key');
   if (!apiKey) return null;
@@ -37,8 +34,7 @@ async function authenticate(req: Request): Promise<{ userId: string; scopes: str
   const { data, error } = await supabase.rpc('validate_api_key', { p_key_hash: keyHash });
   if (error || !data || data.length === 0) return null;
 
-  // Update last_used_at
-  await supabase.from('api_keys').update({ last_used_at: new Date().toISOString() }).eq('key_hash', keyHash);
+  await supabase.from('chaves_api').update({ ultimo_uso_em: new Date().toISOString() }).eq('hash_chave', keyHash);
 
   return { userId: data[0].user_id, scopes: data[0].scopes };
 }
@@ -47,7 +43,6 @@ function hasScope(scopes: string[], required: string): boolean {
   return scopes.includes(required) || scopes.includes('*');
 }
 
-// Parse route
 function parseRoute(url: string): { path: string; segments: string[] } {
   const u = new URL(url);
   const path = u.pathname.replace(/^\/api-gateway\/?/, '/').replace(/\/+/g, '/');
@@ -75,7 +70,6 @@ Deno.serve(async (req) => {
     );
 
     // ─── POST /documents ───────────────────────────────
-    // Create document + signers + fields + auto-send emails
     if (method === 'POST' && segments[0] === 'documents' && segments.length === 1) {
       if (!hasScope(auth.scopes, 'documents:write')) return error('Permissão insuficiente', 403);
 
@@ -86,79 +80,73 @@ Deno.serve(async (req) => {
         return error('Campos obrigatórios: name, signers (array com name e email)');
       }
 
-      // 1. Create document
-      const { data: doc, error: docErr } = await supabase.from('documents').insert({
-        user_id: auth.userId,
-        name,
-        file_path: file_url || null,
-        signature_type: signature_type || 'electronic',
+      const { data: doc, error: docErr } = await supabase.from('documentos').insert({
+        usuario_id: auth.userId,
+        nome: name,
+        caminho_arquivo: file_url || null,
+        tipo_assinatura: signature_type || 'electronic',
         status: body.auto_send === false ? 'draft' : 'pending',
-        deadline: deadline || null,
-        origin: 'api',
-        external_ref: body.external_ref || null,
-        source_system: body.source_system || null,
+        prazo: deadline || null,
+        origem: 'api',
+        referencia_externa: body.external_ref || null,
+        sistema_origem: body.source_system || null,
       }).select().single();
 
       if (docErr) return error(`Erro ao criar documento: ${docErr.message}`, 500);
 
-      // 2. Create signers
       const signerInserts = signers.map((s: any, i: number) => ({
-        document_id: doc.id,
-        name: s.name,
+        documento_id: doc.id,
+        nome: s.name,
         email: s.email,
-        phone: s.phone || null,
-        role: s.role || 'Signatário',
-        sign_order: s.order || i + 1,
+        telefone: s.phone || null,
+        funcao: s.role || 'Signatário',
+        ordem_assinatura: s.order || i + 1,
         status: 'pending',
       }));
 
-      const { data: dbSigners, error: sigErr } = await supabase.from('signers').insert(signerInserts).select();
+      const { data: dbSigners, error: sigErr } = await supabase.from('signatarios').insert(signerInserts).select();
       if (sigErr) return error(`Erro ao criar signatários: ${sigErr.message}`, 500);
 
-      // 3. Create fields if provided
       let dbFields: any[] = [];
       if (fields && Array.isArray(fields) && fields.length > 0) {
-        // Map signer index to DB ID
         const fieldInserts = fields.map((f: any) => {
           const signerIdx = f.signer_index ?? 0;
           return {
-            document_id: doc.id,
-            signer_id: dbSigners[signerIdx]?.id || dbSigners[0]?.id,
-            field_type: f.type || 'signature',
-            label: f.label || null,
+            documento_id: doc.id,
+            signatario_id: dbSigners[signerIdx]?.id || dbSigners[0]?.id,
+            tipo_campo: f.type || 'signature',
+            rotulo: f.label || null,
             x: f.x ?? 100,
             y: f.y ?? 600,
             width: f.width ?? 200,
             height: f.height ?? 60,
-            page: f.page ?? 1,
-            required: f.required !== false,
+            pagina: f.page ?? 1,
+            obrigatorio: f.required !== false,
           };
         });
 
-        const { data: fData, error: fErr } = await supabase.from('document_fields').insert(fieldInserts).select();
+        const { data: fData, error: fErr } = await supabase.from('campos_documento').insert(fieldInserts).select();
         if (!fErr && fData) dbFields = fData;
       }
 
-      // 4. Register callback_url as webhook if provided
       if (callback_url) {
         await supabase.from('webhooks').insert({
-          user_id: auth.userId,
+          usuario_id: auth.userId,
           url: callback_url,
-          events: ['document.signed', 'document.completed', 'signer.signed', 'signer.refused'],
-          active: true,
+          eventos: ['document.signed', 'document.completed', 'signer.signed', 'signer.refused'],
+          ativo: true,
         });
       }
 
-      // 5. Auto-send emails to all signers
       const emailResults: { email: string; success: boolean }[] = [];
       for (const signer of dbSigners!) {
         try {
           await supabase.functions.invoke('send-signing-email', {
             body: {
-              signerName: signer.name,
+              signerName: signer.nome,
               signerEmail: signer.email,
               documentName: name,
-              signToken: signer.sign_token,
+              signToken: signer.token_assinatura,
             },
           });
           emailResults.push({ email: signer.email, success: true });
@@ -167,35 +155,34 @@ Deno.serve(async (req) => {
         }
       }
 
-      // 6. Add audit trail
-      await supabase.from('audit_trail').insert({
-        document_id: doc.id,
-        action: 'created',
-        actor: 'API',
-        details: `Documento criado via API com ${dbSigners!.length} signatário(s)`,
+      await supabase.from('trilha_auditoria').insert({
+        documento_id: doc.id,
+        acao: 'created',
+        ator: 'API',
+        detalhes: `Documento criado via API com ${dbSigners!.length} signatário(s)`,
       });
 
-      await supabase.from('audit_trail').insert({
-        document_id: doc.id,
-        action: 'sent',
-        actor: 'API',
-        details: `Enviado para assinatura via API`,
+      await supabase.from('trilha_auditoria').insert({
+        documento_id: doc.id,
+        acao: 'sent',
+        ator: 'API',
+        detalhes: `Enviado para assinatura via API`,
       });
 
       return json({
         id: doc.id,
-        name: doc.name,
+        name: doc.nome,
         status: doc.status,
-        created_at: doc.created_at,
+        created_at: doc.criado_em,
         signers: dbSigners!.map((s: any) => ({
           id: s.id,
-          name: s.name,
+          name: s.nome,
           email: s.email,
-          sign_token: s.sign_token,
-          sign_url: `${Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.lovable.app') || ''}/sign/${s.sign_token}`,
+          sign_token: s.token_assinatura,
+          sign_url: `${Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.lovable.app') || ''}/sign/${s.token_assinatura}`,
           status: s.status,
         })),
-        fields: dbFields.map((f: any) => ({ id: f.id, type: f.field_type, page: f.page, x: f.x, y: f.y })),
+        fields: dbFields.map((f: any) => ({ id: f.id, type: f.tipo_campo, page: f.pagina, x: f.x, y: f.y })),
         emails: emailResults,
       }, 201);
     }
@@ -209,9 +196,9 @@ Deno.serve(async (req) => {
       const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
       const offset = parseInt(url.searchParams.get('offset') || '0');
 
-      let query = supabase.from('documents').select('*', { count: 'exact' })
-        .eq('user_id', auth.userId)
-        .order('created_at', { ascending: false })
+      let query = supabase.from('documentos').select('*', { count: 'exact' })
+        .eq('usuario_id', auth.userId)
+        .order('criado_em', { ascending: false })
         .range(offset, offset + limit - 1);
 
       if (status) query = query.eq('status', status);
@@ -219,34 +206,33 @@ Deno.serve(async (req) => {
       const { data: docs, error: qErr, count } = await query;
       if (qErr) return error(qErr.message, 500);
 
-      // Fetch signers for all docs
       const docIds = (docs || []).map((d: any) => d.id);
       const { data: allSigners } = docIds.length > 0
-        ? await supabase.from('signers').select('*').in('document_id', docIds)
+        ? await supabase.from('signatarios').select('*').in('documento_id', docIds)
         : { data: [] };
 
       const signersByDoc = new Map<string, any[]>();
       (allSigners || []).forEach((s: any) => {
-        const list = signersByDoc.get(s.document_id) || [];
+        const list = signersByDoc.get(s.documento_id) || [];
         list.push(s);
-        signersByDoc.set(s.document_id, list);
+        signersByDoc.set(s.documento_id, list);
       });
 
       return json({
         data: (docs || []).map((d: any) => ({
           id: d.id,
-          name: d.name,
+          name: d.nome,
           status: d.status,
-          signature_type: d.signature_type,
-          created_at: d.created_at,
-          updated_at: d.updated_at,
-          deadline: d.deadline,
+          signature_type: d.tipo_assinatura,
+          created_at: d.criado_em,
+          updated_at: d.atualizado_em,
+          deadline: d.prazo,
           signers: (signersByDoc.get(d.id) || []).map((s: any) => ({
             id: s.id,
-            name: s.name,
+            name: s.nome,
             email: s.email,
             status: s.status,
-            signed_at: s.signed_at,
+            signed_at: s.assinado_em,
           })),
         })),
         total: count,
@@ -260,49 +246,33 @@ Deno.serve(async (req) => {
       if (!hasScope(auth.scopes, 'documents:read')) return error('Permissão insuficiente', 403);
 
       const docId = segments[1];
-      const { data: doc } = await supabase.from('documents').select('*').eq('id', docId).eq('user_id', auth.userId).single();
+      const { data: doc } = await supabase.from('documentos').select('*').eq('id', docId).eq('usuario_id', auth.userId).single();
       if (!doc) return error('Documento não encontrado', 404);
 
       const [signersRes, fieldsRes, auditRes] = await Promise.all([
-        supabase.from('signers').select('*').eq('document_id', docId).order('sign_order'),
-        supabase.from('document_fields').select('*').eq('document_id', docId),
-        supabase.from('audit_trail').select('*').eq('document_id', docId).order('created_at'),
+        supabase.from('signatarios').select('*').eq('documento_id', docId).order('ordem_assinatura'),
+        supabase.from('campos_documento').select('*').eq('documento_id', docId),
+        supabase.from('trilha_auditoria').select('*').eq('documento_id', docId).order('criado_em'),
       ]);
 
       return json({
         id: doc.id,
-        name: doc.name,
+        name: doc.nome,
         status: doc.status,
-        signature_type: doc.signature_type,
-        file_path: doc.file_path,
-        created_at: doc.created_at,
-        updated_at: doc.updated_at,
-        deadline: doc.deadline,
+        signature_type: doc.tipo_assinatura,
+        file_path: doc.caminho_arquivo,
+        created_at: doc.criado_em,
+        updated_at: doc.atualizado_em,
+        deadline: doc.prazo,
         signers: (signersRes.data || []).map((s: any) => ({
-          id: s.id,
-          name: s.name,
-          email: s.email,
-          phone: s.phone,
-          role: s.role,
-          status: s.status,
-          signed_at: s.signed_at,
-          sign_token: s.sign_token,
+          id: s.id, name: s.nome, email: s.email, phone: s.telefone,
+          role: s.funcao, status: s.status, signed_at: s.assinado_em, sign_token: s.token_assinatura,
         })),
         fields: (fieldsRes.data || []).map((f: any) => ({
-          id: f.id,
-          type: f.field_type,
-          page: f.page,
-          x: f.x,
-          y: f.y,
-          width: f.width,
-          height: f.height,
-          value: f.value,
+          id: f.id, type: f.tipo_campo, page: f.pagina, x: f.x, y: f.y, width: f.width, height: f.height, value: f.valor,
         })),
         audit_trail: (auditRes.data || []).map((a: any) => ({
-          action: a.action,
-          actor: a.actor,
-          details: a.details,
-          created_at: a.created_at,
+          action: a.acao, actor: a.ator, details: a.detalhes, created_at: a.criado_em,
         })),
       });
     }
@@ -312,19 +282,15 @@ Deno.serve(async (req) => {
       if (!hasScope(auth.scopes, 'documents:write')) return error('Permissão insuficiente', 403);
 
       const docId = segments[1];
-      const { data: doc } = await supabase.from('documents').select('id, status').eq('id', docId).eq('user_id', auth.userId).single();
+      const { data: doc } = await supabase.from('documentos').select('id, status').eq('id', docId).eq('usuario_id', auth.userId).single();
       if (!doc) return error('Documento não encontrado', 404);
       if (doc.status !== 'pending' && doc.status !== 'draft') return error('Só é possível cancelar documentos pendentes ou rascunhos');
 
-      await supabase.from('documents').update({ status: 'cancelled' }).eq('id', docId);
-      await supabase.from('audit_trail').insert({
-        document_id: docId,
-        action: 'cancelled',
-        actor: 'API',
-        details: 'Documento cancelado via API',
+      await supabase.from('documentos').update({ status: 'cancelled' }).eq('id', docId);
+      await supabase.from('trilha_auditoria').insert({
+        documento_id: docId, acao: 'cancelled', ator: 'API', detalhes: 'Documento cancelado via API',
       });
 
-      // Trigger webhook
       await triggerWebhooks(supabase, auth.userId, 'document.cancelled', { document_id: docId });
 
       return json({ id: docId, status: 'cancelled' });
@@ -335,17 +301,17 @@ Deno.serve(async (req) => {
       if (!hasScope(auth.scopes, 'documents:write')) return error('Permissão insuficiente', 403);
 
       const docId = segments[1];
-      const { data: doc } = await supabase.from('documents').select('*').eq('id', docId).eq('user_id', auth.userId).single();
+      const { data: doc } = await supabase.from('documentos').select('*').eq('id', docId).eq('usuario_id', auth.userId).single();
       if (!doc) return error('Documento não encontrado', 404);
 
-      const { data: pendingSigners } = await supabase.from('signers').select('*').eq('document_id', docId).eq('status', 'pending');
+      const { data: pendingSigners } = await supabase.from('signatarios').select('*').eq('documento_id', docId).eq('status', 'pending');
       if (!pendingSigners || pendingSigners.length === 0) return error('Nenhum signatário pendente');
 
       const results: { email: string; success: boolean }[] = [];
       for (const s of pendingSigners) {
         try {
           await supabase.functions.invoke('send-signing-email', {
-            body: { signerName: s.name, signerEmail: s.email, documentName: doc.name, signToken: s.sign_token },
+            body: { signerName: s.nome, signerEmail: s.email, documentName: doc.nome, signToken: s.token_assinatura },
           });
           results.push({ email: s.email, success: true });
         } catch {
@@ -353,11 +319,9 @@ Deno.serve(async (req) => {
         }
       }
 
-      await supabase.from('audit_trail').insert({
-        document_id: docId,
-        action: 'reminder',
-        actor: 'API',
-        details: `Lembrete reenviado para ${pendingSigners.length} signatário(s) via API`,
+      await supabase.from('trilha_auditoria').insert({
+        documento_id: docId, acao: 'reminder', ator: 'API',
+        detalhes: `Lembrete reenviado para ${pendingSigners.length} signatário(s) via API`,
       });
 
       return json({ resent_to: results });
@@ -368,16 +332,16 @@ Deno.serve(async (req) => {
       if (!hasScope(auth.scopes, 'documents:read')) return error('Permissão insuficiente', 403);
 
       const docId = segments[1];
-      const { data: doc } = await supabase.from('documents').select('id, status, name').eq('id', docId).eq('user_id', auth.userId).single();
+      const { data: doc } = await supabase.from('documentos').select('id, status, nome').eq('id', docId).eq('usuario_id', auth.userId).single();
       if (!doc) return error('Documento não encontrado', 404);
 
-      const { data: signers } = await supabase.from('signers').select('name, email, status, signed_at').eq('document_id', docId).order('sign_order');
+      const { data: signers } = await supabase.from('signatarios').select('nome, email, status, assinado_em').eq('documento_id', docId).order('ordem_assinatura');
 
       return json({
         document_id: doc.id,
-        document_name: doc.name,
+        document_name: doc.nome,
         status: doc.status,
-        signers: signers || [],
+        signers: (signers || []).map((s: any) => ({ name: s.nome, email: s.email, status: s.status, signed_at: s.assinado_em })),
         progress: {
           total: (signers || []).length,
           signed: (signers || []).filter((s: any) => s.status === 'signed').length,
@@ -390,7 +354,7 @@ Deno.serve(async (req) => {
     // ─── Webhooks CRUD ─────────────────────────────────
     if (segments[0] === 'webhooks') {
       if (method === 'GET' && segments.length === 1) {
-        const { data } = await supabase.from('webhooks').select('*').eq('user_id', auth.userId).order('created_at', { ascending: false });
+        const { data } = await supabase.from('webhooks').select('*').eq('usuario_id', auth.userId).order('criado_em', { ascending: false });
         return json({ data: data || [] });
       }
 
@@ -398,11 +362,11 @@ Deno.serve(async (req) => {
         const body = await req.json();
         if (!body.url) return error('Campo obrigatório: url');
         const { data, error: wErr } = await supabase.from('webhooks').insert({
-          user_id: auth.userId,
+          usuario_id: auth.userId,
           url: body.url,
-          events: body.events || ['document.signed', 'document.completed'],
-          secret: body.secret || crypto.randomUUID(),
-          active: true,
+          eventos: body.events || ['document.signed', 'document.completed'],
+          segredo: body.secret || crypto.randomUUID(),
+          ativo: true,
         }).select().single();
         if (wErr) return error(wErr.message, 500);
         return json(data, 201);
@@ -410,7 +374,7 @@ Deno.serve(async (req) => {
 
       if (method === 'DELETE' && segments.length === 2) {
         const whId = segments[1];
-        await supabase.from('webhooks').delete().eq('id', whId).eq('user_id', auth.userId);
+        await supabase.from('webhooks').delete().eq('id', whId).eq('usuario_id', auth.userId);
         return json({ deleted: true });
       }
     }
@@ -428,9 +392,9 @@ async function triggerWebhooks(supabase: any, userId: string, event: string, pay
   try {
     const { data: webhooks } = await supabase.from('webhooks')
       .select('*')
-      .eq('user_id', userId)
-      .eq('active', true)
-      .contains('events', [event]);
+      .eq('usuario_id', userId)
+      .eq('ativo', true)
+      .contains('eventos', [event]);
 
     if (!webhooks || webhooks.length === 0) return;
 
@@ -441,38 +405,37 @@ async function triggerWebhooks(supabase: any, userId: string, event: string, pay
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Webhook-Secret': wh.secret || '',
+            'X-Webhook-Secret': wh.segredo || '',
             'X-Webhook-Event': event,
           },
           body,
         });
 
-        await supabase.from('webhook_deliveries').insert({
+        await supabase.from('entregas_webhook').insert({
           webhook_id: wh.id,
-          event,
+          evento: event,
           payload: { event, payload },
-          status_code: res.status,
-          success: res.ok,
-          response_body: await res.text().catch(() => ''),
+          codigo_status: res.status,
+          sucesso: res.ok,
+          corpo_resposta: await res.text().catch(() => ''),
         });
 
         await supabase.from('webhooks').update({
-          last_triggered_at: new Date().toISOString(),
-          failure_count: res.ok ? 0 : wh.failure_count + 1,
+          ultimo_disparo_em: new Date().toISOString(),
+          contagem_falhas: res.ok ? 0 : wh.contagem_falhas + 1,
         }).eq('id', wh.id);
-
       } catch (err) {
-        await supabase.from('webhook_deliveries').insert({
+        await supabase.from('entregas_webhook').insert({
           webhook_id: wh.id,
-          event,
+          evento: event,
           payload: { event, payload },
-          status_code: 0,
-          success: false,
-          response_body: err instanceof Error ? err.message : 'Connection error',
+          codigo_status: 0,
+          sucesso: false,
+          corpo_resposta: err instanceof Error ? err.message : 'Connection error',
         });
       }
     }
   } catch (err) {
-    console.error('Webhook dispatch error:', err);
+    console.error('Webhook trigger error:', err);
   }
 }

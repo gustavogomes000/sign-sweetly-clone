@@ -70,46 +70,46 @@ function useIntegrationDocs() {
     queryFn: async (): Promise<IntegrationDoc[]> => {
       if (!user) return [];
 
-      const { data: docs, error } = await (supabase
-        .from('documents')
+      const { data: docs, error } = await supabase
+        .from('documentos')
         .select('*')
-        .eq('user_id', user.id) as any)
-        .eq('origin', 'api')
-        .order('created_at', { ascending: false });
+        .eq('usuario_id', user.id)
+        .eq('origem', 'api')
+        .order('criado_em', { ascending: false });
 
       if (error) throw error;
       if (!docs || docs.length === 0) return [];
 
       const docIds = docs.map((d) => d.id);
       const { data: signers } = await supabase
-        .from('signers')
+        .from('signatarios')
         .select('*')
-        .in('document_id', docIds)
-        .order('sign_order');
+        .in('documento_id', docIds)
+        .order('ordem_assinatura');
 
       const signersByDoc = new Map<string, any[]>();
       (signers || []).forEach((s) => {
-        const list = signersByDoc.get(s.document_id) || [];
+        const list = signersByDoc.get(s.documento_id) || [];
         list.push(s);
-        signersByDoc.set(s.document_id, list);
+        signersByDoc.set(s.documento_id, list);
       });
 
       return docs.map((d: any) => ({
         id: d.id,
-        name: d.name,
+        name: d.nome,
         status: d.status,
-        origin: d.origin || 'api',
-        external_ref: d.external_ref || null,
-        source_system: d.source_system || null,
-        created_at: d.created_at,
-        file_path: d.file_path,
+        origin: d.origem || 'api',
+        external_ref: d.referencia_externa || null,
+        source_system: d.sistema_origem || null,
+        created_at: d.criado_em,
+        file_path: d.caminho_arquivo,
         signers: (signersByDoc.get(d.id) || []).map((s: any) => ({
           id: s.id,
-          name: s.name,
+          name: s.nome,
           email: s.email,
           status: s.status,
-          role: s.role,
-          signed_at: s.signed_at,
+          role: s.funcao,
+          signed_at: s.assinado_em,
         })),
       }));
     },
@@ -121,11 +121,11 @@ function useAddSigner() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ documentId, name, email, role }: { documentId: string; name: string; email: string; role: string }) => {
-      const { data, error } = await supabase.from('signers').insert({
-        document_id: documentId,
-        name,
+      const { data, error } = await supabase.from('signatarios').insert({
+        documento_id: documentId,
+        nome: name,
         email,
-        role: role || 'Signatário',
+        funcao: role || 'Signatário',
         status: 'pending',
       }).select().single();
       if (error) throw error;
@@ -142,13 +142,13 @@ function useSendDocument() {
   return useMutation({
     mutationFn: async ({ documentId, documentName }: { documentId: string; documentName: string }) => {
       // Update status to pending
-      await supabase.from('documents').update({ status: 'pending' }).eq('id', documentId);
+      await supabase.from('documentos').update({ status: 'pending' }).eq('id', documentId);
 
       // Get pending signers
       const { data: signers } = await supabase
-        .from('signers')
+        .from('signatarios')
         .select('*')
-        .eq('document_id', documentId)
+        .eq('documento_id', documentId)
         .eq('status', 'pending');
 
       if (!signers || signers.length === 0) throw new Error('Nenhum signatário para enviar');
@@ -159,10 +159,10 @@ function useSendDocument() {
         try {
           await supabase.functions.invoke('send-signing-email', {
             body: {
-              signerName: s.name,
+              signerName: s.nome,
               signerEmail: s.email,
               documentName,
-              signToken: s.sign_token,
+              signToken: s.token_assinatura,
             },
           });
           results.push({ email: s.email, success: true });
@@ -172,11 +172,11 @@ function useSendDocument() {
       }
 
       // Audit
-      await supabase.from('audit_trail').insert({
-        document_id: documentId,
-        action: 'sent',
-        actor: 'Sistema',
-        details: `Documento enviado para ${results.filter(r => r.success).length} signatário(s)`,
+      await supabase.from('trilha_auditoria').insert({
+        documento_id: documentId,
+        acao: 'sent',
+        ator: 'Sistema',
+        detalhes: `Documento enviado para ${results.filter(r => r.success).length} signatário(s)`,
       });
 
       return results;
@@ -191,7 +191,7 @@ function useRemoveSigner() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (signerId: string) => {
-      const { error } = await supabase.from('signers').delete().eq('id', signerId);
+      const { error } = await supabase.from('signatarios').delete().eq('id', signerId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -246,7 +246,6 @@ export default function Integrations() {
       setNewSignerName('');
       setNewSignerEmail('');
       setAddSignerOpen(false);
-      // Refresh selected doc
       const updated = docs.find(d => d.id === selectedDoc.id);
       if (updated) setSelectedDoc(updated);
     } catch {

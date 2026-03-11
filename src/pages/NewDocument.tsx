@@ -23,11 +23,24 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface TemplateOption {
   id: string;
-  name: string;
-  category: string | null;
-  content: string;
-  file_path: string | null;
+  nome: string;
+  categoria: string | null;
+  conteudo: string;
+  caminho_arquivo: string | null;
 }
+
+interface TemplateVariable {
+  key: string;
+  label: string;
+}
+
+const templateVariables: TemplateVariable[] = [
+  { key: 'document.name', label: 'Nome do documento' },
+  { key: 'document.date', label: 'Data atual' },
+  { key: 'signer.name', label: 'Nome do signatário' },
+  { key: 'signer.email', label: 'Email do signatário' },
+  { key: 'signer.phone', label: 'Telefone do signatário' },
+];
 
 type Step = 'upload' | 'signers' | 'fields' | 'configure' | 'review';
 
@@ -75,15 +88,12 @@ const isFileAllowed = (f: File): boolean => {
 
 const getPreviewMimeType = (inputFile: File | null) => {
   if (!inputFile) return undefined;
-
   const normalizedType = (inputFile.type || '').toLowerCase();
   if (normalizedType.includes('pdf')) return 'application/pdf';
   if (normalizedType === 'image/png') return 'image/png';
-
   const extension = inputFile.name.split('.').pop()?.toLowerCase();
   if (extension === 'pdf') return 'application/pdf';
   if (extension === 'png') return 'image/png';
-
   return normalizedType || undefined;
 };
 
@@ -119,9 +129,9 @@ export default function NewDocument() {
   useEffect(() => {
     const fetchTemplates = async () => {
       const { data } = await supabase
-        .from('templates')
-        .select('id, name, category, content, file_path')
-        .order('name');
+        .from('modelos')
+        .select('id, nome, categoria, conteudo, caminho_arquivo')
+        .order('nome');
       if (data) setTemplates(data as TemplateOption[]);
     };
     fetchTemplates();
@@ -131,14 +141,13 @@ export default function NewDocument() {
     setSelectedTemplate(templateId);
     const tpl = templates.find(t => t.id === templateId);
     if (tpl) {
-      setTemplateContent(tpl.content || '');
+      setTemplateContent(tpl.conteudo || '');
       setShowTemplateEditor(true);
-      if (!docName) setDocName(tpl.name);
-      // If template has a file, load it as the document
-      if (tpl.file_path) {
-        const { data } = supabase.storage.from('documents').getPublicUrl(tpl.file_path);
+      if (!docName) setDocName(tpl.nome);
+      if (tpl.caminho_arquivo) {
+        const { data } = supabase.storage.from('documents').getPublicUrl(tpl.caminho_arquivo);
         setFilePreviewUrl(data.publicUrl);
-        setFileName(tpl.name + '.pdf');
+        setFileName(tpl.nome + '.pdf');
       }
     }
   };
@@ -165,7 +174,6 @@ export default function NewDocument() {
   const previewMimeType = getPreviewMimeType(file);
   const currentStepIndex = steps.findIndex((s) => s.key === currentStep);
 
-
   useEffect(() => {
     return () => {
       if (filePreviewUrl?.startsWith('blob:')) {
@@ -177,21 +185,12 @@ export default function NewDocument() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
-
     if (!isFileAllowed(f)) {
-      toast({
-        title: 'Formato não suportado',
-        description: 'Apenas arquivos PDF, PNG e DOC/DOCX são aceitos.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Formato não suportado', description: 'Apenas arquivos PDF, PNG e DOC/DOCX são aceitos.', variant: 'destructive' });
       e.target.value = '';
       return;
     }
-
-    if (filePreviewUrl?.startsWith('blob:')) {
-      URL.revokeObjectURL(filePreviewUrl);
-    }
-
+    if (filePreviewUrl?.startsWith('blob:')) URL.revokeObjectURL(filePreviewUrl);
     const nextPreviewUrl = URL.createObjectURL(f);
     setFile(f);
     setFileName(f.name);
@@ -200,9 +199,7 @@ export default function NewDocument() {
     if (!docName) setDocName(f.name.replace(/\.[^.]+$/, ''));
   };
 
-  const triggerFileInput = () => {
-    fileInputRef.current?.click();
-  };
+  const triggerFileInput = () => { fileInputRef.current?.click(); };
 
   const addSigner = () => {
     setSigners([...signers, { id: genSignerId(), name: '', email: '', phone: '', role: 'Signatário', validationSteps: [] }]);
@@ -226,17 +223,10 @@ export default function NewDocument() {
     const existing = signer.validationSteps.find(v => v.type === type);
     if (existing) {
       signer.validationSteps = signer.validationSteps.filter(v => v.type !== type);
-      // Reorder
       signer.validationSteps = signer.validationSteps.map((v, i) => ({ ...v, order: i + 1 }));
     } else {
       const opt = validationOptions.find(o => o.type === type)!;
-      signer.validationSteps.push({
-        id: genValidationId(),
-        type,
-        label: opt.label,
-        order: signer.validationSteps.length + 1,
-        required: true,
-      });
+      signer.validationSteps.push({ id: genValidationId(), type, label: opt.label, order: signer.validationSteps.length + 1, required: true });
     }
     setSigners(updated);
   };
@@ -274,113 +264,46 @@ export default function NewDocument() {
         toast({ title: 'Erro', description: 'Você precisa estar logado.', variant: 'destructive' });
         return;
       }
-      
-      // Need either a file upload OR a template with file_path
-      const templateWithFile = templates.find(t => t.id === selectedTemplate && t.file_path);
+      const templateWithFile = templates.find(t => t.id === selectedTemplate && t.caminho_arquivo);
       if (!file && !templateWithFile) {
         toast({ title: 'Erro', description: 'Nenhum documento selecionado. Faça upload de um arquivo ou escolha um modelo.', variant: 'destructive' });
         return;
       }
-
       setSending(true);
       try {
         let filePath: string;
-        
         if (file) {
-          // Upload the user's file
           const { path } = await uploadDocumentFile(file, user.id);
           filePath = path;
         } else {
-          // Use the template's existing file path
-          filePath = templateWithFile!.file_path!;
+          filePath = templateWithFile!.caminho_arquivo!;
         }
-        
-        // 2. Create document record
-        const doc = await createDocument({
-          userId: user.id,
-          name: docName || fileName || 'Documento',
-          filePath,
-          signatureType: 'microservice',
-          deadline: hasDeadline ? deadline : undefined,
-        });
-        
-        // 3. Create signers
-        const dbSigners = await createSigners(
-          doc.id,
-          signers.map((s, i) => ({
-            name: s.name,
-            email: s.email,
-            phone: s.phone || undefined,
-            role: s.role,
-            order: i + 1,
-          }))
-        );
-        
-        // 4. Map local signer IDs to DB IDs and create fields
+        const doc = await createDocument({ userId: user.id, name: docName || fileName || 'Documento', filePath, signatureType: 'microservice', deadline: hasDeadline ? deadline : undefined });
+        const dbSigners = await createSigners(doc.id, signers.map((s, i) => ({ name: s.name, email: s.email, phone: s.phone || undefined, role: s.role, order: i + 1 })));
         const signerIdMap = new Map<string, string>();
-        signers.forEach((s, i) => {
-          if (dbSigners[i]) signerIdMap.set(s.id, dbSigners[i].id);
-        });
-        
-        const dbFields = placedFields.map((f) => ({
-          signerId: signerIdMap.get(f.signerId) || f.signerId,
-          fieldType: f.type,
-          label: f.label,
-          x: f.x,
-          y: f.y,
-          width: f.width,
-          height: f.height,
-          page: f.page,
-          required: f.required,
-        }));
-        
+        signers.forEach((s, i) => { if (dbSigners[i]) signerIdMap.set(s.id, dbSigners[i].id); });
+        const dbFields = placedFields.map((f) => ({ signerId: signerIdMap.get(f.signerId) || f.signerId, fieldType: f.type, label: f.label, x: f.x, y: f.y, width: f.width, height: f.height, page: f.page, required: f.required }));
         await createDocumentFields(doc.id, dbFields);
-        
-        // 5. Create validation steps for each signer
         for (const [localId, dbId] of signerIdMap.entries()) {
           const localSigner = signers.find((s) => s.id === localId);
           if (localSigner && localSigner.validationSteps.length > 0) {
-            await createValidationSteps(
-              doc.id,
-              dbId,
-              localSigner.validationSteps.map((v) => ({
-                type: v.type,
-                order: v.order,
-                required: v.required,
-              }))
-            );
+            await createValidationSteps(doc.id, dbId, localSigner.validationSteps.map((v) => ({ type: v.type, order: v.order, required: v.required })));
           }
         }
-        
-        // 6. Send email notifications via edge function
         for (const dbSigner of dbSigners) {
           try {
             await supabase.functions.invoke('send-signing-email', {
-              body: {
-                signerName: dbSigner.name,
-                signerEmail: dbSigner.email,
-                documentName: docName || fileName,
-                signToken: dbSigner.sign_token,
-                message,
-              },
+              body: { signerName: dbSigner.nome, signerEmail: dbSigner.email, documentName: docName || fileName, signToken: dbSigner.token_assinatura, message },
             });
           } catch (emailErr) {
             console.warn('Email send failed for', dbSigner.email, emailErr);
           }
         }
-        
-        toast({
-          title: 'Documento enviado com sucesso! ✅',
-          description: `${signers.length} signatário(s) receberão o link de assinatura.`,
-        });
+        toast({ title: 'Documento enviado com sucesso! ✅', description: `${signers.length} signatário(s) receberão o link de assinatura.` });
         navigate('/documents');
       } catch (err) {
         console.error('Error sending document:', err);
-        toast({
-          title: 'Erro ao enviar documento',
-          description: err instanceof Error ? err.message : 'Tente novamente',
-          variant: 'destructive',
-        });
+        toast({ title: 'Erro ao enviar documento', description: err instanceof Error ? err.message : 'Tente novamente', variant: 'destructive' });
       } finally {
         setSending(false);
       }
@@ -389,15 +312,10 @@ export default function NewDocument() {
     if (currentStep === 'upload' && file) {
       const isVisualPreviewSupported = previewMimeType === 'application/pdf' || Boolean(previewMimeType?.startsWith('image/'));
       if (!isVisualPreviewSupported) {
-        toast({
-          title: 'Formato sem pré-visualização no editor',
-          description: 'Para posicionar campos com precisão, use PDF ou imagem (JPG/PNG).',
-          variant: 'destructive',
-        });
+        toast({ title: 'Formato sem pré-visualização no editor', description: 'Para posicionar campos com precisão, use PDF ou imagem (JPG/PNG).', variant: 'destructive' });
         return;
       }
     }
-
     const nextIndex = currentStepIndex + 1;
     if (nextIndex < steps.length) setCurrentStep(steps[nextIndex].key);
   };
@@ -407,12 +325,7 @@ export default function NewDocument() {
     if (prevIndex >= 0) setCurrentStep(steps[prevIndex].key);
   };
 
-  const editorSigners = signers.map((s, i) => ({
-    id: s.id,
-    name: s.name || `Signatário ${i + 1}`,
-    color: getSignerColor(i),
-  }));
-
+  const editorSigners = signers.map((s, i) => ({ id: s.id, name: s.name || `Signatário ${i + 1}`, color: getSignerColor(i) }));
   const isEditorStep = currentStep === 'fields';
 
   return (
@@ -437,8 +350,8 @@ export default function NewDocument() {
                     currentStep === step.key
                       ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
                       : i < currentStepIndex
-                      ? 'bg-success/10 text-success cursor-pointer hover:bg-success/20'
-                      : 'bg-secondary text-muted-foreground'
+                        ? 'bg-success/10 text-success cursor-pointer hover:bg-success/20'
+                        : 'bg-secondary text-muted-foreground'
                   )}
                 >
                   {i < currentStepIndex ? <CheckCircle2 className="w-3.5 h-3.5" /> : <step.icon className="w-3.5 h-3.5" />}
@@ -459,408 +372,220 @@ export default function NewDocument() {
                 <p className="text-xs text-muted-foreground">Navegue por todas as páginas e marque exatamente onde cada signatário deve assinar</p>
               </div>
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="total-pages" className="text-xs text-muted-foreground whitespace-nowrap">Total de páginas</Label>
-                  <Input
-                    id="total-pages"
-                    type="number"
-                    min={1}
-                    max={200}
-                    value={editorTotalPages}
-                    onChange={(e) => handleEditorTotalPagesChange(e.target.value)}
-                    className="h-8 w-24"
-                  />
-                </div>
-                <Badge variant="secondary" className="text-xs">{placedFields.length} campo(s)</Badge>
+                <Label className="text-xs text-muted-foreground">Páginas:</Label>
+                <Input type="number" min={1} max={200} value={editorTotalPages} onChange={(e) => handleEditorTotalPagesChange(e.target.value)} className="w-16 h-8 text-xs" />
               </div>
             </div>
-            <div className="flex-1 min-h-0">
-              <DocumentFieldEditor
-                signers={editorSigners}
-                fields={placedFields}
-                onFieldsChange={setPlacedFields}
-                totalPages={editorTotalPages}
-                documentUrl={filePreviewUrl}
-                documentMimeType={previewMimeType}
-              />
-            </div>
-            <div className="flex items-center justify-between pt-3">
-              <Button variant="outline" onClick={handleBack}><ArrowLeft className="w-4 h-4 mr-1" />Voltar</Button>
-              <Button onClick={handleNext}>Próximo <ArrowRight className="w-4 h-4 ml-1" /></Button>
-            </div>
+            <DocumentFieldEditor
+              signers={editorSigners}
+              fields={placedFields}
+              onFieldsChange={setPlacedFields}
+              totalPages={editorTotalPages}
+              documentUrl={filePreviewUrl}
+              previewMimeType={previewMimeType}
+            />
           </div>
         )}
 
-        {/* Non-editor steps */}
+        {/* Non-editor steps content area */}
         {!isEditorStep && (
-          <div className="flex-1 overflow-auto px-6 pb-6">
-            <Card className="max-w-2xl mx-auto animate-fade-in mt-4">
-              {currentStep === 'upload' && (
-                <>
-                  <CardHeader><CardTitle className="text-base">Enviar documento</CardTitle></CardHeader>
-                  <CardContent className="space-y-5">
-                    <div className="space-y-2">
-                      <Label>Usar modelo (opcional)</Label>
-                      <Select value={selectedTemplate} onValueChange={handleTemplateSelect}>
-                        <SelectTrigger><SelectValue placeholder="Selecionar modelo..." /></SelectTrigger>
-                        <SelectContent>
-                          {templates.map((t) => (
-                            <SelectItem key={t.id} value={t.id}>
-                              <div className="flex items-center gap-2">
-                                <span>{t.name}</span>
-                                {t.category && <Badge variant="secondary" className="text-[10px] h-4">{t.category}</Badge>}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+          <div className="px-6 pb-6 space-y-6">
+            {/* Upload step */}
+            {currentStep === 'upload' && (
+              <Card>
+                <CardContent className="p-6 space-y-6">
+                  <div className="space-y-2">
+                    <Label>Nome do documento</Label>
+                    <Input value={docName} onChange={(e) => setDocName(e.target.value)} placeholder="Ex: Contrato de Prestação de Serviços" />
+                  </div>
 
-                    {/* Template content editor */}
-                    {showTemplateEditor && (
-                      <div className="space-y-2 rounded-lg border border-border p-4 bg-muted/20">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-primary" />
-                            <Label className="text-sm font-medium">Editar conteúdo do modelo</Label>
-                          </div>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleClearTemplate}>
-                            <X className="w-4 h-4" />
-                          </Button>
+                  <div className="space-y-3">
+                    <Label>Arquivo do documento</Label>
+                    <input ref={fileInputRef} type="file" accept=".pdf,.png,.doc,.docx" className="hidden" onChange={handleFileChange} />
+                    {file ? (
+                      <div className="flex items-center gap-3 p-4 rounded-lg border border-border bg-secondary/30">
+                        <FileText className="w-8 h-8 text-primary" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{fileName}</p>
+                          <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</p>
                         </div>
-                        {/* Simple toolbar */}
-                        <div className="flex flex-wrap gap-1 border rounded-md p-1 bg-background">
-                          <Button variant="ghost" size="sm" className="h-6 text-xs font-bold" onClick={() => insertTemplateText('**', '**')}>N</Button>
-                          <Button variant="ghost" size="sm" className="h-6 text-xs italic" onClick={() => insertTemplateText('_', '_')}>I</Button>
-                          <div className="w-px bg-border mx-0.5" />
-                          <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => insertTemplateText('\n# ')}>Título</Button>
-                          <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => insertTemplateText('\n## ')}>Subtítulo</Button>
-                          <div className="w-px bg-border mx-0.5" />
-                          <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => insertTemplateText('\n- ')}>• Lista</Button>
-                          <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => insertTemplateText('{{', '}}')}>{'{{Campo}}'}</Button>
-                        </div>
-                        <textarea
-                          id="template-content-editor"
-                          className="w-full h-[250px] rounded-md border border-input bg-background px-3 py-2 text-sm font-mono leading-relaxed ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
-                          value={templateContent}
-                          onChange={(e) => setTemplateContent(e.target.value)}
-                          placeholder="Edite o conteúdo do modelo antes de enviar..."
-                        />
-                        <p className="text-xs text-muted-foreground">Use {'{{campo}}'} para campos variáveis. O conteúdo editado será usado neste documento.</p>
+                        <Button variant="outline" size="sm" onClick={triggerFileInput}>Trocar</Button>
+                      </div>
+                    ) : (
+                      <div
+                        onClick={triggerFileInput}
+                        className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                      >
+                        <Upload className="w-10 h-10 mx-auto mb-3 text-muted-foreground/40" />
+                        <p className="text-sm font-medium text-foreground">Clique ou arraste o arquivo</p>
+                        <p className="text-xs text-muted-foreground mt-1">PDF, PNG, DOC ou DOCX</p>
                       </div>
                     )}
+                  </div>
 
-                    {!showTemplateEditor && (
-                      <>
-                        <div className="relative">
-                          <div className="absolute inset-0 flex items-center"><Separator /></div>
-                          <div className="relative flex justify-center"><span className="bg-card px-3 text-xs text-muted-foreground">ou faça upload</span></div>
-                        </div>
-                        <input ref={fileInputRef} type="file" accept=".pdf,.png,.doc,.docx" className="hidden" onChange={handleFileChange} />
-                        <div
-                          onClick={triggerFileInput}
-                          className={cn(
-                            'border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all',
-                            fileName ? 'border-success bg-success/5' : 'border-border hover:border-primary/50 hover:bg-primary/5'
-                          )}
-                        >
-                          {fileName ? (
-                            <div className="flex flex-col items-center gap-2">
-                              <div className="w-14 h-14 rounded-xl bg-success/10 flex items-center justify-center">
-                                <CheckCircle2 className="w-7 h-7 text-success" />
-                              </div>
-                              <p className="text-sm font-medium text-foreground">{fileName}</p>
-                              <p className="text-xs text-muted-foreground">Clique para trocar o arquivo</p>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col items-center gap-2">
-                              <div className="w-14 h-14 rounded-xl bg-secondary flex items-center justify-center">
-                                <Upload className="w-7 h-7 text-muted-foreground" />
-                              </div>
-                              <p className="text-sm font-medium text-foreground">Clique ou arraste seu documento</p>
-                              <p className="text-xs text-muted-foreground">PDF, DOCX, XLSX, JPEG, PNG (máx. 20MB)</p>
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    )}
-
-                    <div className="space-y-2">
-                      <Label>Nome do documento</Label>
-                      <Input value={docName} onChange={(e) => setDocName(e.target.value)} placeholder="Ex: Contrato de Prestação de Serviços" />
-                    </div>
-                  </CardContent>
-                </>
-              )}
-
-              {currentStep === 'signers' && (
-                <>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">Signatários</CardTitle>
-                      <div className="flex items-center gap-2">
-                        <Label htmlFor="order" className="text-xs text-muted-foreground">Ordem importa</Label>
-                        <Switch id="order" checked={orderMatters} onCheckedChange={setOrderMatters} />
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {signers.map((signer, i) => (
-                      <div key={signer.id} className="space-y-3 p-4 rounded-xl border border-border/50 relative" style={{ backgroundColor: `${getSignerColor(i)}08` }}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: `${getSignerColor(i)}20` }}>
-                              <span className="text-xs font-bold" style={{ color: getSignerColor(i) }}>{i + 1}</span>
-                            </div>
-                            <span className="text-sm font-medium text-foreground">Signatário {i + 1}</span>
-                          </div>
-                          {signers.length > 1 && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeSigner(i)}>
-                              <Trash2 className="w-4 h-4 text-destructive" />
-                            </Button>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <Label className="text-xs">Nome *</Label>
-                            <Input value={signer.name} onChange={(e) => updateSigner(i, 'name', e.target.value)} placeholder="Nome completo" className="h-9" />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Email *</Label>
-                            <Input type="email" value={signer.email} onChange={(e) => updateSigner(i, 'email', e.target.value)} placeholder="email@exemplo.com" className="h-9" />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Telefone</Label>
-                            <Input value={signer.phone} onChange={(e) => updateSigner(i, 'phone', e.target.value)} placeholder="(11) 99999-0000" className="h-9" />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Papel</Label>
-                            <Select value={signer.role} onValueChange={(v) => updateSigner(i, 'role', v)}>
-                              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Signatário">Signatário</SelectItem>
-                                <SelectItem value="Contratante">Contratante</SelectItem>
-                                <SelectItem value="Contratada">Contratada</SelectItem>
-                                <SelectItem value="Testemunha">Testemunha</SelectItem>
-                                <SelectItem value="Aprovador">Aprovador</SelectItem>
-                                <SelectItem value="Fiador">Fiador</SelectItem>
-                                <SelectItem value="Representante Legal">Representante Legal</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-
-                        {/* Post-signature validation flow */}
-                        <Separator />
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <p className="text-xs font-semibold text-foreground">Validações pós-assinatura</p>
-                            <p className="text-[10px] text-muted-foreground">{signer.validationSteps.length} selecionada(s)</p>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground">Marque as etapas que o signatário deve completar após assinar. A ordem pode ser alterada.</p>
-                          <div className="space-y-2">
-                            {validationOptions.map((opt) => {
-                              const isSelected = signer.validationSteps.some(v => v.type === opt.type);
-                              return (
-                                <div
-                                  key={opt.type}
-                                  onClick={() => toggleValidation(i, opt.type)}
-                                  className={cn(
-                                    'flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-all',
-                                    isSelected ? 'border-primary bg-primary/5' : 'border-border/50 hover:border-primary/30'
-                                  )}
-                                >
-                                  <Checkbox checked={isSelected} className="pointer-events-none" />
-                                  <opt.icon className={cn('w-4 h-4 shrink-0', isSelected ? 'text-primary' : 'text-muted-foreground')} />
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-foreground">{opt.label}</p>
-                                    <p className="text-[10px] text-muted-foreground">{opt.description}</p>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-
-                          {/* Ordered list of selected validations */}
-                          {signer.validationSteps.length > 0 && (
-                            <div className="mt-2 space-y-1">
-                              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Ordem do fluxo</p>
-                              {signer.validationSteps.sort((a, b) => a.order - b.order).map((step, vi) => (
-                                <div key={step.id} className="flex items-center gap-2 p-2 rounded-lg bg-secondary/50">
-                                  <GripVertical className="w-3 h-3 text-muted-foreground" />
-                                  <span className="text-xs font-bold text-primary w-4">{step.order}</span>
-                                  <span className="text-xs text-foreground flex-1">{step.label}</span>
-                                  <div className="flex gap-0.5">
-                                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); moveValidation(i, vi, 'up'); }} disabled={vi === 0}>
-                                      <ArrowLeft className="w-2.5 h-2.5 rotate-90" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); moveValidation(i, vi, 'down'); }} disabled={vi === signer.validationSteps.length - 1}>
-                                      <ArrowRight className="w-2.5 h-2.5 rotate-90" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    <Button variant="outline" onClick={addSigner} className="w-full border-dashed">
-                      <Plus className="w-4 h-4 mr-1" />Adicionar signatário
-                    </Button>
-                  </CardContent>
-                </>
-              )}
-
-              {currentStep === 'configure' && (
-                <>
-                  <CardHeader><CardTitle className="text-base">Configurações do envio</CardTitle></CardHeader>
-                  <CardContent className="space-y-5">
-                    {/* Microservice info banner */}
-                    <div className="rounded-xl bg-primary/5 border border-primary/20 p-4 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-5 h-5 text-primary" />
-                        <span className="text-sm font-semibold text-foreground">Assinatura via Microsserviço</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Todas as assinaturas são processadas pelo microsserviço integrado com validação biométrica, 
-                        captura de selfie e verificação de documentos quando configurado.
-                      </p>
-                    </div>
-                    <Separator />
-                    <div className="rounded-lg bg-secondary/40 p-3">
-                      <p className="text-xs font-medium text-foreground">📧 Notificação via Email</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Todos os signatários receberão o documento por email</p>
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Prazo para assinatura</p>
-                        <p className="text-xs text-muted-foreground">Defina uma data limite</p>
-                      </div>
-                      <Switch checked={hasDeadline} onCheckedChange={setHasDeadline} />
-                    </div>
-                    {hasDeadline && <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Lembretes automáticos</p>
-                        <p className="text-xs text-muted-foreground">Enviar lembretes para pendentes</p>
-                      </div>
-                      <Switch checked={enableReminders} onCheckedChange={setEnableReminders} />
-                    </div>
-                    {enableReminders && (
-                      <Select value={reminderDays} onValueChange={setReminderDays}>
-                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">A cada 1 dia</SelectItem>
-                          <SelectItem value="2">A cada 2 dias</SelectItem>
-                          <SelectItem value="3">A cada 3 dias</SelectItem>
-                          <SelectItem value="5">A cada 5 dias</SelectItem>
-                          <SelectItem value="7">A cada 7 dias</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                    <Separator />
-                    <div className="space-y-2">
-                      <Label>Idioma</Label>
-                      <Select value={locale} onValueChange={setLocale}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pt-BR">Português (Brasil)</SelectItem>
-                          <SelectItem value="en">English</SelectItem>
-                          <SelectItem value="es">Español</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Mensagem personalizada (opcional)</Label>
-                      <Textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Mensagem que será enviada junto..." rows={3} />
-                    </div>
-                  </CardContent>
-                </>
-              )}
-
-              {currentStep === 'review' && (
-                <>
-                  <CardHeader><CardTitle className="text-base">Revisar e enviar</CardTitle></CardHeader>
-                  <CardContent className="space-y-5">
-                    <div className="rounded-xl bg-secondary/40 border border-border/50 p-4 space-y-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <FileText className="w-5 h-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">{docName || fileName}</p>
-                          <p className="text-xs text-muted-foreground">{fileName}</p>
-                        </div>
-                      </div>
+                  {templates.length > 0 && (
+                    <>
                       <Separator />
-                      <div className="grid grid-cols-2 gap-3 text-xs">
-                        <div><span className="text-muted-foreground">Tipo:</span> <span className="font-medium">Microsserviço</span></div>
-                        <div><span className="text-muted-foreground">Notificação:</span> <span className="font-medium">Email</span></div>
-                        <div><span className="text-muted-foreground">Campos:</span> <span className="font-medium">{placedFields.length}</span></div>
-                        {hasDeadline && deadline && <div><span className="text-muted-foreground">Prazo:</span> <span className="font-medium">{deadline}</span></div>}
-                        {enableReminders && <div><span className="text-muted-foreground">Lembretes:</span> <span className="font-medium">A cada {reminderDays} dias</span></div>}
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-sm font-medium mb-3">Signatários ({signers.length})</p>
-                      <div className="space-y-2">
-                        {signers.map((s, i) => {
-                          const signerFields = placedFields.filter((f) => f.signerId === s.id);
-                          return (
-                            <div key={s.id} className="p-3 rounded-lg bg-secondary/40 space-y-2">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: `${getSignerColor(i)}20` }}>
-                                  <span className="text-xs font-bold" style={{ color: getSignerColor(i) }}>{i + 1}</span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate">{s.name}</p>
-                                  <p className="text-xs text-muted-foreground">{s.email} · {signerFields.length} campo(s)</p>
-                                </div>
-                                <Badge variant="outline" className="text-[10px] h-5">{s.role}</Badge>
-                              </div>
-                              {s.validationSteps.length > 0 && (
-                                <div className="pl-11 flex items-center gap-1.5">
-                                  <span className="text-[10px] text-muted-foreground">Pós-assinatura:</span>
-                                  {s.validationSteps.sort((a, b) => a.order - b.order).map((v, vi) => (
-                                    <Badge key={v.id} variant="secondary" className="text-[10px] h-4">
-                                      {vi + 1}. {v.label}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
+                      <div className="space-y-3">
+                        <Label>Ou escolha um modelo</Label>
+                        <Select value={selectedTemplate} onValueChange={handleTemplateSelect}>
+                          <SelectTrigger><SelectValue placeholder="Selecionar modelo..." /></SelectTrigger>
+                          <SelectContent>
+                            {templates.map((t) => (
+                              <SelectItem key={t.id} value={t.id}>
+                                {t.nome} {t.categoria ? `(${t.categoria})` : ''}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {showTemplateEditor && (
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <Label className="text-xs">Conteúdo do modelo</Label>
+                              <Button variant="ghost" size="sm" onClick={handleClearTemplate} className="text-xs h-7">Limpar</Button>
                             </div>
-                          );
-                        })}
+                            <Textarea id="template-content-editor" value={templateContent} onChange={(e) => setTemplateContent(e.target.value)} rows={8} className="font-mono text-xs" />
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Signers step */}
+            {currentStep === 'signers' && (
+              <Card>
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-sm font-semibold text-foreground">Signatários ({signers.length})</h2>
+                    <Button size="sm" variant="outline" onClick={addSigner}><Plus className="w-4 h-4 mr-1" />Adicionar</Button>
+                  </div>
+                  {signers.map((s, i) => (
+                    <div key={s.id} className="space-y-3 p-4 rounded-lg border border-border">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white" style={{ backgroundColor: getSignerColor(i) }}>{i + 1}</div>
+                          <span className="text-sm font-medium">Signatário {i + 1}</span>
+                        </div>
+                        {signers.length > 1 && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeSigner(i)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1"><Label className="text-xs">Nome *</Label><Input value={s.name} onChange={(e) => updateSigner(i, 'name', e.target.value)} placeholder="Nome completo" /></div>
+                        <div className="space-y-1"><Label className="text-xs">Email *</Label><Input type="email" value={s.email} onChange={(e) => updateSigner(i, 'email', e.target.value)} placeholder="email@exemplo.com" /></div>
+                        <div className="space-y-1"><Label className="text-xs">Telefone</Label><Input value={s.phone} onChange={(e) => updateSigner(i, 'phone', e.target.value)} placeholder="(11) 99999-0000" /></div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Papel</Label>
+                          <Select value={s.role} onValueChange={(v) => updateSigner(i, 'role', v)}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Signatário">Signatário</SelectItem>
+                              <SelectItem value="Testemunha">Testemunha</SelectItem>
+                              <SelectItem value="Aprovador">Aprovador</SelectItem>
+                              <SelectItem value="Contratante">Contratante</SelectItem>
+                              <SelectItem value="Contratada">Contratada</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      {/* Validations */}
+                      <div className="space-y-2 pt-2">
+                        <p className="text-xs font-semibold text-muted-foreground">Verificação pós-assinatura</p>
+                        <div className="flex flex-wrap gap-2">
+                          {validationOptions.map((opt) => {
+                            const active = s.validationSteps.some(v => v.type === opt.type);
+                            return (
+                              <button key={opt.type} onClick={() => toggleValidation(i, opt.type)} className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-all', active ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-secondary text-muted-foreground hover:border-primary/50')}>
+                                <opt.icon className="w-3.5 h-3.5" />{opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {s.validationSteps.length > 0 && (
+                          <div className="space-y-1 mt-2">
+                            {s.validationSteps.map((v, vi) => (
+                              <div key={v.id} className="flex items-center gap-2 text-xs p-1.5 rounded bg-secondary/50">
+                                <GripVertical className="w-3 h-3 text-muted-foreground" />
+                                <span className="flex-1">{vi + 1}. {v.label}</span>
+                                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => moveValidation(i, vi, 'up')} disabled={vi === 0}><ArrowLeft className="w-3 h-3 rotate-90" /></Button>
+                                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => moveValidation(i, vi, 'down')} disabled={vi === s.validationSteps.length - 1}><ArrowRight className="w-3 h-3 rotate-90" /></Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
 
-                    {message && (
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Mensagem</p>
-                        <p className="text-sm bg-secondary/40 p-3 rounded-lg">{message}</p>
+            {/* Configure step */}
+            {currentStep === 'configure' && (
+              <Card>
+                <CardContent className="p-6 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div><Label>Prazo para assinatura</Label><p className="text-xs text-muted-foreground">Definir uma data limite</p></div>
+                    <Switch checked={hasDeadline} onCheckedChange={setHasDeadline} />
+                  </div>
+                  {hasDeadline && <Input type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} />}
+                  <Separator />
+                  <div className="space-y-2"><Label>Mensagem para os signatários</Label><Textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Mensagem opcional que aparecerá no email..." rows={3} /></div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div><Label>Ordem de assinatura</Label><p className="text-xs text-muted-foreground">Signatários devem assinar na ordem definida</p></div>
+                    <Switch checked={orderMatters} onCheckedChange={setOrderMatters} />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Review step */}
+            {currentStep === 'review' && (
+              <Card>
+                <CardContent className="p-6 space-y-6">
+                  <h2 className="text-lg font-semibold text-foreground">Revisar e enviar</h2>
+                  <div className="space-y-4">
+                    <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground">DOCUMENTO</p>
+                      <p className="text-sm font-medium">{docName || fileName || 'Sem nome'}</p>
+                      {file && <p className="text-xs text-muted-foreground">{fileName} — {(file.size / 1024).toFixed(0)} KB</p>}
+                      {placedFields.length > 0 && <p className="text-xs text-muted-foreground">{placedFields.length} campo(s) posicionado(s)</p>}
+                    </div>
+                    <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground">SIGNATÁRIOS ({signers.length})</p>
+                      {signers.map((s, i) => (
+                        <div key={s.id} className="flex items-center gap-2 text-sm">
+                          <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ backgroundColor: getSignerColor(i) }}>{i + 1}</div>
+                          <span>{s.name}</span>
+                          <span className="text-muted-foreground text-xs">({s.email})</span>
+                          {s.validationSteps.length > 0 && <Badge variant="outline" className="text-[10px]">{s.validationSteps.length} verificação(ões)</Badge>}
+                        </div>
+                      ))}
+                    </div>
+                    {hasDeadline && deadline && (
+                      <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-1">
+                        <p className="text-xs font-semibold text-muted-foreground">PRAZO</p>
+                        <p className="text-sm">{new Date(deadline).toLocaleString('pt-BR')}</p>
                       </div>
                     )}
-                  </CardContent>
-                </>
-              )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-              {/* Navigation */}
-              <div className="flex items-center justify-between p-6 pt-2">
-                <Button variant="outline" onClick={handleBack} disabled={currentStepIndex === 0}>
-                  <ArrowLeft className="w-4 h-4 mr-1" />Voltar
-                </Button>
-                <Button onClick={handleNext} disabled={!canAdvance() || sending} className={currentStep === 'review' ? 'shadow-lg shadow-primary/20' : ''}>
-                  {currentStep === 'review' ? (
-                    sending ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Enviando...</> : <><Send className="w-4 h-4 mr-1" />Enviar documento</>
-                  ) : (
-                    <>Próximo<ArrowRight className="w-4 h-4 ml-1" /></>
-                  )}
-                </Button>
-              </div>
-            </Card>
+            {/* Navigation */}
+            <div className="flex justify-between pt-2">
+              <Button variant="outline" onClick={handleBack} disabled={currentStepIndex === 0}><ArrowLeft className="w-4 h-4 mr-1" />Voltar</Button>
+              <Button onClick={handleNext} disabled={!canAdvance() || sending}>
+                {sending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : currentStep === 'review' ? <Send className="w-4 h-4 mr-1" /> : null}
+                {currentStep === 'review' ? 'Enviar documento' : 'Próximo'}
+                {currentStep !== 'review' && <ArrowRight className="w-4 h-4 ml-1" />}
+              </Button>
+            </div>
           </div>
         )}
       </div>
