@@ -4,7 +4,7 @@ import { AppHeader } from '@/components/layout/AppHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/documents/StatusBadge';
-import { ArrowLeft, Download, Send, Clock, CheckCircle2, XCircle, FileText, Copy, Trash2, Mail, Phone, Shield, Eye, Loader2 } from 'lucide-react';
+import { ArrowLeft, Download, Send, Clock, CheckCircle2, XCircle, FileText, Copy, Trash2, Mail, Phone, Shield, Eye, Loader2, ShieldCheck, Fingerprint } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Separator } from '@/components/ui/separator';
