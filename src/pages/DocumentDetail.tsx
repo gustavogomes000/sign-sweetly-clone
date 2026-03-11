@@ -155,17 +155,17 @@ export default function DocumentDetail() {
           <Button variant="outline" size="sm" onClick={handleDownload} disabled={!publicUrl}>
             <Download className="w-4 h-4 mr-1" />Original
           </Button>
-          {doc.status === 'signed' && doc.caminho_pdf_final && (
+          {(doc.status === 'signed' || doc.status === 'FINALIZADO_COM_SUCESSO') && doc.caminho_pdf_final && (
             <Button size="sm" variant="default" onClick={handleDownloadFinal}>
-              <Download className="w-4 h-4 mr-1" />PDF Assinado
+              <Download className="w-4 h-4 mr-1" />PDF Assinado + Dossiê
             </Button>
           )}
-          {doc.status === 'signed' && doc.caminho_pdf_dossie && (
+          {(doc.status === 'signed' || doc.status === 'FINALIZADO_COM_SUCESSO') && doc.caminho_pdf_dossie && doc.caminho_pdf_dossie !== doc.caminho_pdf_final && (
             <Button size="sm" variant="secondary" onClick={handleDownloadDossie}>
               <Shield className="w-4 h-4 mr-1" />Dossiê Auditoria
             </Button>
           )}
-          {doc.status === 'signed' && !doc.caminho_pdf_final && (
+          {(doc.status === 'signed' || doc.status === 'FINALIZADO_COM_SUCESSO') && !doc.caminho_pdf_final && (
             <Button size="sm" variant="default" onClick={handleGeneratePdfs}>
               <FileText className="w-4 h-4 mr-1" />Gerar PDFs
             </Button>
