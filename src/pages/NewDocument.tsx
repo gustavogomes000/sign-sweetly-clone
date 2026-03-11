@@ -571,6 +571,7 @@ export default function NewDocument() {
                           <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ backgroundColor: getSignerColor(i) }}>{i + 1}</div>
                           <span>{s.name}</span>
                           <span className="text-muted-foreground text-xs">({s.email})</span>
+                          {s.cpf && <span className="text-muted-foreground text-xs">CPF: {s.cpf}</span>}
                           {s.validationSteps.length > 0 && <Badge variant="outline" className="text-[10px]">{s.validationSteps.length} verificação(ões)</Badge>}
                         </div>
                       ))}
