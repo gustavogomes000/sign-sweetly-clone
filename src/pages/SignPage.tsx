@@ -278,6 +278,29 @@ export default function SignPage() {
 
   // ── Complete ──
   if (pageStep === 'complete') {
+    const docId = (signerData?.document as { id: string })?.id;
+    const signerId = (signerData?.signer as { id: string })?.id;
+
+    const handleGenerateAndDownload = async () => {
+      try {
+        setSaving(true);
+        // Chamar processar-assinatura para registrar evidências e disparar geração de PDFs
+        await supabase.functions.invoke('processar-assinatura', {
+          body: {
+            documentoId: docId,
+            participanteId: signerId,
+            tipoEvento: 'ASSINOU',
+            agenteUsuario: navigator.userAgent,
+          },
+        });
+        toast({ title: 'Documento processado! Os PDFs estão sendo gerados.' });
+      } catch (err) {
+        console.warn('Erro ao processar:', err);
+      } finally {
+        setSaving(false);
+      }
+    };
+
     return (
       <div className="min-h-screen bg-muted/30 flex items-center justify-center p-6">
         <Card className="max-w-md w-full text-center">
@@ -286,12 +309,17 @@ export default function SignPage() {
               <CheckCircle2 className="w-10 h-10 text-primary" />
             </div>
             <h1 className="text-2xl font-bold text-foreground">Documento assinado!</h1>
-            <p className="text-muted-foreground">Sua assinatura foi registrada com sucesso.</p>
-            {publicUrl && (
-              <a href={publicUrl} target="_blank" rel="noopener noreferrer">
-                <Button variant="outline"><Download className="w-4 h-4 mr-1" />Baixar documento</Button>
-              </a>
-            )}
+            <p className="text-muted-foreground">Sua assinatura foi registrada com sucesso. Todas as evidências de segurança foram coletadas.</p>
+            <div className="flex flex-col gap-2">
+              {publicUrl && (
+                <a href={publicUrl} target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" className="w-full"><Download className="w-4 h-4 mr-1" />Baixar documento original</Button>
+                </a>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              O documento final com assinaturas e o dossiê de auditoria serão enviados por e-mail para todos os participantes.
+            </p>
           </CardContent>
         </Card>
       </div>

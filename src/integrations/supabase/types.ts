@@ -259,6 +259,8 @@ export type Database = {
         Row: {
           atualizado_em: string
           caminho_arquivo: string | null
+          caminho_pdf_dossie: string | null
+          caminho_pdf_final: string | null
           criado_em: string
           id: string
           nome: string
@@ -273,6 +275,8 @@ export type Database = {
         Insert: {
           atualizado_em?: string
           caminho_arquivo?: string | null
+          caminho_pdf_dossie?: string | null
+          caminho_pdf_final?: string | null
           criado_em?: string
           id?: string
           nome: string
@@ -287,6 +291,8 @@ export type Database = {
         Update: {
           atualizado_em?: string
           caminho_arquivo?: string | null
+          caminho_pdf_dossie?: string | null
+          caminho_pdf_final?: string | null
           criado_em?: string
           id?: string
           nome?: string

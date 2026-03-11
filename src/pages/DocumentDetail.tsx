@@ -1,4 +1,5 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -115,16 +116,60 @@ export default function DocumentDetail() {
     if (publicUrl) window.open(publicUrl, '_blank');
   };
 
+  const handleDownloadFinal = () => {
+    if (doc.caminho_pdf_final) {
+      const url = getDocumentPublicUrl(doc.caminho_pdf_final);
+      window.open(url, '_blank');
+    }
+  };
+
+  const handleDownloadDossie = () => {
+    if (doc.caminho_pdf_dossie) {
+      const url = getDocumentPublicUrl(doc.caminho_pdf_dossie);
+      window.open(url, '_blank');
+    }
+  };
+
+  const handleGeneratePdfs = async () => {
+    try {
+      toast({ title: 'Gerando PDFs...' });
+      const { error } = await supabase.functions.invoke('gerar-documento-final', {
+        body: { documentoId: doc.id },
+      });
+      if (error) throw error;
+      toast({ title: 'PDFs gerados com sucesso! ✅', description: 'Recarregue para baixar.' });
+      // Force refetch
+      window.location.reload();
+    } catch (err) {
+      toast({ title: 'Erro ao gerar PDFs', description: err instanceof Error ? err.message : '', variant: 'destructive' });
+    }
+  };
+
   return (
     <>
       <AppHeader title={doc.nome} actions={
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(window.location.href).then(() => toast({ title: 'Link copiado ✓' }))}>
             <Copy className="w-4 h-4 mr-1" />Copiar link
           </Button>
           <Button variant="outline" size="sm" onClick={handleDownload} disabled={!publicUrl}>
-            <Download className="w-4 h-4 mr-1" />Baixar
+            <Download className="w-4 h-4 mr-1" />Original
           </Button>
+          {doc.status === 'signed' && doc.caminho_pdf_final && (
+            <Button size="sm" variant="default" onClick={handleDownloadFinal}>
+              <Download className="w-4 h-4 mr-1" />PDF Assinado
+            </Button>
+          )}
+          {doc.status === 'signed' && doc.caminho_pdf_dossie && (
+            <Button size="sm" variant="secondary" onClick={handleDownloadDossie}>
+              <Shield className="w-4 h-4 mr-1" />Dossiê Auditoria
+            </Button>
+          )}
+          {doc.status === 'signed' && !doc.caminho_pdf_final && (
+            <Button size="sm" variant="default" onClick={handleGeneratePdfs}>
+              <FileText className="w-4 h-4 mr-1" />Gerar PDFs
+            </Button>
+          )}
           {doc.status === 'pending' && (
             <Button size="sm" onClick={handleResend} disabled={resendEmails.isPending}>
               <Send className="w-4 h-4 mr-1" />Reenviar
