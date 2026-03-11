@@ -77,6 +77,9 @@ export default function SignPage() {
   // Field values
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [signedFieldIds, setSignedFieldIds] = useState<Set<string>>(new Set());
+  // Store signature images (base64) and typed texts per field for inline rendering
+  const [signatureImages, setSignatureImages] = useState<Record<string, string>>({});
+  const [signatureTexts, setSignatureTexts] = useState<Record<string, string>>({});
 
   // PDF download URLs
   const [signedPdfUrl, setSignedPdfUrl] = useState<string | null>(null);
