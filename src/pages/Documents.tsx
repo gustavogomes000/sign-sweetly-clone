@@ -15,6 +15,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { useDocuments, useCancelDocument, useResendEmails, getDocumentPublicUrl } from '@/hooks/useDocuments';
+import { downloadComFeedback } from '@/services/downloadService';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 
