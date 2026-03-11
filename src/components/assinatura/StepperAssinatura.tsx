@@ -324,11 +324,10 @@ export function StepperAssinatura({
                     <p className="text-sm text-muted-foreground">Validando biometria...</p>
                   </div>
                 ) : (
-                  <VLSelfie
-                    signatoryId={participanteId}
-                    documentId={documentoId}
+                  <VLCameraBlindada
+                    modo="selfie"
                     aoCompletar={handleSelfieCapturada}
-                    onError={(err) => toast({ title: 'Erro', description: String(err), variant: 'destructive' })}
+                    aoErrar={(err) => toast({ title: 'Erro', description: err, variant: 'destructive' })}
                   />
                 )}
               </CardContent>
