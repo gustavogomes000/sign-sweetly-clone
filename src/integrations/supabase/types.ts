@@ -266,6 +266,7 @@ export type Database = {
           hash_pdf_original: string | null
           id: string
           nome: string
+          ordem_importa: boolean
           origem: string
           prazo: string | null
           referencia_externa: string | null
@@ -284,6 +285,7 @@ export type Database = {
           hash_pdf_original?: string | null
           id?: string
           nome: string
+          ordem_importa?: boolean
           origem?: string
           prazo?: string | null
           referencia_externa?: string | null
@@ -302,6 +304,7 @@ export type Database = {
           hash_pdf_original?: string | null
           id?: string
           nome?: string
+          ordem_importa?: boolean
           origem?: string
           prazo?: string | null
           referencia_externa?: string | null
@@ -584,6 +587,7 @@ export type Database = {
           atualizado_em: string
           bluetech_document_id: string | null
           bluetech_signatory_id: string | null
+          cpf: string | null
           criado_em: string
           documento_id: string
           email: string
@@ -600,6 +604,7 @@ export type Database = {
           atualizado_em?: string
           bluetech_document_id?: string | null
           bluetech_signatory_id?: string | null
+          cpf?: string | null
           criado_em?: string
           documento_id: string
           email: string
@@ -616,6 +621,7 @@ export type Database = {
           atualizado_em?: string
           bluetech_document_id?: string | null
           bluetech_signatory_id?: string | null
+          cpf?: string | null
           criado_em?: string
           documento_id?: string
           email?: string

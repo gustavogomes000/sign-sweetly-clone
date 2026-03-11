@@ -49,6 +49,7 @@ interface NewSigner {
   name: string;
   email: string;
   phone: string;
+  cpf: string;
   role: string;
   validationSteps: ValidationStep[];
 }
@@ -107,7 +108,7 @@ export default function NewDocument() {
   const [templateContent, setTemplateContent] = useState('');
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   const [signers, setSigners] = useState<NewSigner[]>([
-    { id: genSignerId(), name: '', email: '', phone: '', role: 'Signatário', validationSteps: [] },
+    { id: genSignerId(), name: '', email: '', phone: '', cpf: '', role: 'Signatário', validationSteps: [] },
   ]);
   const [placedFields, setPlacedFields] = useState<PlacedField[]>([]);
   const [hasDeadline, setHasDeadline] = useState(false);
@@ -202,7 +203,7 @@ export default function NewDocument() {
   const triggerFileInput = () => { fileInputRef.current?.click(); };
 
   const addSigner = () => {
-    setSigners([...signers, { id: genSignerId(), name: '', email: '', phone: '', role: 'Signatário', validationSteps: [] }]);
+    setSigners([...signers, { id: genSignerId(), name: '', email: '', phone: '', cpf: '', role: 'Signatário', validationSteps: [] }]);
   };
 
   const removeSigner = (index: number) => {
@@ -245,7 +246,7 @@ export default function NewDocument() {
   const canAdvance = () => {
     switch (currentStep) {
       case 'upload': return !!fileName || showTemplateEditor;
-      case 'signers': return signers.length > 0 && signers.every((s) => s.name && s.email);
+      case 'signers': return signers.length > 0 && signers.every((s) => s.name && s.email && s.cpf.replace(/\D/g, '').length === 11);
       case 'fields': return true;
       case 'configure': return true;
       case 'review': return true;
@@ -278,8 +279,8 @@ export default function NewDocument() {
         } else {
           filePath = templateWithFile!.caminho_arquivo!;
         }
-        const doc = await createDocument({ userId: user.id, name: docName || fileName || 'Documento', filePath, signatureType: 'microservice', deadline: hasDeadline ? deadline : undefined });
-        const dbSigners = await createSigners(doc.id, signers.map((s, i) => ({ name: s.name, email: s.email, phone: s.phone || undefined, role: s.role, order: i + 1 })));
+        const doc = await createDocument({ userId: user.id, name: docName || fileName || 'Documento', filePath, signatureType: 'microservice', deadline: hasDeadline ? deadline : undefined, orderMatters });
+        const dbSigners = await createSigners(doc.id, signers.map((s, i) => ({ name: s.name, email: s.email, phone: s.phone || undefined, cpf: s.cpf.replace(/\D/g, ''), role: s.role, order: i + 1 })));
         const signerIdMap = new Map<string, string>();
         signers.forEach((s, i) => { if (dbSigners[i]) signerIdMap.set(s.id, dbSigners[i].id); });
         const dbFields = placedFields.map((f) => ({ signerId: signerIdMap.get(f.signerId) || f.signerId, fieldType: f.type, label: f.label, x: f.x, y: f.y, width: f.width, height: f.height, page: f.page, required: f.required }));
@@ -479,6 +480,11 @@ export default function NewDocument() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1"><Label className="text-xs">Nome *</Label><Input value={s.name} onChange={(e) => updateSigner(i, 'name', e.target.value)} placeholder="Nome completo" /></div>
                         <div className="space-y-1"><Label className="text-xs">Email *</Label><Input type="email" value={s.email} onChange={(e) => updateSigner(i, 'email', e.target.value)} placeholder="email@exemplo.com" /></div>
+                        <div className="space-y-1"><Label className="text-xs">CPF *</Label><Input value={s.cpf} onChange={(e) => {
+                          const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+                          const formatted = digits.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                          updateSigner(i, 'cpf', formatted);
+                        }} placeholder="000.000.000-00" maxLength={14} /></div>
                         <div className="space-y-1"><Label className="text-xs">Telefone</Label><Input value={s.phone} onChange={(e) => updateSigner(i, 'phone', e.target.value)} placeholder="(11) 99999-0000" /></div>
                         <div className="space-y-1">
                           <Label className="text-xs">Papel</Label>
@@ -565,6 +571,7 @@ export default function NewDocument() {
                           <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ backgroundColor: getSignerColor(i) }}>{i + 1}</div>
                           <span>{s.name}</span>
                           <span className="text-muted-foreground text-xs">({s.email})</span>
+                          {s.cpf && <span className="text-muted-foreground text-xs">CPF: {s.cpf}</span>}
                           {s.validationSteps.length > 0 && <Badge variant="outline" className="text-[10px]">{s.validationSteps.length} verificação(ões)</Badge>}
                         </div>
                       ))}
@@ -575,6 +582,11 @@ export default function NewDocument() {
                         <p className="text-sm">{new Date(deadline).toLocaleString('pt-BR')}</p>
                       </div>
                     )}
+                    <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-1">
+                      <p className="text-xs font-semibold text-muted-foreground">CONFIGURAÇÕES</p>
+                      <p className="text-sm">Ordem de assinatura: {orderMatters ? 'Sequencial' : 'Livre'}</p>
+                      {message && <p className="text-sm text-muted-foreground">Mensagem: {message}</p>}
+                    </div>
                   </div>
                 </CardContent>
               </Card>

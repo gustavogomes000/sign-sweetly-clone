@@ -28,6 +28,7 @@ export async function createDocument(data: {
   filePath: string;
   signatureType: string;
   deadline?: string;
+  orderMatters?: boolean;
 }) {
   const { data: doc, error } = await supabase
     .from('documentos')
@@ -38,6 +39,7 @@ export async function createDocument(data: {
       tipo_assinatura: data.signatureType,
       status: 'pending',
       prazo: data.deadline || null,
+      ordem_importa: data.orderMatters ?? false,
     })
     .select()
     .single();
@@ -50,6 +52,7 @@ export async function createSigners(documentId: string, signers: Array<{
   name: string;
   email: string;
   phone?: string;
+  cpf?: string;
   role: string;
   order: number;
 }>) {
@@ -61,6 +64,7 @@ export async function createSigners(documentId: string, signers: Array<{
         nome: s.name,
         email: s.email,
         telefone: s.phone || null,
+        cpf: s.cpf || null,
         funcao: s.role,
         ordem_assinatura: s.order,
         status: 'pending' as const,
