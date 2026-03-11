@@ -814,9 +814,9 @@ serve(async (req) => {
         if (tentativa >= MAX_TENTATIVAS) {
           throw new Error(`Falha ao montar PDF apos ${MAX_TENTATIVAS} tentativas: ${erroMontagem instanceof Error ? erroMontagem.message : 'erro desconhecido'}`);
         }
-        console.log('[RETRY] Aguardando antes de reiniciar...');
-        // Pequeno delay antes do retry para evitar race conditions
-        await new Promise(r => setTimeout(r, 500));
+        console.log('[RETRY] Aguardando antes de reiniciar (backoff exponencial)...');
+        // Backoff exponencial: 500ms, 1000ms, 2000ms
+        await new Promise(r => setTimeout(r, 500 * Math.pow(2, tentativa - 1)));
       }
     }
 

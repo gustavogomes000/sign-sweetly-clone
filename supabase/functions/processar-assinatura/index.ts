@@ -86,9 +86,19 @@ function validarMagicNumbers(buffer: Uint8Array): {
 }
 
 /**
+ * Limite máximo de tamanho de imagem aceito pelo backend (10MB).
+ * Previne ataques de Memory Exhaustion via payloads gigantes.
+ */
+const TAMANHO_MAXIMO_BASE64 = 14_000_000; // ~10MB em base64 (overhead de 33%)
+
+/**
  * Converte string base64 (com ou sem prefixo data:...) para Uint8Array.
+ * Valida tamanho antes de processar.
  */
 function base64ParaUint8Array(base64: string): Uint8Array {
+  if (base64.length > TAMANHO_MAXIMO_BASE64) {
+    throw new Error(`Payload base64 excede o limite de ${TAMANHO_MAXIMO_BASE64} caracteres (~10MB)`);
+  }
   const base64Puro = base64.includes(',') ? base64.split(',')[1] : base64;
   const binario = atob(base64Puro);
   const bytes = new Uint8Array(binario.length);
