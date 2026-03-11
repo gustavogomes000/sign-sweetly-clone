@@ -148,13 +148,28 @@ export default function DocumentDetail() {
   return (
     <>
       <AppHeader title={doc.nome} actions={
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(window.location.href).then(() => toast({ title: 'Link copiado ✓' }))}>
             <Copy className="w-4 h-4 mr-1" />Copiar link
           </Button>
           <Button variant="outline" size="sm" onClick={handleDownload} disabled={!publicUrl}>
-            <Download className="w-4 h-4 mr-1" />Baixar
+            <Download className="w-4 h-4 mr-1" />Original
           </Button>
+          {doc.status === 'signed' && doc.caminho_pdf_final && (
+            <Button size="sm" variant="default" onClick={handleDownloadFinal}>
+              <Download className="w-4 h-4 mr-1" />PDF Assinado
+            </Button>
+          )}
+          {doc.status === 'signed' && doc.caminho_pdf_dossie && (
+            <Button size="sm" variant="secondary" onClick={handleDownloadDossie}>
+              <Shield className="w-4 h-4 mr-1" />Dossiê Auditoria
+            </Button>
+          )}
+          {doc.status === 'signed' && !doc.caminho_pdf_final && (
+            <Button size="sm" variant="default" onClick={handleGeneratePdfs}>
+              <FileText className="w-4 h-4 mr-1" />Gerar PDFs
+            </Button>
+          )}
           {doc.status === 'pending' && (
             <Button size="sm" onClick={handleResend} disabled={resendEmails.isPending}>
               <Send className="w-4 h-4 mr-1" />Reenviar
