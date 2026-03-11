@@ -86,12 +86,12 @@ export default function Login() {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const { data: profile } = await supabase
-            .from('profiles')
-            .select('must_change_password')
+            .from('perfis')
+            .select('trocar_senha')
             .eq('id', user.id)
             .single();
           
-          if (profile?.must_change_password) {
+          if (profile?.trocar_senha) {
             setMustChangePassword(true);
             setLoading(false);
             return;
