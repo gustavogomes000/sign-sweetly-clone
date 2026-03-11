@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatusBadge } from '@/components/documents/StatusBadge';
-import { FileText, Plus, Search, MoreHorizontal, Download, Send, Trash2, ArrowUpDown, Grid3X3, List, Loader2, Hexagon, Zap } from 'lucide-react';
+import { FileText, Plus, Search, MoreHorizontal, Download, Send, Trash2, ArrowUpDown, Grid3X3, List, Loader2, Hexagon, Zap, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
