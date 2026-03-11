@@ -259,22 +259,8 @@ async function adicionarPaginaManifesto(
   }
   desenharLinha();
 
-  // ── 3. Participantes ──
-  if (dados.participantes.length > 0) {
-    escreverTexto('3. PARTICIPANTES', { negrito: true, tamanho: 12, cor: { r: 0.08, g: 0.15, b: 0.45 } });
-    espacamento(4);
-    for (const p of dados.participantes) {
-      verificarQuebraPagina(50);
-      escreverTexto(`${p.nome} (${p.email})`, { negrito: true, recuo: 10, tamanho: 9 });
-      escreverTexto(`Papel: ${p.papel} | Auth: ${p.tipo_autenticacao} | Status: ${p.status}`, { recuo: 20, tamanho: 8 });
-      if (p.data_assinatura) escreverTexto(`Assinado em: ${new Date(p.data_assinatura).toISOString()}`, { recuo: 20, tamanho: 8 });
-      espacamento(4);
-    }
-    desenharLinha();
-  }
-
-  // ── 4. Trilha de Auditoria com Evidências ──
-  const numSecao = dados.participantes.length > 0 ? 4 : 3;
+  // ── 3. Trilha de Auditoria com Evidências ──
+  escreverTexto('3. TRILHA DE AUDITORIA — COFRE DE EVIDENCIAS', { negrito: true, tamanho: 12, cor: { r: 0.08, g: 0.15, b: 0.45 } });
   escreverTexto(`${numSecao}. TRILHA DE AUDITORIA — COFRE DE EVIDENCIAS`, { negrito: true, tamanho: 12, cor: { r: 0.08, g: 0.15, b: 0.45 } });
   espacamento(4);
 
