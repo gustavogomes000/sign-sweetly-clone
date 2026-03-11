@@ -203,7 +203,7 @@ export default function NewDocument() {
   const triggerFileInput = () => { fileInputRef.current?.click(); };
 
   const addSigner = () => {
-    setSigners([...signers, { id: genSignerId(), name: '', email: '', phone: '', role: 'Signatário', validationSteps: [] }]);
+    setSigners([...signers, { id: genSignerId(), name: '', email: '', phone: '', cpf: '', role: 'Signatário', validationSteps: [] }]);
   };
 
   const removeSigner = (index: number) => {
