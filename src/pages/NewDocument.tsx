@@ -365,24 +365,8 @@ export default function NewDocument() {
 
         {/* Editor step — fills all available height */}
         {isEditorStep && (
-          <div className="flex-1 flex flex-col min-h-0 px-4 pb-0">
-            <div className="flex items-center justify-between py-2 gap-3 shrink-0">
-              <div className="flex items-center gap-3 min-w-0">
-                <Button variant="outline" size="sm" className="h-8" onClick={handleBack}><ArrowLeft className="w-3.5 h-3.5 mr-1" />Voltar</Button>
-                <div className="min-w-0">
-                  <h2 className="text-sm font-semibold text-foreground truncate">Posicionar campos no documento</h2>
-                  <p className="text-[11px] text-muted-foreground truncate">Navegue por todas as páginas e marque onde cada signatário deve assinar</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Label className="text-xs text-muted-foreground">Páginas:</Label>
-                <Input type="number" min={1} max={200} value={editorTotalPages} onChange={(e) => handleEditorTotalPagesChange(e.target.value)} className="w-16 h-8 text-xs" />
-                <Button size="sm" className="h-8" onClick={handleNext}>
-                  Próximo <ArrowRight className="w-3.5 h-3.5 ml-1" />
-                </Button>
-              </div>
-            </div>
-            <div className="flex-1 min-h-0">
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="flex-1 min-h-0 px-4">
               <DocumentFieldEditor
                 signers={editorSigners}
                 fields={placedFields}
@@ -390,6 +374,18 @@ export default function NewDocument() {
                 totalPages={editorTotalPages}
                 documentUrl={filePreviewUrl}
               />
+            </div>
+            {/* Bottom navigation bar — always visible */}
+            <div className="shrink-0 border-t border-border bg-card px-6 py-2.5 flex items-center justify-between">
+              <Button variant="outline" size="sm" onClick={handleBack}>
+                <ArrowLeft className="w-4 h-4 mr-1" />Voltar
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                {placedFields.length} campo(s) posicionado(s)
+              </p>
+              <Button size="sm" onClick={handleNext}>
+                Próximo <ArrowRight className="w-4 h-4 ml-1" />
+              </Button>
             </div>
           </div>
         )}
