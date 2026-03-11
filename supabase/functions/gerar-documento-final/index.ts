@@ -261,7 +261,7 @@ async function adicionarPaginaManifesto(
 
   // ── 3. Trilha de Auditoria com Evidências ──
   escreverTexto('3. TRILHA DE AUDITORIA — COFRE DE EVIDENCIAS', { negrito: true, tamanho: 12, cor: { r: 0.08, g: 0.15, b: 0.45 } });
-  escreverTexto(`${numSecao}. TRILHA DE AUDITORIA — COFRE DE EVIDENCIAS`, { negrito: true, tamanho: 12, cor: { r: 0.08, g: 0.15, b: 0.45 } });
+  escreverTexto('3. TRILHA DE AUDITORIA — COFRE DE EVIDENCIAS', { negrito: true, tamanho: 12, cor: { r: 0.08, g: 0.15, b: 0.45 } });
   espacamento(4);
 
   if (dados.trilhaAuditoria.length === 0) {
