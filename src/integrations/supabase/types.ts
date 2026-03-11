@@ -584,6 +584,7 @@ export type Database = {
           atualizado_em: string
           bluetech_document_id: string | null
           bluetech_signatory_id: string | null
+          cpf: string | null
           criado_em: string
           documento_id: string
           email: string
@@ -600,6 +601,7 @@ export type Database = {
           atualizado_em?: string
           bluetech_document_id?: string | null
           bluetech_signatory_id?: string | null
+          cpf?: string | null
           criado_em?: string
           documento_id: string
           email: string
@@ -616,6 +618,7 @@ export type Database = {
           atualizado_em?: string
           bluetech_document_id?: string | null
           bluetech_signatory_id?: string | null
+          cpf?: string | null
           criado_em?: string
           documento_id?: string
           email?: string

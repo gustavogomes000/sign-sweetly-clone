@@ -1,0 +1,1 @@
+ALTER TABLE public.signatarios ADD COLUMN cpf text DEFAULT NULL;
