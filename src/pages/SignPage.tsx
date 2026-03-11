@@ -546,28 +546,34 @@ export default function SignPage() {
           </p>
           <div className="space-y-3 mt-6 w-full">
             {signedPdfUrl && (
-              <a href={signedPdfUrl} target="_blank" rel="noopener noreferrer" className="block">
-                <Button className="w-full gap-2 h-12 text-sm">
-                  <Download className="w-4 h-4" />
-                  Baixar PDF Assinado
-                </Button>
-              </a>
+              <Button className="w-full gap-2 h-12 text-sm" onClick={() => {
+                import('@/services/downloadService').then(({ downloadComFeedback }) => {
+                  downloadComFeedback(docIdForPdf!, 'assinado', toast);
+                });
+              }}>
+                <Download className="w-4 h-4" />
+                Baixar PDF Assinado (Validado)
+              </Button>
             )}
             {dossiePdfUrl && (
-              <a href={dossiePdfUrl} target="_blank" rel="noopener noreferrer" className="block">
-                <Button variant="outline" className="w-full gap-2 h-12 text-sm">
-                  <Download className="w-4 h-4" />
-                  Baixar Dossiê de Auditoria
-                </Button>
-              </a>
+              <Button variant="outline" className="w-full gap-2 h-12 text-sm" onClick={() => {
+                import('@/services/downloadService').then(({ downloadComFeedback }) => {
+                  downloadComFeedback(docIdForPdf!, 'dossie', toast);
+                });
+              }}>
+                <Download className="w-4 h-4" />
+                Baixar Dossiê de Auditoria (Validado)
+              </Button>
             )}
             {!signedPdfUrl && publicUrl && (
-              <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="block">
-                <Button variant="outline" className="w-full gap-2 h-12 text-sm">
-                  <Download className="w-4 h-4" />
-                  Baixar documento original
-                </Button>
-              </a>
+              <Button variant="outline" className="w-full gap-2 h-12 text-sm" onClick={() => {
+                import('@/services/downloadService').then(({ downloadComFeedback }) => {
+                  downloadComFeedback(docIdForPdf!, 'original', toast);
+                });
+              }}>
+                <Download className="w-4 h-4" />
+                Baixar documento original
+              </Button>
             )}
             {!signedPdfUrl && (
               <div className="flex items-center justify-center gap-2 text-muted-foreground py-2">
