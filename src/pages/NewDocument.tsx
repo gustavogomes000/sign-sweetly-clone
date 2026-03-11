@@ -49,6 +49,7 @@ interface NewSigner {
   name: string;
   email: string;
   phone: string;
+  cpf: string;
   role: string;
   validationSteps: ValidationStep[];
 }
