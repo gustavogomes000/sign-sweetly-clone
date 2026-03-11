@@ -232,6 +232,60 @@ export default function DocumentDetail() {
               </CardContent>
             </Card>
 
+            {/* Selo de Documento Verificado */}
+            {((doc as any).hash_pdf_original || (doc as any).hash_pdf_final) && (
+              <Card className="border-success/30 bg-success/5">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-success/15 flex items-center justify-center shrink-0">
+                      <ShieldCheck className="w-6 h-6 text-success" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-sm font-bold text-success">DOCUMENTO VERIFICADO</h3>
+                        <Badge variant="outline" className="text-[10px] border-success/40 text-success bg-success/10">SHA-256</Badge>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mb-3">
+                        Integridade garantida por hash criptográfico. Qualquer alteração invalida o documento.
+                      </p>
+                      <div className="space-y-2">
+                        {(doc as any).hash_pdf_original && (
+                          <div className="group">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <Fingerprint className="w-3 h-3 text-muted-foreground" />
+                              <span className="text-[10px] font-semibold text-muted-foreground tracking-wider">HASH ORIGINAL</span>
+                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => { navigator.clipboard.writeText((doc as any).hash_pdf_original); toast({ title: 'Hash copiado ✓' }); }}>
+                                <Copy className="w-3 h-3" />
+                              </Button>
+                            </div>
+                            <code className="text-[9px] text-foreground/70 font-mono break-all leading-relaxed block bg-secondary/50 rounded px-2 py-1">
+                              {(doc as any).hash_pdf_original}
+                            </code>
+                          </div>
+                        )}
+                        {(doc as any).hash_pdf_final && (
+                          <div className="group">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <Fingerprint className="w-3 h-3 text-muted-foreground" />
+                              <span className="text-[10px] font-semibold text-muted-foreground tracking-wider">HASH ASSINADO</span>
+                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => { navigator.clipboard.writeText((doc as any).hash_pdf_final); toast({ title: 'Hash copiado ✓' }); }}>
+                                <Copy className="w-3 h-3" />
+                              </Button>
+                            </div>
+                            <code className="text-[9px] text-foreground/70 font-mono break-all leading-relaxed block bg-secondary/50 rounded px-2 py-1">
+                              {(doc as any).hash_pdf_final}
+                            </code>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardContent className="p-4">
                 {isPdf && publicUrl ? (
