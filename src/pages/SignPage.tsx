@@ -268,6 +268,14 @@ export default function SignPage() {
       setSignedFieldIds(newSigned);
       const displayValue = result.signatureType === 'drawn' ? '[assinatura]' : result.typedText || '[assinatura]';
       setFieldValues(prev => ({ ...prev, [currentField.id]: displayValue }));
+
+      // Store signature visual data for inline rendering on the document
+      if (result.signatureType === 'drawn' && result.imageBase64) {
+        setSignatureImages(prev => ({ ...prev, [currentField.id]: result.imageBase64! }));
+      } else if (result.signatureType === 'typed' && result.typedText) {
+        setSignatureTexts(prev => ({ ...prev, [currentField.id]: result.typedText! }));
+      }
+
       toast({ title: 'Assinatura registrada! ✅' });
 
       // Auto-advance to next step (DocuSeal behavior)
