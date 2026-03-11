@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useGeolocalizacao, type DadosGeolocalizacao } from '@/hooks/useGeolocalizacao';
-import { VLSelfie } from '@/components/valeris/VLSelfie';
+import { VLCameraBlindada } from '@/components/valeris/VLCameraBlindada';
 import { VLDocumento } from '@/components/valeris/VLDocumento';
 import { bluepointService } from '@/services/bluepointService';
 import { useToast } from '@/hooks/use-toast';
