@@ -4,53 +4,53 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export interface DbDocument {
   id: string;
-  name: string;
+  nome: string;
   status: string;
-  signature_type: string;
-  file_path: string | null;
-  deadline: string | null;
-  created_at: string;
-  updated_at: string;
-  user_id: string;
+  tipo_assinatura: string;
+  caminho_arquivo: string | null;
+  prazo: string | null;
+  criado_em: string;
+  atualizado_em: string;
+  usuario_id: string;
 }
 
 export interface DbSigner {
   id: string;
-  document_id: string;
-  name: string;
+  documento_id: string;
+  nome: string;
   email: string;
-  phone: string | null;
-  role: string;
-  sign_order: number;
+  telefone: string | null;
+  funcao: string;
+  ordem_assinatura: number;
   status: string;
-  signed_at: string | null;
-  sign_token: string | null;
+  assinado_em: string | null;
+  token_assinatura: string | null;
 }
 
 export interface DbAuditEntry {
   id: string;
-  document_id: string;
-  action: string;
-  actor: string;
-  details: string | null;
-  created_at: string;
-  signer_id: string | null;
-  ip_address: string | null;
+  documento_id: string;
+  acao: string;
+  ator: string;
+  detalhes: string | null;
+  criado_em: string;
+  signatario_id: string | null;
+  endereco_ip: string | null;
 }
 
 export interface DbDocumentField {
   id: string;
-  document_id: string;
-  signer_id: string | null;
-  field_type: string;
-  label: string | null;
+  documento_id: string;
+  signatario_id: string | null;
+  tipo_campo: string;
+  rotulo: string | null;
   x: number;
   y: number;
   width: number;
   height: number;
-  page: number;
-  required: boolean;
-  value: string | null;
+  pagina: number;
+  obrigatorio: boolean;
+  valor: string | null;
 }
 
 export interface DocumentWithRelations extends DbDocument {
@@ -69,42 +69,41 @@ export function useDocuments() {
       if (!user) return [];
 
       const { data: docs, error } = await supabase
-        .from('documents')
+        .from('documentos')
         .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .eq('usuario_id', user.id)
+        .order('criado_em', { ascending: false });
 
       if (error) throw error;
       if (!docs || docs.length === 0) return [];
 
-      const docIds = docs.map((d) => d.id);
+      const docIds = docs.map((d: any) => d.id);
 
-      // Fetch signers for all docs in parallel
       const [signersRes, auditRes] = await Promise.all([
-        supabase.from('signers').select('*').in('document_id', docIds).order('sign_order'),
-        supabase.from('audit_trail').select('*').in('document_id', docIds).order('created_at', { ascending: true }),
+        supabase.from('signatarios').select('*').in('documento_id', docIds).order('ordem_assinatura'),
+        supabase.from('trilha_auditoria').select('*').in('documento_id', docIds).order('criado_em', { ascending: true }),
       ]);
 
       const signersByDoc = new Map<string, DbSigner[]>();
-      (signersRes.data || []).forEach((s) => {
-        const list = signersByDoc.get(s.document_id) || [];
+      ((signersRes.data || []) as any[]).forEach((s: any) => {
+        const list = signersByDoc.get(s.documento_id) || [];
         list.push(s as DbSigner);
-        signersByDoc.set(s.document_id, list);
+        signersByDoc.set(s.documento_id, list);
       });
 
       const auditByDoc = new Map<string, DbAuditEntry[]>();
-      (auditRes.data || []).forEach((a) => {
-        const list = auditByDoc.get(a.document_id) || [];
+      ((auditRes.data || []) as any[]).forEach((a: any) => {
+        const list = auditByDoc.get(a.documento_id) || [];
         list.push(a as DbAuditEntry);
-        auditByDoc.set(a.document_id, list);
+        auditByDoc.set(a.documento_id, list);
       });
 
-      return docs.map((doc) => ({
+      return (docs as any[]).map((doc: any) => ({
         ...doc,
         signers: signersByDoc.get(doc.id) || [],
         audit_trail: auditByDoc.get(doc.id) || [],
         document_fields: [],
-      }));
+      })) as DocumentWithRelations[];
     },
     enabled: !!user,
   });
@@ -120,7 +119,7 @@ export function useDocument(id: string | undefined) {
       if (!id || !user) return null;
 
       const { data: doc, error } = await supabase
-        .from('documents')
+        .from('documentos')
         .select('*')
         .eq('id', id)
         .single();
@@ -128,17 +127,17 @@ export function useDocument(id: string | undefined) {
       if (error || !doc) return null;
 
       const [signersRes, auditRes, fieldsRes] = await Promise.all([
-        supabase.from('signers').select('*').eq('document_id', id).order('sign_order'),
-        supabase.from('audit_trail').select('*').eq('document_id', id).order('created_at', { ascending: true }),
-        supabase.from('document_fields').select('*').eq('document_id', id),
+        supabase.from('signatarios').select('*').eq('documento_id', id).order('ordem_assinatura'),
+        supabase.from('trilha_auditoria').select('*').eq('documento_id', id).order('criado_em', { ascending: true }),
+        supabase.from('campos_documento').select('*').eq('documento_id', id),
       ]);
 
       return {
-        ...doc,
-        signers: (signersRes.data || []) as DbSigner[],
-        audit_trail: (auditRes.data || []) as DbAuditEntry[],
-        document_fields: (fieldsRes.data || []) as DbDocumentField[],
-      };
+        ...(doc as any),
+        signers: ((signersRes.data || []) as any[]) as DbSigner[],
+        audit_trail: ((auditRes.data || []) as any[]) as DbAuditEntry[],
+        document_fields: ((fieldsRes.data || []) as any[]) as DbDocumentField[],
+      } as DocumentWithRelations;
     },
     enabled: !!id && !!user,
   });
@@ -154,12 +153,12 @@ export function useDashboardStats() {
       if (!user) return null;
 
       const { data: docs, error } = await supabase
-        .from('documents')
-        .select('id, status, created_at')
-        .eq('user_id', user.id);
+        .from('documentos')
+        .select('id, status, criado_em')
+        .eq('usuario_id', user.id);
 
       if (error) throw error;
-      const allDocs = docs || [];
+      const allDocs = (docs || []) as any[];
 
       const total = allDocs.length;
       const pending = allDocs.filter((d) => d.status === 'pending').length;
@@ -169,7 +168,6 @@ export function useDashboardStats() {
       const drafts = allDocs.filter((d) => d.status === 'draft').length;
       const completionRate = total > 0 ? Math.round((signed / total) * 100) : 0;
 
-      // Monthly data (last 7 months)
       const now = new Date();
       const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
       const monthlyData: { month: string; sent: number; signed: number }[] = [];
@@ -178,7 +176,7 @@ export function useDashboardStats() {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const monthStart = d.toISOString();
         const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59).toISOString();
-        const monthDocs = allDocs.filter((doc) => doc.created_at >= monthStart && doc.created_at <= monthEnd);
+        const monthDocs = allDocs.filter((doc) => doc.criado_em >= monthStart && doc.criado_em <= monthEnd);
         monthlyData.push({
           month: monthNames[d.getMonth()],
           sent: monthDocs.length,
@@ -209,17 +207,16 @@ export function useCancelDocument() {
   return useMutation({
     mutationFn: async (documentId: string) => {
       const { error } = await supabase
-        .from('documents')
+        .from('documentos')
         .update({ status: 'cancelled' })
         .eq('id', documentId);
       if (error) throw error;
 
-      // Add audit entry
-      await supabase.from('audit_trail').insert({
-        document_id: documentId,
-        action: 'cancelled',
-        actor: 'Você',
-        details: 'Documento cancelado pelo remetente',
+      await supabase.from('trilha_auditoria').insert({
+        documento_id: documentId,
+        acao: 'cancelled',
+        ator: 'Você',
+        detalhes: 'Documento cancelado pelo remetente',
       });
     },
     onSuccess: () => {
@@ -235,9 +232,9 @@ export function useResendEmails() {
   return useMutation({
     mutationFn: async ({ documentId, documentName }: { documentId: string; documentName: string }) => {
       const { data: signers } = await supabase
-        .from('signers')
+        .from('signatarios')
         .select('*')
-        .eq('document_id', documentId)
+        .eq('documento_id', documentId)
         .eq('status', 'pending');
 
       if (!signers || signers.length === 0) throw new Error('Nenhum signatário pendente');
@@ -245,21 +242,20 @@ export function useResendEmails() {
       for (const signer of signers) {
         await supabase.functions.invoke('send-signing-email', {
           body: {
-            signerName: signer.name,
+            signerName: (signer as any).nome,
             signerEmail: signer.email,
             documentName,
-            signToken: signer.sign_token,
+            signToken: (signer as any).token_assinatura,
             message: 'Lembrete: você possui um documento pendente de assinatura.',
           },
         });
       }
 
-      // Add audit entry
-      await supabase.from('audit_trail').insert({
-        document_id: documentId,
-        action: 'reminder',
-        actor: 'Você',
-        details: `Lembrete reenviado para ${signers.length} signatário(s) pendente(s)`,
+      await supabase.from('trilha_auditoria').insert({
+        documento_id: documentId,
+        acao: 'reminder',
+        ator: 'Você',
+        detalhes: `Lembrete reenviado para ${signers.length} signatário(s) pendente(s)`,
       });
 
       return signers.length;
@@ -276,23 +272,21 @@ export function useContacts() {
     queryFn: async () => {
       if (!user) return [];
 
-      // Get all signers from user's documents
       const { data: docs } = await supabase
-        .from('documents')
+        .from('documentos')
         .select('id')
-        .eq('user_id', user.id);
+        .eq('usuario_id', user.id);
 
       if (!docs || docs.length === 0) return [];
 
-      const docIds = docs.map((d) => d.id);
+      const docIds = docs.map((d: any) => d.id);
       const { data: signers } = await supabase
-        .from('signers')
+        .from('signatarios')
         .select('*')
-        .in('document_id', docIds);
+        .in('documento_id', docIds);
 
       if (!signers) return [];
 
-      // Group by email to get unique contacts
       const contactMap = new Map<string, {
         name: string;
         email: string;
@@ -301,22 +295,22 @@ export function useContacts() {
         lastSeen: string;
       }>();
 
-      signers.forEach((s) => {
+      (signers as any[]).forEach((s: any) => {
         const existing = contactMap.get(s.email);
         if (existing) {
           existing.documentsCount++;
-          if (s.created_at > existing.lastSeen) {
-            existing.lastSeen = s.created_at;
-            existing.name = s.name;
-            if (s.phone) existing.phone = s.phone;
+          if (s.criado_em > existing.lastSeen) {
+            existing.lastSeen = s.criado_em;
+            existing.name = s.nome;
+            if (s.telefone) existing.phone = s.telefone;
           }
         } else {
           contactMap.set(s.email, {
-            name: s.name,
+            name: s.nome,
             email: s.email,
-            phone: s.phone,
+            phone: s.telefone,
             documentsCount: 1,
-            lastSeen: s.created_at,
+            lastSeen: s.criado_em,
           });
         }
       });

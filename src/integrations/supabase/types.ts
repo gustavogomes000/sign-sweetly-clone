@@ -14,210 +14,112 @@ export type Database = {
   }
   public: {
     Tables: {
-      api_keys: {
+      assinaturas: {
         Row: {
-          active: boolean
-          created_at: string
-          expires_at: string | null
+          campo_id: string | null
+          criado_em: string
+          documento_id: string
+          endereco_ip: string | null
           id: string
-          key_hash: string
-          key_prefix: string
-          last_used_at: string | null
-          name: string
-          scopes: string[]
-          user_id: string
+          imagem_base64: string | null
+          resposta_externa: Json | null
+          signatario_id: string
+          texto_digitado: string | null
+          tipo_assinatura: string
+          user_agent: string | null
         }
         Insert: {
-          active?: boolean
-          created_at?: string
-          expires_at?: string | null
+          campo_id?: string | null
+          criado_em?: string
+          documento_id: string
+          endereco_ip?: string | null
           id?: string
-          key_hash: string
-          key_prefix: string
-          last_used_at?: string | null
-          name: string
-          scopes?: string[]
-          user_id: string
+          imagem_base64?: string | null
+          resposta_externa?: Json | null
+          signatario_id: string
+          texto_digitado?: string | null
+          tipo_assinatura: string
+          user_agent?: string | null
         }
         Update: {
-          active?: boolean
-          created_at?: string
-          expires_at?: string | null
+          campo_id?: string | null
+          criado_em?: string
+          documento_id?: string
+          endereco_ip?: string | null
           id?: string
-          key_hash?: string
-          key_prefix?: string
-          last_used_at?: string | null
-          name?: string
-          scopes?: string[]
-          user_id?: string
-        }
-        Relationships: []
-      }
-      audit_trail: {
-        Row: {
-          action: string
-          actor: string
-          created_at: string
-          details: string | null
-          document_id: string
-          id: string
-          ip_address: string | null
-          signer_id: string | null
-        }
-        Insert: {
-          action: string
-          actor: string
-          created_at?: string
-          details?: string | null
-          document_id: string
-          id?: string
-          ip_address?: string | null
-          signer_id?: string | null
-        }
-        Update: {
-          action?: string
-          actor?: string
-          created_at?: string
-          details?: string | null
-          document_id?: string
-          id?: string
-          ip_address?: string | null
-          signer_id?: string | null
+          imagem_base64?: string | null
+          resposta_externa?: Json | null
+          signatario_id?: string
+          texto_digitado?: string | null
+          tipo_assinatura?: string
+          user_agent?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "audit_trail_document_id_fkey"
-            columns: ["document_id"]
+            foreignKeyName: "signatures_document_id_fkey"
+            columns: ["documento_id"]
             isOneToOne: false
-            referencedRelation: "documents"
+            referencedRelation: "documentos"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "audit_trail_signer_id_fkey"
-            columns: ["signer_id"]
+            foreignKeyName: "signatures_field_id_fkey"
+            columns: ["campo_id"]
             isOneToOne: false
-            referencedRelation: "signers"
+            referencedRelation: "campos_documento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signatures_signer_id_fkey"
+            columns: ["signatario_id"]
+            isOneToOne: false
+            referencedRelation: "signatarios"
             referencedColumns: ["id"]
           },
         ]
       }
-      contacts: {
+      campos_documento: {
         Row: {
-          bluepoint_id: number | null
-          company: string | null
-          created_at: string
-          default_validations: string[]
-          email: string
-          id: string
-          name: string
-          notes: string | null
-          phone: string | null
-          role: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          bluepoint_id?: number | null
-          company?: string | null
-          created_at?: string
-          default_validations?: string[]
-          email: string
-          id?: string
-          name: string
-          notes?: string | null
-          phone?: string | null
-          role?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          bluepoint_id?: number | null
-          company?: string | null
-          created_at?: string
-          default_validations?: string[]
-          email?: string
-          id?: string
-          name?: string
-          notes?: string | null
-          phone?: string | null
-          role?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      departments: {
-        Row: {
-          color: string
-          created_at: string
-          description: string | null
-          id: string
-          name: string
-          owner_id: string
-          updated_at: string
-        }
-        Insert: {
-          color?: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          name: string
-          owner_id: string
-          updated_at?: string
-        }
-        Update: {
-          color?: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          name?: string
-          owner_id?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      document_fields: {
-        Row: {
-          created_at: string
-          document_id: string
-          field_type: string
+          criado_em: string
+          documento_id: string
           height: number
           id: string
-          label: string | null
-          page: number
-          required: boolean
-          signer_id: string | null
-          value: string | null
+          obrigatorio: boolean
+          pagina: number
+          rotulo: string | null
+          signatario_id: string | null
+          tipo_campo: string
+          valor: string | null
           width: number
           x: number
           y: number
         }
         Insert: {
-          created_at?: string
-          document_id: string
-          field_type?: string
+          criado_em?: string
+          documento_id: string
           height?: number
           id?: string
-          label?: string | null
-          page?: number
-          required?: boolean
-          signer_id?: string | null
-          value?: string | null
+          obrigatorio?: boolean
+          pagina?: number
+          rotulo?: string | null
+          signatario_id?: string | null
+          tipo_campo?: string
+          valor?: string | null
           width?: number
           x?: number
           y?: number
         }
         Update: {
-          created_at?: string
-          document_id?: string
-          field_type?: string
+          criado_em?: string
+          documento_id?: string
           height?: number
           id?: string
-          label?: string | null
-          page?: number
-          required?: boolean
-          signer_id?: string | null
-          value?: string | null
+          obrigatorio?: boolean
+          pagina?: number
+          rotulo?: string | null
+          signatario_id?: string | null
+          tipo_campo?: string
+          valor?: string | null
           width?: number
           x?: number
           y?: number
@@ -225,392 +127,208 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "document_fields_document_id_fkey"
-            columns: ["document_id"]
+            columns: ["documento_id"]
             isOneToOne: false
-            referencedRelation: "documents"
+            referencedRelation: "documentos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "document_fields_signer_id_fkey"
-            columns: ["signer_id"]
+            columns: ["signatario_id"]
             isOneToOne: false
-            referencedRelation: "signers"
+            referencedRelation: "signatarios"
             referencedColumns: ["id"]
           },
         ]
       }
-      documents: {
+      chaves_api: {
         Row: {
-          created_at: string
-          deadline: string | null
-          external_ref: string | null
-          file_path: string | null
+          ativo: boolean
+          criado_em: string
+          escopos: string[]
+          expira_em: string | null
+          hash_chave: string
           id: string
-          name: string
-          origin: string
-          signature_type: string
-          source_system: string | null
-          status: string
-          updated_at: string
-          user_id: string
+          nome: string
+          prefixo_chave: string
+          ultimo_uso_em: string | null
+          usuario_id: string
         }
         Insert: {
-          created_at?: string
-          deadline?: string | null
-          external_ref?: string | null
-          file_path?: string | null
+          ativo?: boolean
+          criado_em?: string
+          escopos?: string[]
+          expira_em?: string | null
+          hash_chave: string
           id?: string
-          name: string
-          origin?: string
-          signature_type?: string
-          source_system?: string | null
-          status?: string
-          updated_at?: string
-          user_id: string
+          nome: string
+          prefixo_chave: string
+          ultimo_uso_em?: string | null
+          usuario_id: string
         }
         Update: {
-          created_at?: string
-          deadline?: string | null
-          external_ref?: string | null
-          file_path?: string | null
+          ativo?: boolean
+          criado_em?: string
+          escopos?: string[]
+          expira_em?: string | null
+          hash_chave?: string
           id?: string
-          name?: string
-          origin?: string
-          signature_type?: string
-          source_system?: string | null
-          status?: string
-          updated_at?: string
-          user_id?: string
+          nome?: string
+          prefixo_chave?: string
+          ultimo_uso_em?: string | null
+          usuario_id?: string
         }
         Relationships: []
       }
-      profiles: {
+      contatos: {
         Row: {
-          active: boolean
-          avatar_url: string | null
+          atualizado_em: string
           bluepoint_id: number | null
-          created_at: string
-          department_id: string | null
+          criado_em: string
           email: string
-          full_name: string
-          hierarchy: string
+          empresa: string | null
+          funcao: string | null
           id: string
-          must_change_password: boolean
-          updated_at: string
+          nome: string
+          observacoes: string | null
+          telefone: string | null
+          usuario_id: string
+          validacoes_padrao: string[]
         }
         Insert: {
-          active?: boolean
-          avatar_url?: string | null
+          atualizado_em?: string
           bluepoint_id?: number | null
-          created_at?: string
-          department_id?: string | null
-          email?: string
-          full_name?: string
-          hierarchy?: string
-          id: string
-          must_change_password?: boolean
-          updated_at?: string
+          criado_em?: string
+          email: string
+          empresa?: string | null
+          funcao?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          telefone?: string | null
+          usuario_id: string
+          validacoes_padrao?: string[]
         }
         Update: {
-          active?: boolean
-          avatar_url?: string | null
+          atualizado_em?: string
           bluepoint_id?: number | null
-          created_at?: string
-          department_id?: string | null
+          criado_em?: string
           email?: string
-          full_name?: string
-          hierarchy?: string
+          empresa?: string | null
+          funcao?: string | null
           id?: string
-          must_change_password?: boolean
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_department_id_fkey"
-            columns: ["department_id"]
-            isOneToOne: false
-            referencedRelation: "departments"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      signatures: {
-        Row: {
-          bluetech_response: Json | null
-          created_at: string
-          document_id: string
-          field_id: string | null
-          id: string
-          image_base64: string | null
-          ip_address: string | null
-          signature_type: string
-          signer_id: string
-          typed_text: string | null
-          user_agent: string | null
-        }
-        Insert: {
-          bluetech_response?: Json | null
-          created_at?: string
-          document_id: string
-          field_id?: string | null
-          id?: string
-          image_base64?: string | null
-          ip_address?: string | null
-          signature_type: string
-          signer_id: string
-          typed_text?: string | null
-          user_agent?: string | null
-        }
-        Update: {
-          bluetech_response?: Json | null
-          created_at?: string
-          document_id?: string
-          field_id?: string | null
-          id?: string
-          image_base64?: string | null
-          ip_address?: string | null
-          signature_type?: string
-          signer_id?: string
-          typed_text?: string | null
-          user_agent?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "signatures_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "documents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "signatures_field_id_fkey"
-            columns: ["field_id"]
-            isOneToOne: false
-            referencedRelation: "document_fields"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "signatures_signer_id_fkey"
-            columns: ["signer_id"]
-            isOneToOne: false
-            referencedRelation: "signers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      signers: {
-        Row: {
-          bluetech_document_id: string | null
-          bluetech_signatory_id: string | null
-          created_at: string
-          document_id: string
-          email: string
-          id: string
-          name: string
-          phone: string | null
-          role: string
-          sign_order: number
-          sign_token: string | null
-          signed_at: string | null
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          bluetech_document_id?: string | null
-          bluetech_signatory_id?: string | null
-          created_at?: string
-          document_id: string
-          email: string
-          id?: string
-          name: string
-          phone?: string | null
-          role?: string
-          sign_order?: number
-          sign_token?: string | null
-          signed_at?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          bluetech_document_id?: string | null
-          bluetech_signatory_id?: string | null
-          created_at?: string
-          document_id?: string
-          email?: string
-          id?: string
-          name?: string
-          phone?: string | null
-          role?: string
-          sign_order?: number
-          sign_token?: string | null
-          signed_at?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "signers_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "documents"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      templates: {
-        Row: {
-          category: string | null
-          content: string
-          created_at: string
-          description: string | null
-          file_path: string | null
-          id: string
-          name: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          category?: string | null
-          content?: string
-          created_at?: string
-          description?: string | null
-          file_path?: string | null
-          id?: string
-          name: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          category?: string | null
-          content?: string
-          created_at?: string
-          description?: string | null
-          file_path?: string | null
-          id?: string
-          name?: string
-          updated_at?: string
-          user_id?: string
+          nome?: string
+          observacoes?: string | null
+          telefone?: string | null
+          usuario_id?: string
+          validacoes_padrao?: string[]
         }
         Relationships: []
       }
-      user_permissions: {
+      departamentos: {
         Row: {
-          created_at: string
-          granted: boolean
-          granted_by: string | null
+          atualizado_em: string
+          cor: string
+          criado_em: string
+          descricao: string | null
           id: string
-          permission: string
-          user_id: string
+          nome: string
+          proprietario_id: string
         }
         Insert: {
-          created_at?: string
-          granted?: boolean
-          granted_by?: string | null
+          atualizado_em?: string
+          cor?: string
+          criado_em?: string
+          descricao?: string | null
           id?: string
-          permission: string
-          user_id: string
+          nome: string
+          proprietario_id: string
         }
         Update: {
-          created_at?: string
-          granted?: boolean
-          granted_by?: string | null
+          atualizado_em?: string
+          cor?: string
+          criado_em?: string
+          descricao?: string | null
           id?: string
-          permission?: string
-          user_id?: string
+          nome?: string
+          proprietario_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_permissions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
-      validation_steps: {
+      documentos: {
         Row: {
-          bluetech_response: Json | null
-          completed_at: string | null
-          created_at: string
-          document_id: string
+          atualizado_em: string
+          caminho_arquivo: string | null
+          criado_em: string
           id: string
-          required: boolean
-          signer_id: string
+          nome: string
+          origem: string
+          prazo: string | null
+          referencia_externa: string | null
+          sistema_origem: string | null
           status: string
-          step_order: number
-          step_type: string
+          tipo_assinatura: string
+          usuario_id: string
         }
         Insert: {
-          bluetech_response?: Json | null
-          completed_at?: string | null
-          created_at?: string
-          document_id: string
+          atualizado_em?: string
+          caminho_arquivo?: string | null
+          criado_em?: string
           id?: string
-          required?: boolean
-          signer_id: string
+          nome: string
+          origem?: string
+          prazo?: string | null
+          referencia_externa?: string | null
+          sistema_origem?: string | null
           status?: string
-          step_order?: number
-          step_type: string
+          tipo_assinatura?: string
+          usuario_id: string
         }
         Update: {
-          bluetech_response?: Json | null
-          completed_at?: string | null
-          created_at?: string
-          document_id?: string
+          atualizado_em?: string
+          caminho_arquivo?: string | null
+          criado_em?: string
           id?: string
-          required?: boolean
-          signer_id?: string
+          nome?: string
+          origem?: string
+          prazo?: string | null
+          referencia_externa?: string | null
+          sistema_origem?: string | null
           status?: string
-          step_order?: number
-          step_type?: string
+          tipo_assinatura?: string
+          usuario_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "validation_steps_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "documents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "validation_steps_signer_id_fkey"
-            columns: ["signer_id"]
-            isOneToOne: false
-            referencedRelation: "signers"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
-      webhook_deliveries: {
+      entregas_webhook: {
         Row: {
-          created_at: string
-          event: string
+          codigo_status: number | null
+          corpo_resposta: string | null
+          criado_em: string
+          evento: string
           id: string
           payload: Json
-          response_body: string | null
-          status_code: number | null
-          success: boolean
+          sucesso: boolean
           webhook_id: string
         }
         Insert: {
-          created_at?: string
-          event: string
+          codigo_status?: number | null
+          corpo_resposta?: string | null
+          criado_em?: string
+          evento: string
           id?: string
           payload: Json
-          response_body?: string | null
-          status_code?: number | null
-          success?: boolean
+          sucesso?: boolean
           webhook_id: string
         }
         Update: {
-          created_at?: string
-          event?: string
+          codigo_status?: number | null
+          corpo_resposta?: string | null
+          criado_em?: string
+          evento?: string
           id?: string
           payload?: Json
-          response_body?: string | null
-          status_code?: number | null
-          success?: boolean
+          sucesso?: boolean
           webhook_id?: string
         }
         Relationships: [
@@ -623,39 +341,321 @@ export type Database = {
           },
         ]
       }
-      webhooks: {
+      etapas_validacao: {
         Row: {
-          active: boolean
-          created_at: string
-          events: string[]
-          failure_count: number
+          concluido_em: string | null
+          criado_em: string
+          documento_id: string
           id: string
-          last_triggered_at: string | null
-          secret: string | null
-          url: string
-          user_id: string
+          obrigatorio: boolean
+          ordem_etapa: number
+          resposta_externa: Json | null
+          signatario_id: string
+          status: string
+          tipo_etapa: string
         }
         Insert: {
-          active?: boolean
-          created_at?: string
-          events?: string[]
-          failure_count?: number
+          concluido_em?: string | null
+          criado_em?: string
+          documento_id: string
           id?: string
-          last_triggered_at?: string | null
-          secret?: string | null
-          url: string
-          user_id: string
+          obrigatorio?: boolean
+          ordem_etapa?: number
+          resposta_externa?: Json | null
+          signatario_id: string
+          status?: string
+          tipo_etapa: string
         }
         Update: {
-          active?: boolean
-          created_at?: string
-          events?: string[]
-          failure_count?: number
+          concluido_em?: string | null
+          criado_em?: string
+          documento_id?: string
           id?: string
-          last_triggered_at?: string | null
-          secret?: string | null
+          obrigatorio?: boolean
+          ordem_etapa?: number
+          resposta_externa?: Json | null
+          signatario_id?: string
+          status?: string
+          tipo_etapa?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "validation_steps_document_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "validation_steps_signer_id_fkey"
+            columns: ["signatario_id"]
+            isOneToOne: false
+            referencedRelation: "signatarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      modelos: {
+        Row: {
+          atualizado_em: string
+          caminho_arquivo: string | null
+          categoria: string | null
+          conteudo: string
+          criado_em: string
+          descricao: string | null
+          id: string
+          nome: string
+          usuario_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          caminho_arquivo?: string | null
+          categoria?: string | null
+          conteudo?: string
+          criado_em?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          usuario_id: string
+        }
+        Update: {
+          atualizado_em?: string
+          caminho_arquivo?: string | null
+          categoria?: string | null
+          conteudo?: string
+          criado_em?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          usuario_id?: string
+        }
+        Relationships: []
+      }
+      perfis: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          avatar_url: string | null
+          bluepoint_id: number | null
+          criado_em: string
+          departamento_id: string | null
+          email: string
+          hierarquia: string
+          id: string
+          nome_completo: string
+          trocar_senha: boolean
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          avatar_url?: string | null
+          bluepoint_id?: number | null
+          criado_em?: string
+          departamento_id?: string | null
+          email?: string
+          hierarquia?: string
+          id: string
+          nome_completo?: string
+          trocar_senha?: boolean
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          avatar_url?: string | null
+          bluepoint_id?: number | null
+          criado_em?: string
+          departamento_id?: string | null
+          email?: string
+          hierarquia?: string
+          id?: string
+          nome_completo?: string
+          trocar_senha?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_department_id_fkey"
+            columns: ["departamento_id"]
+            isOneToOne: false
+            referencedRelation: "departamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      permissoes_usuario: {
+        Row: {
+          concedida: boolean
+          concedida_por: string | null
+          criado_em: string
+          id: string
+          permissao: string
+          usuario_id: string
+        }
+        Insert: {
+          concedida?: boolean
+          concedida_por?: string | null
+          criado_em?: string
+          id?: string
+          permissao: string
+          usuario_id: string
+        }
+        Update: {
+          concedida?: boolean
+          concedida_por?: string | null
+          criado_em?: string
+          id?: string
+          permissao?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_permissions_user_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signatarios: {
+        Row: {
+          assinado_em: string | null
+          atualizado_em: string
+          bluetech_document_id: string | null
+          bluetech_signatory_id: string | null
+          criado_em: string
+          documento_id: string
+          email: string
+          funcao: string
+          id: string
+          nome: string
+          ordem_assinatura: number
+          status: string
+          telefone: string | null
+          token_assinatura: string | null
+        }
+        Insert: {
+          assinado_em?: string | null
+          atualizado_em?: string
+          bluetech_document_id?: string | null
+          bluetech_signatory_id?: string | null
+          criado_em?: string
+          documento_id: string
+          email: string
+          funcao?: string
+          id?: string
+          nome: string
+          ordem_assinatura?: number
+          status?: string
+          telefone?: string | null
+          token_assinatura?: string | null
+        }
+        Update: {
+          assinado_em?: string | null
+          atualizado_em?: string
+          bluetech_document_id?: string | null
+          bluetech_signatory_id?: string | null
+          criado_em?: string
+          documento_id?: string
+          email?: string
+          funcao?: string
+          id?: string
+          nome?: string
+          ordem_assinatura?: number
+          status?: string
+          telefone?: string | null
+          token_assinatura?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signers_document_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trilha_auditoria: {
+        Row: {
+          acao: string
+          ator: string
+          criado_em: string
+          detalhes: string | null
+          documento_id: string
+          endereco_ip: string | null
+          id: string
+          signatario_id: string | null
+        }
+        Insert: {
+          acao: string
+          ator: string
+          criado_em?: string
+          detalhes?: string | null
+          documento_id: string
+          endereco_ip?: string | null
+          id?: string
+          signatario_id?: string | null
+        }
+        Update: {
+          acao?: string
+          ator?: string
+          criado_em?: string
+          detalhes?: string | null
+          documento_id?: string
+          endereco_ip?: string | null
+          id?: string
+          signatario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_trail_document_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_trail_signer_id_fkey"
+            columns: ["signatario_id"]
+            isOneToOne: false
+            referencedRelation: "signatarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhooks: {
+        Row: {
+          ativo: boolean
+          contagem_falhas: number
+          criado_em: string
+          eventos: string[]
+          id: string
+          segredo: string | null
+          ultimo_disparo_em: string | null
+          url: string
+          usuario_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          contagem_falhas?: number
+          criado_em?: string
+          eventos?: string[]
+          id?: string
+          segredo?: string | null
+          ultimo_disparo_em?: string | null
+          url: string
+          usuario_id: string
+        }
+        Update: {
+          ativo?: boolean
+          contagem_falhas?: number
+          criado_em?: string
+          eventos?: string[]
+          id?: string
+          segredo?: string | null
+          ultimo_disparo_em?: string | null
           url?: string
-          user_id?: string
+          usuario_id?: string
         }
         Relationships: []
       }

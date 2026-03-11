@@ -30,14 +30,14 @@ export async function createDocument(data: {
   deadline?: string;
 }) {
   const { data: doc, error } = await supabase
-    .from('documents')
+    .from('documentos')
     .insert({
-      user_id: data.userId,
-      name: data.name,
-      file_path: data.filePath,
-      signature_type: data.signatureType,
+      usuario_id: data.userId,
+      nome: data.name,
+      caminho_arquivo: data.filePath,
+      tipo_assinatura: data.signatureType,
       status: 'pending',
-      deadline: data.deadline || null,
+      prazo: data.deadline || null,
     })
     .select()
     .single();
@@ -54,15 +54,15 @@ export async function createSigners(documentId: string, signers: Array<{
   order: number;
 }>) {
   const { data, error } = await supabase
-    .from('signers')
+    .from('signatarios')
     .insert(
       signers.map((s) => ({
-        document_id: documentId,
-        name: s.name,
+        documento_id: documentId,
+        nome: s.name,
         email: s.email,
-        phone: s.phone || null,
-        role: s.role,
-        sign_order: s.order,
+        telefone: s.phone || null,
+        funcao: s.role,
+        ordem_assinatura: s.order,
         status: 'pending' as const,
       }))
     )
@@ -86,19 +86,19 @@ export async function createDocumentFields(documentId: string, fields: Array<{
   if (fields.length === 0) return [];
   
   const { data, error } = await supabase
-    .from('document_fields')
+    .from('campos_documento')
     .insert(
       fields.map((f) => ({
-        document_id: documentId,
-        signer_id: f.signerId,
-        field_type: f.fieldType,
-        label: f.label || null,
+        documento_id: documentId,
+        signatario_id: f.signerId,
+        tipo_campo: f.fieldType,
+        rotulo: f.label || null,
         x: f.x,
         y: f.y,
         width: f.width,
         height: f.height,
-        page: f.page,
-        required: f.required,
+        pagina: f.page,
+        obrigatorio: f.required,
       }))
     )
     .select();
@@ -115,14 +115,14 @@ export async function createValidationSteps(documentId: string, signerId: string
   if (steps.length === 0) return [];
   
   const { data, error } = await supabase
-    .from('validation_steps')
+    .from('etapas_validacao')
     .insert(
       steps.map((s) => ({
-        document_id: documentId,
-        signer_id: signerId,
-        step_type: s.type,
-        step_order: s.order,
-        required: s.required,
+        documento_id: documentId,
+        signatario_id: signerId,
+        tipo_etapa: s.type,
+        ordem_etapa: s.order,
+        obrigatorio: s.required,
         status: 'pending' as const,
       }))
     )
@@ -134,37 +134,33 @@ export async function createValidationSteps(documentId: string, signerId: string
 
 // Load signing data by token (public - no auth needed)
 export async function loadSigningData(token: string) {
-  // Get signer by token
   const { data: signer, error: signerError } = await supabase
-    .from('signers')
+    .from('signatarios')
     .select('*')
-    .eq('sign_token', token)
+    .eq('token_assinatura', token)
     .single();
   
   if (signerError || !signer) throw new Error('Link de assinatura inválido ou expirado');
   
-  // Get document
   const { data: doc, error: docError } = await supabase
-    .from('documents')
+    .from('documentos')
     .select('*')
-    .eq('id', signer.document_id)
+    .eq('id', signer.documento_id)
     .single();
   
   if (docError || !doc) throw new Error('Documento não encontrado');
   
-  // Get fields for this signer
   const { data: fields } = await supabase
-    .from('document_fields')
+    .from('campos_documento')
     .select('*')
-    .eq('document_id', doc.id)
-    .eq('signer_id', signer.id);
+    .eq('documento_id', doc.id)
+    .eq('signatario_id', signer.id);
   
-  // Get validation steps
   const { data: validationSteps } = await supabase
-    .from('validation_steps')
+    .from('etapas_validacao')
     .select('*')
-    .eq('signer_id', signer.id)
-    .order('step_order', { ascending: true });
+    .eq('signatario_id', signer.id)
+    .order('ordem_etapa', { ascending: true });
   
   return {
     signer,
@@ -186,47 +182,44 @@ export async function saveSignature(data: {
   bluetechResponse?: Record<string, unknown>;
 }) {
   const { error: sigError } = await supabase
-    .from('signatures')
+    .from('assinaturas')
     .insert([{
-      signer_id: data.signerId,
-      document_id: data.documentId,
-      field_id: data.fieldId || null,
-      signature_type: data.signatureType,
-      image_base64: data.imageBase64 || null,
-      typed_text: data.typedText || null,
+      signatario_id: data.signerId,
+      documento_id: data.documentId,
+      campo_id: data.fieldId || null,
+      tipo_assinatura: data.signatureType,
+      imagem_base64: data.imageBase64 || null,
+      texto_digitado: data.typedText || null,
       user_agent: data.userAgent || null,
-      bluetech_response: (data.bluetechResponse as unknown as import('@/integrations/supabase/types').Json) || null,
+      resposta_externa: (data.bluetechResponse as any) || null,
     }]);
   
   if (sigError) throw sigError;
   
-  // Update field value only — do NOT mark signer as signed here
-  // Signer completion is handled by the SignPage after all fields are filled
   if (data.fieldId) {
     await supabase
-      .from('document_fields')
-      .update({ value: data.signatureType === 'drawn' ? '[assinatura]' : data.typedText })
+      .from('campos_documento')
+      .update({ valor: data.signatureType === 'drawn' ? '[assinatura]' : data.typedText })
       .eq('id', data.fieldId);
   }
   
-  // Add audit entry
-  await supabase.from('audit_trail').insert({
-    document_id: data.documentId,
-    signer_id: data.signerId,
-    action: 'signature',
-    actor: data.signerId,
-    details: `Assinatura ${data.signatureType === 'drawn' ? 'desenhada' : 'tipográfica'} realizada`,
+  await supabase.from('trilha_auditoria').insert({
+    documento_id: data.documentId,
+    signatario_id: data.signerId,
+    acao: 'signature',
+    ator: data.signerId,
+    detalhes: `Assinatura ${data.signatureType === 'drawn' ? 'desenhada' : 'tipográfica'} realizada`,
   });
 }
 
-// Complete a validation step (KYC step after signing)
+// Complete a validation step
 export async function completeValidationStep(stepId: string, result?: Record<string, unknown>) {
   const { error } = await supabase
-    .from('validation_steps')
+    .from('etapas_validacao')
     .update({
       status: 'completed',
-      completed_at: new Date().toISOString(),
-      bluetech_response: (result as unknown as import('@/integrations/supabase/types').Json) || null,
+      concluido_em: new Date().toISOString(),
+      resposta_externa: (result as any) || null,
     })
     .eq('id', stepId);
   
