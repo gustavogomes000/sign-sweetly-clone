@@ -303,29 +303,13 @@ export default function SignPage() {
     if (validationStepIdx + 1 < pendingSteps.length) {
       setValidationStepIdx((prev) => prev + 1);
     } else {
-      // All validations complete — finalize signature
-      await supabase.from('signatarios').update({ status: 'signed', assinado_em: new Date().toISOString() }).eq('id', signer.id);
-      const { data: allSigners } = await supabase.from('signatarios').select('status').eq('documento_id', doc.id);
-      const allSigned = allSigners?.every(s => s.status === 'signed');
-      if (allSigned) {
-        await supabase.from('documentos').update({ status: 'signed' }).eq('id', doc.id);
-      }
-
-      // Register final signature event and trigger PDF generation
+      // All validations complete — finalize using shared logic
+      setSaving(true);
       try {
-        await supabase.functions.invoke('processar-assinatura', {
-          body: {
-            documentoId: doc.id,
-            participanteId: signer.id,
-            tipoEvento: 'ASSINOU',
-            agenteUsuario: navigator.userAgent,
-          },
-        });
-      } catch (e) {
-        console.warn('processar-assinatura error:', e);
+        await finalizarAssinatura();
+      } finally {
+        setSaving(false);
       }
-
-      setTimeout(() => setPageStep('complete'), 600);
     }
   };
 
