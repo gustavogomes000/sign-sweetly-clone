@@ -671,6 +671,22 @@ serve(async (req) => {
       );
     }
 
+    // ── Verificação de idempotência ──
+    // Previne geração duplicada se dois assinantes completam simultaneamente
+    const { data: docCheck } = await supabase
+      .from('documentos')
+      .select('status')
+      .eq('id', documentoId)
+      .single();
+
+    if (docCheck?.status === 'FINALIZADO_COM_SUCESSO') {
+      console.log(`[IDEMPOTENTE] Documento ${documentoId} já finalizado. Ignorando.`);
+      return new Response(
+        JSON.stringify({ sucesso: true, mensagem: 'Documento já finalizado anteriormente (idempotente)' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     console.log(`[INICIO] Fechamento do documento: ${documentoId}`);
 
     // ── 1. Buscar documento e dados relacionados em paralelo ──
