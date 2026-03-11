@@ -11,9 +11,8 @@ export interface VLSelfieProps {
 
 /**
  * Componente de captura de selfie 100% interno.
- * Utiliza algoritmos matemáticos nativos para:
- * - Prova de Vida (Frame Differencing): exige múltiplos frames válidos consecutivos
- * - Qualidade de imagem (Variância de Luminosidade)
+ * Prova de Vida via Frame Differencing + Variância de Luminosidade.
+ * Tolerâncias ajustadas para funcionar em ambientes reais.
  */
 export function VLSelfie({ aoCompletar, onError }: VLSelfieProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -26,8 +25,9 @@ export function VLSelfie({ aoCompletar, onError }: VLSelfieProps) {
   const prevFrameRef = useRef<ImageData | null>(null);
   const animFrameRef = useRef<number>(0);
   const canvasAnalysisRef = useRef<HTMLCanvasElement | null>(null);
+  const stabilityRef = useRef(0);
 
-  const REQUIRED_STABLE_FRAMES = 8;
+  const REQUIRED_STABLE_FRAMES = 5;
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -42,6 +42,7 @@ export function VLSelfie({ aoCompletar, onError }: VLSelfieProps) {
         if (videoRef.current) {
           videoRef.current.srcObject = s;
           videoRef.current.onloadedmetadata = () => {
+            videoRef.current?.play().catch(() => {});
             setStreaming(true);
             setLivenessStatus('detecting');
           };
@@ -58,7 +59,6 @@ export function VLSelfie({ aoCompletar, onError }: VLSelfieProps) {
     };
   }, []);
 
-  // Liveness detection loop via frame differencing
   const analyzeFrame = useCallback(() => {
     const video = videoRef.current;
     const canvas = canvasAnalysisRef.current;
@@ -67,46 +67,36 @@ export function VLSelfie({ aoCompletar, onError }: VLSelfieProps) {
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
 
-    canvas.width = 160;
-    canvas.height = 120;
-    ctx.drawImage(video, 0, 0, 160, 120);
-    const currentFrame = ctx.getImageData(0, 0, 160, 120);
+    canvas.width = 120;
+    canvas.height = 90;
+    ctx.drawImage(video, 0, 0, 120, 90);
+    const currentFrame = ctx.getImageData(0, 0, 120, 90);
 
     if (prevFrameRef.current) {
-      // Frame Differencing: calcular diferença média entre frames
       let diffSum = 0;
       const pixels = currentFrame.data.length / 4;
-      for (let i = 0; i < currentFrame.data.length; i += 4) {
+      for (let i = 0; i < currentFrame.data.length; i += 16) {
         diffSum += Math.abs(currentFrame.data[i] - prevFrameRef.current.data[i]);
-        diffSum += Math.abs(currentFrame.data[i + 1] - prevFrameRef.current.data[i + 1]);
-        diffSum += Math.abs(currentFrame.data[i + 2] - prevFrameRef.current.data[i + 2]);
       }
-      const avgDiff = diffSum / (pixels * 3);
+      const sampledPixels = Math.ceil(currentFrame.data.length / 16);
+      const avgDiff = diffSum / sampledPixels;
 
-      // Variância de Luminosidade (qualidade)
+      // Relaxed: any movement between 0.3 and 30 counts as alive
       let lumSum = 0;
-      let lumSqSum = 0;
-      for (let i = 0; i < currentFrame.data.length; i += 4) {
-        const lum = 0.299 * currentFrame.data[i] + 0.587 * currentFrame.data[i + 1] + 0.114 * currentFrame.data[i + 2];
-        lumSum += lum;
-        lumSqSum += lum * lum;
+      for (let i = 0; i < currentFrame.data.length; i += 16) {
+        lumSum += 0.299 * currentFrame.data[i] + 0.587 * currentFrame.data[i + 1] + 0.114 * currentFrame.data[i + 2];
       }
-      const meanLum = lumSum / pixels;
-      const variance = (lumSqSum / pixels) - (meanLum * meanLum);
-
-      // avgDiff entre 1-15 = pessoa viva com micro-movimentos
-      // variance > 500 = imagem com detalhes suficientes (não tela preta)
-      const isLive = avgDiff > 0.8 && avgDiff < 20 && variance > 400 && meanLum > 30 && meanLum < 230;
+      const meanLum = lumSum / sampledPixels;
+      const isLive = avgDiff > 0.3 && avgDiff < 30 && meanLum > 20 && meanLum < 240;
 
       if (isLive) {
-        setStabilityCount(prev => {
-          const next = prev + 1;
-          if (next >= REQUIRED_STABLE_FRAMES) {
-            setLivenessStatus('ready');
-          }
-          return next;
-        });
+        stabilityRef.current += 1;
+        setStabilityCount(stabilityRef.current);
+        if (stabilityRef.current >= REQUIRED_STABLE_FRAMES) {
+          setLivenessStatus('ready');
+        }
       } else {
+        stabilityRef.current = 0;
         setStabilityCount(0);
         setLivenessStatus('detecting');
       }
@@ -134,7 +124,11 @@ export function VLSelfie({ aoCompletar, onError }: VLSelfieProps) {
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.drawImage(video, 0, 0);
-      setCaptured(canvas.toDataURL('image/jpeg', 0.85));
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      setCaptured(dataUrl);
+      // Stop camera after capture
+      const stream = video.srcObject as MediaStream;
+      stream?.getTracks().forEach(t => t.stop());
     }
   };
 
@@ -153,9 +147,21 @@ export function VLSelfie({ aoCompletar, onError }: VLSelfieProps) {
 
   const retake = () => {
     setCaptured(null);
+    stabilityRef.current = 0;
     setStabilityCount(0);
     setLivenessStatus('detecting');
     prevFrameRef.current = null;
+    // Restart camera
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+      audio: false
+    }).then(s => {
+      if (videoRef.current) {
+        videoRef.current.srcObject = s;
+        videoRef.current.play().catch(() => {});
+        setStreaming(true);
+      }
+    }).catch(() => {});
   };
 
   if (camError) {
@@ -182,18 +188,17 @@ export function VLSelfie({ aoCompletar, onError }: VLSelfieProps) {
           <>
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className={`w-40 h-52 border-2 rounded-full transition-colors duration-300 ${
-                livenessStatus === 'ready' ? 'border-success' :
-                livenessStatus === 'detecting' ? 'border-warning/60' :
+                livenessStatus === 'ready' ? 'border-green-400' :
+                livenessStatus === 'detecting' ? 'border-yellow-400/60' :
                 'border-white/60'
               }`} />
               <User className="absolute w-8 h-8 text-white/60" />
             </div>
-            {/* Liveness progress bar */}
             <div className="absolute bottom-3 left-4 right-4">
               <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-300 ${
-                    livenessStatus === 'ready' ? 'bg-success' : 'bg-warning'
+                    livenessStatus === 'ready' ? 'bg-green-400' : 'bg-yellow-400'
                   }`}
                   style={{ width: `${livenessProgress}%` }}
                 />
