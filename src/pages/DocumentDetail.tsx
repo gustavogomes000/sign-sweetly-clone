@@ -114,27 +114,20 @@ export default function DocumentDetail() {
   };
 
   const handleDownload = () => {
-    // Always prefer signed PDF with hashes/validations; fallback to original
+    // Always prefer validated signed PDF; fallback to original
     if (doc.caminho_pdf_final) {
-      const url = getDocumentPublicUrl(doc.caminho_pdf_final);
-      window.open(url, '_blank');
+      downloadComFeedback(doc.id, 'assinado', toast);
     } else if (publicUrl) {
-      window.open(publicUrl, '_blank');
+      downloadComFeedback(doc.id, 'original', toast);
     }
   };
 
   const handleDownloadFinal = () => {
-    if (doc.caminho_pdf_final) {
-      const url = getDocumentPublicUrl(doc.caminho_pdf_final);
-      window.open(url, '_blank');
-    }
+    downloadComFeedback(doc.id, 'assinado', toast);
   };
 
   const handleDownloadDossie = () => {
-    if (doc.caminho_pdf_dossie) {
-      const url = getDocumentPublicUrl(doc.caminho_pdf_dossie);
-      window.open(url, '_blank');
-    }
+    downloadComFeedback(doc.id, 'dossie', toast);
   };
 
   const handleGeneratePdfs = async () => {

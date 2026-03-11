@@ -57,7 +57,9 @@ export default function Documents() {
 
   const handleCancel = async (docId: string) => { try { await cancelDoc.mutateAsync(docId); toast({ title: 'Documento cancelado ✓' }); } catch { toast({ title: 'Erro ao cancelar', variant: 'destructive' }); } };
   const handleResend = async (doc: typeof documents[0]) => { try { const count = await resendEmails.mutateAsync({ documentId: doc.id, documentName: doc.nome }); toast({ title: `Lembrete enviado para ${count} signatário(s) ✓` }); } catch (err) { toast({ title: 'Erro ao reenviar', description: err instanceof Error ? err.message : '', variant: 'destructive' }); } };
-  const handleDownload = (filePath: string | null) => { const url = getDocumentPublicUrl(filePath); if (url) window.open(url, '_blank'); };
+  const handleValidatedDownload = (docId: string, tipo: 'assinado' | 'dossie' | 'original') => {
+    downloadComFeedback(docId, tipo, toast);
+  };
 
   return (
     <>
