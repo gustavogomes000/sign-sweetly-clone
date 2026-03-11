@@ -239,9 +239,11 @@ export default function SignPage() {
 
   const saveFieldToDb = useCallback(async (fieldId: string, value: string) => {
     try {
-      await supabase.from('campos_documento').update({ valor: value }).eq('id', fieldId);
+      const { error } = await supabase.from('campos_documento').update({ valor: value }).eq('id', fieldId);
+      if (error) console.error('[SignPage] Erro ao salvar campo:', fieldId, error.message);
+      else console.log('[SignPage] Campo salvo:', fieldId);
     } catch (e) {
-      console.warn('Erro ao salvar campo:', e);
+      console.error('[SignPage] Exceção ao salvar campo:', e);
     }
   }, []);
 
@@ -313,55 +315,40 @@ export default function SignPage() {
 
   const finalizarAssinatura = async () => {
     if (!signerData) return;
-    const signer = signerData.signer as { id: string };
+    const signer = signerData.signer as { id: string; nome: string };
     const doc = signerData.document as { id: string };
 
-    // 1. Save all field values to DB
-    for (const field of signerData.fields) {
-      const currentValue = fieldValues[field.id];
-      if (currentValue !== undefined && currentValue !== field.value) {
-        await supabase.from('campos_documento').update({ valor: currentValue }).eq('id', field.id);
-      }
-    }
+    // 1. Salvar TODOS os valores dos campos pendentes no DB
+    const savePromises = signerData.fields
+      .filter(field => {
+        const val = fieldValues[field.id];
+        return val !== undefined && val !== field.value;
+      })
+      .map(field =>
+        supabase.from('campos_documento').update({ valor: fieldValues[field.id] }).eq('id', field.id)
+      );
+    await Promise.all(savePromises);
+    console.log(`[SignPage] ${savePromises.length} campos salvos no DB`);
 
-    // 2. Mark signer as signed
-    await supabase.from('signatarios').update({ status: 'signed', assinado_em: new Date().toISOString() }).eq('id', signer.id);
-
-    // 3. Register audit trail event
-    await supabase.from('trilha_auditoria').insert({
-      documento_id: doc.id,
-      signatario_id: signer.id,
-      acao: 'signed',
-      ator: String((signerData.signer as { nome: string }).nome),
-      detalhes: 'Assinou o documento eletronicamente',
+    // 2. Gravar assinatura na trilha de auditoria via edge function (usa service role)
+    //    A edge function: atualiza signatario → verifica conclusão → gera PDFs → envia emails
+    const { data: resultado, error: erroProcessar } = await supabase.functions.invoke('processar-assinatura', {
+      body: {
+        documentoId: doc.id,
+        participanteId: signer.id,
+        tipoEvento: 'ASSINOU',
+        agenteUsuario: navigator.userAgent,
+      },
     });
 
-    // 4. Check if ALL signers are done
-    const { data: allSigners } = await supabase.from('signatarios').select('status').eq('documento_id', doc.id);
-    const allSigned = allSigners?.every(s => s.status === 'signed');
-
-    if (allSigned) {
-      await supabase.from('documentos').update({ status: 'signed' }).eq('id', doc.id);
-      toast({ title: 'Todas as assinaturas concluídas! Gerando PDFs...' });
-      try {
-        const { data: pdfResult, error: pdfError } = await supabase.functions.invoke('gerar-documento-final', {
-          body: { documentoId: doc.id },
-        });
-        if (pdfError) {
-          console.error('PDF generation error:', pdfError);
-          toast({ title: 'Documento assinado! ✅', description: 'A geração do PDF pode levar alguns instantes.' });
-        } else {
-          console.log('PDF generation result:', pdfResult);
-          toast({ title: 'Documento assinado e PDFs gerados! ✅' });
-        }
-      } catch (e) {
-        console.warn('gerar-documento-final error:', e);
-        toast({ title: 'Documento assinado! ✅', description: 'Os PDFs serão gerados em breve.' });
-      }
-    } else {
-      toast({ title: 'Assinatura registrada! ✅', description: 'Aguardando demais signatários.' });
+    if (erroProcessar) {
+      console.error('[SignPage] Erro processar-assinatura:', erroProcessar);
+      toast({ title: 'Erro ao finalizar', description: erroProcessar.message, variant: 'destructive' });
+      return;
     }
 
+    console.log('[SignPage] processar-assinatura resultado:', resultado);
+    toast({ title: 'Documento assinado com sucesso! ✅' });
     setTimeout(() => setPageStep('complete'), 800);
   };
 
