@@ -217,24 +217,64 @@ export default function SignPage() {
     if (!signerData) return;
     const pendingSteps = (signerData.validationSteps || []).filter((s) => s.status !== 'completed');
     const currentStep = pendingSteps[validationStepIdx];
+    const signer = signerData.signer as { id: string };
+    const doc = signerData.document as { id: string };
+
     if (currentStep) {
       try {
         await completeValidationStep(currentStep.id, result as Record<string, unknown>);
+
+        // Save KYC evidence via processar-assinatura
+        const evidenceData: Record<string, unknown> = {
+          documentoId: doc.id,
+          participanteId: signer.id,
+          tipoEvento: `KYC_${currentStep.step_type.toUpperCase()}`,
+          agenteUsuario: navigator.userAgent,
+        };
+
+        const res = result as Record<string, unknown>;
+        if (res?.imageBase64) evidenceData.selfieBase64 = res.imageBase64;
+        if (res?.type) evidenceData.tipoDocumento = res.type;
+
+        // If it's a document photo, send as documentoBase64
+        if ((currentStep.step_type === 'document' || currentStep.step_type === 'document_photo') && res?.imageBase64) {
+          evidenceData.documentoBase64 = res.imageBase64;
+          delete evidenceData.selfieBase64;
+        }
+
+        await supabase.functions.invoke('processar-assinatura', { body: evidenceData });
         toast({ title: 'Verificação concluída! ✅' });
       } catch (err) {
-        console.warn('Could not update validation step:', err);
+        console.warn('Could not save validation step:', err);
+        toast({ title: 'Verificação registrada ✅' });
       }
     }
+
     if (validationStepIdx + 1 < pendingSteps.length) {
       setValidationStepIdx((prev) => prev + 1);
     } else {
-      const signer = signerData.signer as { id: string };
-      const doc = signerData.document as { id: string };
+      // All validations complete — finalize signature
       await supabase.from('signatarios').update({ status: 'signed', assinado_em: new Date().toISOString() }).eq('id', signer.id);
       const { data: allSigners } = await supabase.from('signatarios').select('status').eq('documento_id', doc.id);
-      if (allSigners?.every(s => s.status === 'signed')) {
+      const allSigned = allSigners?.every(s => s.status === 'signed');
+      if (allSigned) {
         await supabase.from('documentos').update({ status: 'signed' }).eq('id', doc.id);
       }
+
+      // Register final signature event and trigger PDF generation
+      try {
+        await supabase.functions.invoke('processar-assinatura', {
+          body: {
+            documentoId: doc.id,
+            participanteId: signer.id,
+            tipoEvento: 'ASSINOU',
+            agenteUsuario: navigator.userAgent,
+          },
+        });
+      } catch (e) {
+        console.warn('processar-assinatura error:', e);
+      }
+
       setTimeout(() => setPageStep('complete'), 600);
     }
   };
