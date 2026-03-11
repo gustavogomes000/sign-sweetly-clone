@@ -279,7 +279,7 @@ export default function NewDocument() {
         } else {
           filePath = templateWithFile!.caminho_arquivo!;
         }
-        const doc = await createDocument({ userId: user.id, name: docName || fileName || 'Documento', filePath, signatureType: 'microservice', deadline: hasDeadline ? deadline : undefined });
+        const doc = await createDocument({ userId: user.id, name: docName || fileName || 'Documento', filePath, signatureType: 'microservice', deadline: hasDeadline ? deadline : undefined, orderMatters });
         const dbSigners = await createSigners(doc.id, signers.map((s, i) => ({ name: s.name, email: s.email, phone: s.phone || undefined, cpf: s.cpf.replace(/\D/g, ''), role: s.role, order: i + 1 })));
         const signerIdMap = new Map<string, string>();
         signers.forEach((s, i) => { if (dbSigners[i]) signerIdMap.set(s.id, dbSigners[i].id); });
